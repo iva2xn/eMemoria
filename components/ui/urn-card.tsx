@@ -10,7 +10,14 @@ interface UrnCardProps {
   onSelect?: () => void
 }
 
+// Strip "₱" and commas to get a raw number for the URL
+function parsePrice(p: string) {
+  return p.replace(/[₱,]/g, '').trim()
+}
+
 export function UrnCard({ name, description, price, image, onSelect }: UrnCardProps) {
+  const billingUrl = `/billing?product=urn&label=${encodeURIComponent(name)}&price=${parsePrice(price)}`
+
   return (
     <Card className="flex flex-col items-center text-center hover:shadow-md transition-shadow">
       <CardHeader className="pb-0 items-center w-full">
@@ -41,7 +48,7 @@ export function UrnCard({ name, description, price, image, onSelect }: UrnCardPr
       <CardFooter className="w-full pt-4 border-t border-border flex items-center justify-between px-5 pb-5">
         <span className="font-serif font-bold text-sm text-foreground">{price}</span>
         <Link
-          href="/contact"
+          href={billingUrl}
           onClick={onSelect}
           className="inline-flex items-center justify-center h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
         >

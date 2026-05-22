@@ -13,8 +13,13 @@ interface PackageCardProps {
   onAvail?: () => void
 }
 
+function parsePrice(p: string) {
+  return p.replace(/[₱,]/g, '').trim()
+}
+
 export function PackageCard({ title, price, features, onAvail }: PackageCardProps) {
   const [modalOpen, setModalOpen] = useState(false)
+  const billingUrl = `/billing?product=package&label=${encodeURIComponent(title)}&price=${parsePrice(price)}`
 
   const preview = features.slice(0, PREVIEW_COUNT)
   const remaining = features.length - PREVIEW_COUNT
@@ -89,7 +94,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
               View all
             </button>
             <Link
-              href="/contact"
+              href={billingUrl}
               onClick={onAvail}
               className="inline-flex items-center justify-center h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
@@ -141,7 +146,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
 
             <div className="px-5 py-4 border-t border-border flex justify-end">
               <Link
-                href="/contact"
+                href={billingUrl}
                 onClick={onAvail}
                 className="inline-flex items-center justify-center h-10 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
               >

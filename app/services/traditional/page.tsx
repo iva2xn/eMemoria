@@ -151,7 +151,7 @@ export default function TraditionalBurialPage() {
               Contact our team to discuss the right package for your family. We are available 24 hours a day, 7 days a week.
             </p>
             <Button asChild size="lg" className="font-semibold rounded-xl px-8">
-              <Link href="/contact">Contact a Counselor</Link>
+              <Link href="/billing?product=package&label=Traditional+Burial+Package">Reserve a Package</Link>
             </Button>
           </div>
         </section>

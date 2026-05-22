@@ -52,7 +52,10 @@ export interface Inquiry {
 
 export interface Booking {
   id: string
-  user_id: string
+  user_id: string | null
+  guest_name: string | null
+  guest_email: string | null
+  guest_phone: string | null
   package_name: string
   price: number
   status: BookingStatus
@@ -63,8 +66,12 @@ export interface Booking {
 
 export interface Payment {
   id: string
-  user_id: string
+  user_id: string | null
   booking_id: string | null
+  // Guest fields (when user_id is null)
+  guest_name: string | null
+  guest_email: string | null
+  guest_phone: string | null
   product_type: string
   product_ref: string | null
   method: PaymentMethod

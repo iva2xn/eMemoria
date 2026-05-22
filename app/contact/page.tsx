@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
-import { useStore } from '@/app/context/store'
+import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
@@ -51,11 +51,12 @@ interface FormCardProps {
   subject: string; setSubject: (v: string) => void
   message: string; setMessage: (v: string) => void
   success: boolean; setSuccess: (v: boolean) => void
+  loading: boolean
   error: string
   onSubmit: (e: React.FormEvent) => void
 }
 
-function FormCard({ name, setName, email, setEmail, subject, setSubject, message, setMessage, success, setSuccess, error, onSubmit }: FormCardProps) {
+function FormCard({ name, setName, email, setEmail, subject, setSubject, message, setMessage, success, setSuccess, loading, error, onSubmit }: FormCardProps) {
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
       {error && <AlertBanner variant="error" message={error} />}
@@ -118,8 +119,8 @@ function FormCard({ name, setName, email, setEmail, subject, setSubject, message
             />
           </div>
 
-          <Button type="submit" className="w-full h-11 font-semibold rounded-xl">
-            Send Message
+          <Button type="submit" disabled={loading} className="w-full h-11 font-semibold rounded-xl">
+            {loading ? 'Sending…' : 'Send Message'}
           </Button>
         </form>
       )}
@@ -153,7 +154,7 @@ function MapBlock() {
 
 // ── Page ─────────────────────────────────────────────────────
 export default function ContactPage() {
-  const { submitInquiry } = useStore()
+  const supabase = createClient()
 
   const [name, setName]       = useState('')
   const [email, setEmail]     = useState('')
@@ -161,19 +162,28 @@ export default function ContactPage() {
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
   const [error, setError]     = useState('')
+  const [loading, setLoading] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess(false)
     if (!name || !email || !message) { setError('Please fill in all required fields.'); return }
-    submitInquiry(name, email, subject, message)
+
+    setLoading(true)
+    const { error: insertErr } = await supabase
+      .from('inquiries')
+      .insert({ name: name.trim(), email: email.trim(), subject, message: message.trim() })
+    setLoading(false)
+
+    if (insertErr) { setError(insertErr.message); return }
+
     setSuccess(true)
     setName(''); setEmail(''); setMessage('')
   }
 
-  const formProps = { name, setName, email, setEmail, subject, setSubject, message, setMessage, success, setSuccess, error, onSubmit: handleSubmit }
+  const formProps = { name, setName, email, setEmail, subject, setSubject, message, setMessage, success, setSuccess, loading, error, onSubmit: handleSubmit }
 
   return (
     <>

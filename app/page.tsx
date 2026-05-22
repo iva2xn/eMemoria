@@ -1,7 +1,8 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ServicePill } from '@/components/ui/service-pill'
 import Image from 'next/image'
@@ -9,13 +10,8 @@ import { HeroHeader } from '@/components/header'
 import { InfiniteSlider } from '@/components/motion-primitives/infinite-slider'
 import { ProgressiveBlur } from '@/components/motion-primitives/progressive-blur'
 import {
-  Compass,
-  Award,
-  Calendar,
-  Truck,
-  Sparkles,
-  FileText,
-  Home
+  Compass, Award, Calendar, Truck, Sparkles,
+  FileText, Home, CheckCircle2, X,
 } from 'lucide-react'
 
 const SERVICE_PILLS = [
@@ -30,8 +26,39 @@ const SERVICE_PILLS = [
 ]
 
 export default function HeroSection() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [showToast, setShowToast] = useState(false)
+
+  useEffect(() => {
+    if (searchParams.get('payment') === 'success') {
+      setShowToast(true)
+      // Clean the URL without reloading
+      router.replace('/', { scroll: false })
+      // Auto-dismiss after 6s
+      const t = setTimeout(() => setShowToast(false), 6000)
+      return () => clearTimeout(t)
+    }
+  }, [searchParams, router])
+
   return (
     <>
+      {/* ── Payment success toast ── */}
+      {showToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-card border border-border shadow-xl max-w-sm w-[calc(100vw-3rem)] animate-in fade-in slide-in-from-bottom-4 duration-300">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-foreground">Payment Submitted</p>
+            <p className="text-xs text-muted-foreground leading-snug">Our team will verify and reach out to you shortly.</p>
+          </div>
+          <button onClick={() => setShowToast(false)}
+            className="h-6 w-6 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       <HeroHeader />
       <main className="@container overflow-x-hidden bg-[var(--surface-page)] dark:bg-[var(--dark-page)]">
         {/* HERO SECTION */}
