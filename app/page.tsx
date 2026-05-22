@@ -63,7 +63,7 @@ export default function HeroSection() {
             <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
               <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-foreground/15 text-xs font-bold uppercase tracking-widest text-foreground/60">
-                  <Award className="h-3.5 w-3.5" /> Established Since 2024
+                  <Award className="h-3.5 w-3.5" /> Established Since 2004
                 </span>
                 <h1 className="mt-6 max-w-2xl text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-10 xl:text-6xl text-foreground leading-[1.1]">
                   Dignity, Honour &amp; Peace in Every Farewell
@@ -120,7 +120,7 @@ export default function HeroSection() {
         <section className="py-16 bg-background border-t border-border/40">
           <div className="mx-auto max-w-6xl px-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
-              <h2 className="text-3xl font-serif font-bold text-foreground mb-4 md:mb-0">Papalitan pa to di ko pa alam e</h2>
+              <h2 className="text-3xl font-serif font-bold text-foreground mb-4 md:mb-0">Papalitan pa to di ko pa alam ilalagay haha</h2>
               <Button variant="outline" asChild className="self-start md:self-auto hover:bg-muted/80 border-primary/20">
                 <Link href="/services">View All Packages &rarr;</Link>
               </Button>

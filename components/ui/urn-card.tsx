@@ -1,4 +1,4 @@
-import React from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './card'
 
@@ -6,16 +6,26 @@ interface UrnCardProps {
   name: string
   description: string
   price: string
+  image?: string
   onSelect?: () => void
 }
 
-export function UrnCard({ name, description, price, onSelect }: UrnCardProps) {
+export function UrnCard({ name, description, price, image, onSelect }: UrnCardProps) {
   return (
     <Card className="flex flex-col items-center text-center hover:shadow-md transition-shadow">
       <CardHeader className="pb-0 items-center w-full">
-        {/* Image placeholder */}
-        <div className="w-full h-36 bg-muted rounded-xl flex items-center justify-center">
-          <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
+        {/* Urn image */}
+        <div className="relative w-full h-36 bg-muted rounded-xl overflow-hidden flex items-center justify-center">
+          {image ? (
+            <Image
+              src={image}
+              alt={name}
+              fill
+              className="object-contain p-2"
+            />
+          ) : (
+            <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
+          )}
         </div>
         <CardTitle className="font-serif font-bold text-foreground mt-4 text-lg">
           {name}

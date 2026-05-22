@@ -7,12 +7,12 @@ import { UrnCard } from '@/components/ui/urn-card'
 import { ArrowLeft } from 'lucide-react'
 
 const URNS = [
-  { name: 'Wooden Urn', description: 'A warm wooden finish that offers a simple and dignified remembrance.', price: '₱3,500.00' },
-  { name: 'Black Metal Urn', description: 'A refined dark design with a timeless and understated presence.', price: '₱3,500.00' },
-  { name: 'Gray Metal Urn', description: 'A graceful metallic style suited for a calm and elegant tribute.', price: '₱5,500.00' },
-  { name: 'Brown Metal Urn', description: 'A rich bronze-brown finish created for a more traditional memorial style.', price: '₱15,000.00' },
-  { name: 'Blue Metal Urn', description: 'A distinguished blue urn with a premium and memorial-focused design.', price: '₱15,000.00' },
-  { name: 'White Marble Urn', description: 'A soft marble-inspired finish that reflects purity and peace.', price: '₱5,500.00' },
+  { name: 'Wooden Urn', description: 'A warm wooden finish that offers a simple and dignified remembrance.', price: '₱3,500.00', image: '/urns/wooden.png' },
+  { name: 'Black Metal Urn', description: 'A refined dark design with a timeless and understated presence.', price: '₱3,500.00', image: '/urns/blackmetal.png' },
+  { name: 'Gray Metal Urn', description: 'A graceful metallic style suited for a calm and elegant tribute.', price: '₱5,500.00', image: '/urns/graymetal.png' },
+  { name: 'Brown Metal Urn', description: 'A rich bronze-brown finish created for a more traditional memorial style.', price: '₱15,000.00', image: '/urns/brownmetal.png' },
+  { name: 'Blue Metal Urn', description: 'A distinguished blue urn with a premium and memorial-focused design.', price: '₱15,000.00', image: '/urns/blue.png' },
+  { name: 'White Marble Urn', description: 'A soft marble-inspired finish that reflects purity and peace.', price: '₱5,500.00', image: '/urns/whitemarble.png' },
 ]
 
 export default function CremationPage() {
@@ -24,7 +24,7 @@ export default function CremationPage() {
         {/* ── HERO — truly full bleed, no radius, no border ── */}
         <div className="relative h-[320px] md:h-[440px] lg:h-[520px] overflow-hidden">
           <Image
-            src="/sky.png"
+            src="/services/cremation.png"
             alt="Cremation services"
             fill
             priority
@@ -96,13 +96,14 @@ export default function CremationPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {URNS.map((urn, index) => (
                 <UrnCard
                   key={index}
                   name={urn.name}
                   description={urn.description}
                   price={urn.price}
+                  image={urn.image}
                 />
               ))}
             </div>

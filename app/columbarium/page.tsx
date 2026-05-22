@@ -99,7 +99,7 @@ export default function ColumbariumPage() {
         {/* ── HERO — truly full bleed, no radius, no border ── */}
         <div className="relative h-[320px] md:h-[440px] lg:h-[520px] overflow-hidden">
           <Image
-            src="/sky.png"
+            src="/services/columbarium.png"
             alt="Columbarium"
             fill
             priority

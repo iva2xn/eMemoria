@@ -23,8 +23,8 @@ export default function AboutPage() {
           {/* Background image */}
           <div className="absolute inset-0 z-0 w-full">
             <Image
-              src="/sky.png"
-              alt="Serene sky"
+              src="/about.jpg"
+              alt="about"
               fill
               priority
               className="object-cover object-left lg:object-center w-full"

@@ -60,11 +60,23 @@ create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
+-- Create a security definer function to check if the user is an admin
+-- (runs as creator, bypassing RLS to avoid infinite recursion)
+create or replace function public.is_admin()
+returns boolean
+security definer
+language plpgsql
+as $$
+begin
+  return exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'admin'
+  );
+end;
+$$;
+
 create policy "Admins can read all profiles"
   on public.profiles for select
-  using (
-    exists (
-      select 1 from public.profiles p
-      where p.id = auth.uid() and p.role = 'admin'
-    )
-  );
+  using (public.is_admin());
+
+

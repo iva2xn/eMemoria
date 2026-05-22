@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useStore } from '@/app/context/store'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
 import { AlertBanner } from '@/components/ui/alert-banner'
@@ -10,69 +11,63 @@ import { FormField } from '@/components/ui/form-field'
 import { KeyRound, Mail } from 'lucide-react'
 
 export default function LoginPage() {
-  const { login, recoverPassword } = useStore()
+  const supabase = createClient()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
 
-  // Password Recovery state
   const [showRecovery, setShowRecovery] = useState(false)
   const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [recoveryLoading, setRecoveryLoading] = useState(false)
   const [recoveryError, setRecoveryError] = useState('')
   const [recoverySuccess, setRecoverySuccess] = useState('')
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
-    setSuccessMsg('')
+    if (!email || !password) { setErrorMsg('Please fill in all fields.'); return }
 
-    if (!email || !password) {
-      setErrorMsg('Please fill in all fields.')
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    setLoading(false)
+
+    if (error) {
+      setErrorMsg('Invalid email or password.')
       return
     }
 
-    const res = login(email, password)
-    if (res.success) {
-      setSuccessMsg(res.message)
-      setTimeout(() => router.push('/'), 1000)
-    } else {
-      setErrorMsg(res.message)
-    }
+    // Hard redirect so middleware runs and writes the session cookie
+    window.location.href = '/'
   }
 
-  const handleRecovery = (e: React.FormEvent) => {
+  const handleRecovery = async (e: React.FormEvent) => {
     e.preventDefault()
-    setRecoveryError('')
-    setRecoverySuccess('')
+    setRecoveryError(''); setRecoverySuccess('')
+    if (!recoveryEmail) { setRecoveryError('Please enter your email address.'); return }
 
-    if (!recoveryEmail) {
-      setRecoveryError('Please input your email address.')
-      return
-    }
+    setRecoveryLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    setRecoveryLoading(false)
 
-    const res = recoverPassword(recoveryEmail)
-    if (res.success) {
-      setRecoverySuccess(res.message)
-    } else {
-      setRecoveryError(res.message)
-    }
+    if (error) { setRecoveryError(error.message); return }
+    setRecoverySuccess('Password reset email sent. Check your inbox.')
   }
 
   return (
     <>
       <HeroHeader />
       <main className="flex-1 flex flex-col justify-center items-center px-6 py-20 bg-background relative overflow-hidden">
-        {/* Glow Effects */}
         <div className="absolute top-1/4 left-1/4 h-80 w-80 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 h-80 w-80 bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        <div className="w-full max-w-md bg-card border border-border/40 p-8 rounded-2xl shadow-xl transition-all duration-300">
+        <div className="w-full max-w-md bg-card border border-border/40 p-8 rounded-2xl shadow-xl">
 
           {!showRecovery ? (
-            /* LOGIN CARD */
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="font-serif text-3xl font-bold text-foreground">Welcome Back</h1>
@@ -80,19 +75,17 @@ export default function LoginPage() {
               </div>
 
               {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
-              {successMsg && <AlertBanner variant="success" message={successMsg} />}
 
               <form onSubmit={handleLogin} className="space-y-4">
                 <FormField
                   id="email"
                   label="Email Address"
                   type="email"
-                  placeholder="client@gfs.com"
+                  placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   icon={<Mail className="h-4.5 w-4.5" />}
                 />
-
                 <FormField
                   id="pass"
                   label="Password"
@@ -102,35 +95,30 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   icon={<KeyRound className="h-4.5 w-4.5" />}
                   labelRight={
-                    <button
-                      type="button"
-                      onClick={() => setShowRecovery(true)}
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
+                    <button type="button" onClick={() => setShowRecovery(true)}
+                      className="text-xs font-medium text-primary hover:underline">
                       Forgot password?
                     </button>
                   }
                 />
-
-                <Button type="submit" className="w-full h-11 font-semibold mt-2">
-                  Authenticate Account
+                <Button type="submit" disabled={loading} className="w-full h-11 font-semibold mt-2">
+                  {loading ? 'Signing in…' : 'Sign In'}
                 </Button>
               </form>
 
               <div className="text-center pt-2 border-t border-border/30 text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
-                <span className="font-semibold text-muted-foreground/60 cursor-not-allowed select-none">
-                  Registration is currently unavailable
-                </span>
+                <Link href="/auth/register" className="font-semibold text-primary hover:underline">
+                  Register
+                </Link>
               </div>
             </div>
           ) : (
-            /* PASSWORD RECOVERY CARD */
             <div className="space-y-6">
               <div className="text-center space-y-2">
                 <h1 className="font-serif text-3xl font-bold text-foreground">Password Recovery</h1>
                 <p className="text-sm text-muted-foreground">
-                  Provide your registered email. We will search the database and simulate a password reset dispatch.
+                  Enter your registered email and we&apos;ll send a reset link.
                 </p>
               </div>
 
@@ -142,27 +130,18 @@ export default function LoginPage() {
                   id="recovery-email"
                   label="Email Address"
                   type="email"
-                  placeholder="client@gfs.com"
+                  placeholder="you@example.com"
                   value={recoveryEmail}
                   onChange={(e) => setRecoveryEmail(e.target.value)}
                   icon={<Mail className="h-4.5 w-4.5" />}
                 />
-
-                <Button type="submit" className="w-full h-11 font-semibold mt-2">
-                  Send Recovery Request
+                <Button type="submit" disabled={recoveryLoading} className="w-full h-11 font-semibold mt-2">
+                  {recoveryLoading ? 'Sending…' : 'Send Reset Link'}
                 </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowRecovery(false)
-                    setRecoveryError('')
-                    setRecoverySuccess('')
-                  }}
-                  className="w-full h-11 font-semibold"
-                >
-                  Back to login
+                <Button type="button" variant="ghost"
+                  onClick={() => { setShowRecovery(false); setRecoveryError(''); setRecoverySuccess('') }}
+                  className="w-full h-11 font-semibold">
+                  Back to Sign In
                 </Button>
               </form>
             </div>

@@ -72,7 +72,7 @@ export default function TraditionalBurialPage() {
         {/* ── HERO — truly full bleed, no radius, no border ── */}
         <div className="relative h-[320px] md:h-[440px] lg:h-[520px] overflow-hidden">
           <Image
-            src="/sky.png"
+            src="/services/traditional.png"
             alt="Traditional burial service"
             fill
             priority
@@ -126,7 +126,7 @@ export default function TraditionalBurialPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
             {PACKAGES.map((pkg, index) => (
               <PackageCard
                 key={index}

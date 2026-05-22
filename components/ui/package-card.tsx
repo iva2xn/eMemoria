@@ -4,7 +4,6 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { Check, X } from 'lucide-react'
 
-// Always show exactly 4 pills in a 2×2 grid, then the "+N more" pill on row 3
 const PREVIEW_COUNT = 4
 
 interface PackageCardProps {
@@ -25,7 +24,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
 
         {/* Image area */}
-        <div className="relative h-44 bg-muted/50 w-full overflow-hidden shrink-0">
+        <div className="relative h-36 sm:h-44 bg-muted/50 w-full overflow-hidden shrink-0">
           <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted/30 flex items-center justify-center">
             <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
           </div>
@@ -35,62 +34,66 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
           />
         </div>
 
-        {/* Body — flex-col so footer always sticks to bottom */}
-        <div className="px-5 pb-5 pt-3 flex flex-col flex-1">
+        {/* Body */}
+        <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-3 flex flex-col flex-1">
 
           {/* Label + title + price */}
-          <div className="mb-4">
+          <div className="mb-3 sm:mb-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
               Funeral Package
             </p>
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-serif text-xl font-bold text-foreground leading-tight">{title}</h2>
-              <span className="font-serif text-base font-bold text-foreground shrink-0 tabular-nums">{price}</span>
+            <div className="flex items-baseline justify-between gap-1">
+              <h2 className="font-serif text-lg sm:text-xl font-bold text-foreground leading-tight">{title}</h2>
+              <span className="font-serif text-sm sm:text-base font-bold text-foreground shrink-0 tabular-nums">{price}</span>
             </div>
           </div>
 
-          {/* 
-            Strict 2×2 grid — each cell is fixed height so all cards align.
-            Row 3 is the "+N more" pill, always in the same vertical position.
-          */}
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-            {preview.map((f, i) => (
-              <span
-                key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted text-[11px] font-medium text-muted-foreground border border-border/60 truncate"
-              >
-                <Check className="h-2.5 w-2.5 text-primary shrink-0" />
-                <span className="truncate">{f}</span>
-              </span>
-            ))}
+          {/* ── DESKTOP: 2×2 pill grid + "+N more" row ── */}
+          <div className="hidden sm:block">
+            <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+              {preview.map((f, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted text-[11px] font-medium text-muted-foreground border border-border/60 truncate"
+                >
+                  <Check className="h-2.5 w-2.5 text-primary shrink-0" />
+                  <span className="truncate">{f}</span>
+                </span>
+              ))}
+            </div>
+            <div className="h-8 flex items-center mb-4">
+              {remaining > 0 && (
+                <button
+                  onClick={() => setModalOpen(true)}
+                  className="text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                >
+                  +{remaining} more inclusions
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Row 3 — always rendered, keeps spacing consistent */}
-          <div className="h-8 flex items-center mb-4">
-            {remaining > 0 ? (
-              <button
-                onClick={() => setModalOpen(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
-              >
-                +{remaining} more inclusions
-              </button>
-            ) : null}
+          {/* ── MOBILE: no pills, just a count line ── */}
+          <div className="sm:hidden mb-3">
+            <p className="text-xs text-muted-foreground">
+              {features.length} inclusions
+            </p>
           </div>
 
-          {/* Footer — pushed to bottom */}
-          <div className="flex items-center justify-between pt-3.5 border-t border-border/50 mt-auto">
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-3 border-t border-border/50 mt-auto">
             <button
               onClick={() => setModalOpen(true)}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             >
-              View all inclusions
+              View all
             </button>
             <Link
               href="/contact"
               onClick={onAvail}
-              className="inline-flex items-center justify-center h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+              className="inline-flex items-center justify-center h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
-              Avail Package
+              Avail
             </Link>
           </div>
         </div>
@@ -106,7 +109,6 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
             className="w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Funeral Package</p>
@@ -123,7 +125,6 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
               </button>
             </div>
 
-            {/* Full inclusions list */}
             <div className="px-5 py-5 max-h-[60vh] overflow-y-auto">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
                 All Inclusions — {features.length} items
@@ -138,7 +139,6 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
               </div>
             </div>
 
-            {/* Footer */}
             <div className="px-5 py-4 border-t border-border flex justify-end">
               <Link
                 href="/contact"
