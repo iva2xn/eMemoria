@@ -66,12 +66,12 @@ export function HeroHeader() {
           {user?.role === 'admin' && (
             <Link
               href="/admin"
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-primary/30 bg-accent/40 text-primary font-semibold animate-pulse ${
-                isActive('/admin') ? 'ring-1 ring-primary' : ''
+              className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-border/50 text-foreground font-semibold hover:bg-muted transition-colors ${
+                isActive('/admin') ? 'bg-muted' : ''
               }`}
             >
-              <ShieldAlert className="h-3 w-3" />
-              Admin Panel
+              <ShieldAlert className="h-3 w-3 text-muted-foreground" />
+              Admin
             </Link>
           )}
         </nav>
@@ -113,9 +113,9 @@ export function HeroHeader() {
           {user?.role === 'admin' && (
             <Link
               href="/admin"
-              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-accent/40 text-primary font-semibold"
+              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-border/50 text-foreground font-semibold"
             >
-              <ShieldAlert className="h-2.5 w-2.5" />
+              <ShieldAlert className="h-2.5 w-2.5 text-muted-foreground" />
               Admin
             </Link>
           )}

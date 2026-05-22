@@ -1,14 +1,13 @@
 'use client'
 
 import React, { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useStore } from '@/app/context/store'
 import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { FormField } from '@/components/ui/form-field'
-import { KeyRound, Mail, ShieldAlert } from 'lucide-react'
+import { KeyRound, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const { login, recoverPassword } = useStore()
@@ -80,20 +79,6 @@ export default function LoginPage() {
                 <p className="text-sm text-muted-foreground">Access your M.P. Gayeta account to view billing and slots.</p>
               </div>
 
-              {/* Demo Notice */}
-              <div className="p-3 bg-accent/40 rounded-lg border border-primary/20 flex gap-2 text-xs text-muted-foreground leading-relaxed">
-                <ShieldAlert className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold text-primary">Demo Account Credentials:</span>
-                  <br />
-                  &bull; Client Login: <code className="font-mono text-foreground font-semibold">client@gfs.com</code>
-                  <br />
-                  &bull; Staff Login: <code className="font-mono text-foreground font-semibold">admin@gfs.com</code>
-                  <br />
-                  &bull; Password: <code className="font-mono text-foreground">any password</code>
-                </div>
-              </div>
-
               {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
               {successMsg && <AlertBanner variant="success" message={successMsg} />}
 
@@ -134,9 +119,9 @@ export default function LoginPage() {
 
               <div className="text-center pt-2 border-t border-border/30 text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
-                <Link href="/auth/register" className="font-semibold text-primary hover:underline">
-                  Create a new account
-                </Link>
+                <span className="font-semibold text-muted-foreground/60 cursor-not-allowed select-none">
+                  Registration is currently unavailable
+                </span>
               </div>
             </div>
           ) : (

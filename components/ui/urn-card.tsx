@@ -1,37 +1,43 @@
-import React from 'react';
-import { Button } from './button';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './card';
+import React from 'react'
+import Link from 'next/link'
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './card'
 
 interface UrnCardProps {
-  name: string;
-  description: string;
-  price: string;
-  onSelect?: () => void;
+  name: string
+  description: string
+  price: string
+  onSelect?: () => void
 }
 
 export function UrnCard({ name, description, price, onSelect }: UrnCardProps) {
   return (
     <Card className="flex flex-col items-center text-center hover:shadow-md transition-shadow">
-      <CardHeader className="pb-0 items-center">
-        {/* Image Placeholder */}
-        <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center">
-          <span className="text-muted-foreground text-xs">Urn Image</span>
+      <CardHeader className="pb-0 items-center w-full">
+        {/* Image placeholder */}
+        <div className="w-full h-36 bg-muted rounded-xl flex items-center justify-center">
+          <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
         </div>
-        <CardTitle className="font-semibold text-foreground mt-4">
+        <CardTitle className="font-serif font-bold text-foreground mt-4 text-lg">
           {name}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 pt-2">
-        <p className="text-xs text-muted-foreground">
+
+      <CardContent className="flex-1 pt-2 px-5">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           {description}
         </p>
       </CardContent>
-      <CardFooter className="w-full pt-4 border-t border-border flex items-center justify-between">
-        <span className="font-medium text-sm text-foreground">{price}</span>
-        <Button onClick={onSelect} size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 rounded-md">
+
+      <CardFooter className="w-full pt-4 border-t border-border flex items-center justify-between px-5 pb-5">
+        <span className="font-serif font-bold text-sm text-foreground">{price}</span>
+        <Link
+          href="/contact"
+          onClick={onSelect}
+          className="inline-flex items-center justify-center h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+        >
           Select Urn
-        </Button>
+        </Link>
       </CardFooter>
     </Card>
-  );
+  )
 }

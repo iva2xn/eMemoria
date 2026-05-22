@@ -100,7 +100,7 @@ export default function HeroSection() {
           {/* SERVICES SLIDER */}
           <div className="absolute bottom-0 left-0 right-0 z-10 py-6">
             <div className="mx-auto max-w-6xl px-6">
-              <p className="text-[10px] font-serif font-bold tracking-widest text-primary uppercase mb-4 text-center">
+              <p className="text-[10px] font-serif font-bold tracking-widest text-foreground/50 uppercase mb-4 text-center">
                 Our Professional Memorial Services
               </p>
             </div>
@@ -120,7 +120,7 @@ export default function HeroSection() {
         <section className="py-16 bg-background border-t border-border/40">
           <div className="mx-auto max-w-6xl px-6">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
-              <h2 className="text-3xl font-serif font-bold text-foreground mb-4 md:mb-0">Featured Packages</h2>
+              <h2 className="text-3xl font-serif font-bold text-foreground mb-4 md:mb-0">Papalitan pa to di ko pa alam e</h2>
               <Button variant="outline" asChild className="self-start md:self-auto hover:bg-muted/80 border-primary/20">
                 <Link href="/services">View All Packages &rarr;</Link>
               </Button>

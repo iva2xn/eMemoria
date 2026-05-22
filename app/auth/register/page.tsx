@@ -1,218 +1,38 @@
-'use client'
-
-import React, { useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useStore } from '@/app/context/store'
-import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
-import { AlertBanner } from '@/components/ui/alert-banner'
-import { FormField } from '@/components/ui/form-field'
-import { Mail, KeyRound, User as UserIcon, FileText, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { LockKeyhole } from 'lucide-react'
 
 export default function RegisterPage() {
-  const { register } = useStore()
-  const router = useRouter()
-
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [acceptTerms, setAcceptTerms] = useState(false)
-  const [errorMsg, setErrorMsg] = useState('')
-  const [successMsg, setSuccessMsg] = useState('')
-
-  const [modalOpen, setModalOpen] = useState(false)
-
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMsg('')
-    setSuccessMsg('')
-
-    if (!name || !email || !password || !confirmPassword) {
-      setErrorMsg('All fields are required.')
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setErrorMsg('Passwords do not match.')
-      return
-    }
-
-    if (!acceptTerms) {
-      setErrorMsg('Please read and acknowledge the Terms and Conditions.')
-      return
-    }
-
-    const res = register(name, email, password)
-    if (res.success) {
-      setSuccessMsg('Account created successfully! Logging you in...')
-      setTimeout(() => router.push('/'), 1000)
-    } else {
-      setErrorMsg(res.message)
-    }
-  }
-
   return (
     <>
       <HeroHeader />
-      <main className="flex-1 flex flex-col justify-center items-center px-6 py-16 bg-background relative overflow-hidden">
-        {/* Glow Effects */}
+      <main className="flex-1 flex flex-col justify-center items-center px-6 py-20 bg-background relative overflow-hidden">
         <div className="absolute top-1/4 left-1/4 h-80 w-80 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 h-80 w-80 bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        <div className="w-full max-w-md bg-card border border-border/40 p-8 rounded-2xl shadow-xl transition-all duration-300">
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="font-serif text-3xl font-bold text-foreground">Create Account</h1>
-              <p className="text-sm text-muted-foreground">Register your account with Marcelo P. Gayeta Funeral Services.</p>
-            </div>
-
-            {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
-            {successMsg && <AlertBanner variant="success" message={successMsg} />}
-
-            <form onSubmit={handleRegister} className="space-y-4">
-              <FormField
-                id="reg-name"
-                label="Full Name"
-                type="text"
-                placeholder="Juan Dela Cruz"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                icon={<UserIcon className="h-4.5 w-4.5" />}
-              />
-
-              <FormField
-                id="reg-email"
-                label="Email Address"
-                type="email"
-                placeholder="juan@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                icon={<Mail className="h-4.5 w-4.5" />}
-              />
-
-              <FormField
-                id="reg-pass"
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                icon={<KeyRound className="h-4.5 w-4.5" />}
-              />
-
-              <FormField
-                id="reg-confirm"
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                icon={<KeyRound className="h-4.5 w-4.5" />}
-              />
-
-              {/* Terms and conditions Checkbox */}
-              <div className="flex items-start gap-2.5 pt-1">
-                <input
-                  id="terms"
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded-sm border-border text-primary focus:ring-primary/30 accent-primary"
-                />
-                <label htmlFor="terms" className="text-xs text-muted-foreground leading-normal select-none">
-                  I acknowledge and accept the{' '}
-                  <button
-                    type="button"
-                    onClick={() => setModalOpen(true)}
-                    className="text-primary font-semibold hover:underline inline-flex items-center gap-0.5"
-                  >
-                    Terms and Conditions
-                  </button>{' '}
-                  and Privacy Policy of M.P. Gayeta.
-                </label>
-              </div>
-
-              <Button type="submit" className="w-full h-11 font-semibold mt-2">
-                Create Client Account
-              </Button>
-            </form>
-
-            <div className="text-center pt-2 border-t border-border/30 text-sm text-muted-foreground">
-              Already have an account?{' '}
-              <Link href="/auth/login" className="font-semibold text-primary hover:underline">
-                Login here
-              </Link>
-            </div>
+        <div className="w-full max-w-md bg-card border border-border/40 p-10 rounded-2xl shadow-xl text-center space-y-5">
+          <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center mx-auto">
+            <LockKeyhole className="h-6 w-6 text-muted-foreground" />
           </div>
+          <div className="space-y-2">
+            <h1 className="font-serif text-2xl font-bold text-foreground">Registration Unavailable</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              New account registration is currently closed. Please contact M.P. Gayeta Funeral Services staff to request access.
+            </p>
+          </div>
+          <Button asChild className="w-full h-11 font-semibold rounded-xl">
+            <Link href="/auth/login">Back to Login</Link>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Need help?{' '}
+            <Link href="/contact" className="underline underline-offset-2 hover:text-foreground transition-colors">
+              Contact us
+            </Link>
+          </p>
         </div>
       </main>
-
-      {/* TERMS AND CONDITIONS MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
-              <div className="flex items-center gap-2 text-primary">
-                <FileText className="h-5 w-5" />
-                <span className="font-serif text-lg font-bold text-foreground">Terms and Conditions</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setModalOpen(false)}
-                className="h-8 w-8 rounded-full text-muted-foreground hover:bg-muted"
-              >
-                <X className="h-4.5 w-4.5" />
-              </Button>
-            </div>
-
-            {/* Scrollable Terms Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm text-muted-foreground leading-relaxed">
-              <h3 className="font-serif text-base font-bold text-foreground">1. Memorial &amp; Services Agreement</h3>
-              <p>
-                By registering an account with Marcelo P. Gayeta Funeral Services, you acknowledge that all pricing quotes, memorial arrangements, and physical packages are subject to availability and formal validation by our staff counselors. Inclusions details (e.g. caskets, viewing rooms, hearse vehicles) are subject to scheduling constraints.
-              </p>
-
-              <h3 className="font-serif text-base font-bold text-foreground">2. Payment &amp; Reference Submission</h3>
-              <p>
-                Users are solely responsible for inputting accurate GCash and Bank Transfer reference numbers. Supplying duplicate, fraudulent, or falsified transaction proofs is strictly prohibited and will result in the immediate cancellation of bookings and termination of user access. Marcelo P. Gayeta Funeral Services reserves the right to audit and verify reference logs with relevant financial institutions.
-              </p>
-
-              <h3 className="font-serif text-base font-bold text-foreground">3. Privacy Policy</h3>
-              <p>
-                We value your privacy. Your personal information, contact records, and transactional invoices are treated with the highest degree of confidentiality and are never shared.
-              </p>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-border/40 bg-muted/20 flex justify-end gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setAcceptTerms(false)
-                  setModalOpen(false)
-                }}
-              >
-                Decline
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  setAcceptTerms(true)
-                  setModalOpen(false)
-                }}
-              >
-                Acknowledge &amp; Accept
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

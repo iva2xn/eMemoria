@@ -16,12 +16,12 @@ export function PageHero({ title, subtitle, className, children }: PageHeroProps
   return (
     <section
       className={cn(
-        'relative py-10 bg-gradient-to-b from-primary/5 to-background border-b border-border/40 text-center overflow-hidden',
+        'relative py-10 bg-gradient-to-b from-muted/60 to-background border-b border-border/40 text-center overflow-hidden',
         className
       )}
     >
       <div className="relative mx-auto max-w-4xl px-6">
-        <h1 className="font-serif text-4xl md:text-5xl font-semibold text-primary tracking-tight">
+        <h1 className="font-serif text-4xl md:text-5xl font-semibold text-foreground tracking-tight">
           {title}
         </h1>
         {subtitle && (

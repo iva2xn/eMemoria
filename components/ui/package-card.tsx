@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { Check, X, ChevronRight } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 
+// Always show exactly 4 pills in a 2×2 grid, then the "+N more" pill on row 3
 const PREVIEW_COUNT = 4
 
 interface PackageCardProps {
@@ -15,14 +16,16 @@ interface PackageCardProps {
 
 export function PackageCard({ title, price, features, onAvail }: PackageCardProps) {
   const [modalOpen, setModalOpen] = useState(false)
+
   const preview = features.slice(0, PREVIEW_COUNT)
   const remaining = features.length - PREVIEW_COUNT
 
   return (
     <>
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col">
+
         {/* Image area */}
-        <div className="relative h-44 bg-muted/50 w-full overflow-hidden">
+        <div className="relative h-44 bg-muted/50 w-full overflow-hidden shrink-0">
           <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted/30 flex items-center justify-center">
             <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
           </div>
@@ -32,42 +35,50 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
           />
         </div>
 
-        {/* Body */}
-        <div className="px-5 pb-5 -mt-1">
-          {/* Title + price */}
-          <div className="flex flex-col gap-0.5 mb-4">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {/* Body — flex-col so footer always sticks to bottom */}
+        <div className="px-5 pb-5 pt-3 flex flex-col flex-1">
+
+          {/* Label + title + price */}
+          <div className="mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
               Funeral Package
             </p>
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="font-serif text-xl font-bold text-foreground leading-tight">{title}</h2>
-              <span className="font-serif text-lg font-bold text-foreground shrink-0">{price}</span>
+              <span className="font-serif text-base font-bold text-foreground shrink-0 tabular-nums">{price}</span>
             </div>
           </div>
 
-          {/* Preview pills */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
+          {/* 
+            Strict 2×2 grid — each cell is fixed height so all cards align.
+            Row 3 is the "+N more" pill, always in the same vertical position.
+          */}
+          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
             {preview.map((f, i) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-[11px] font-medium text-muted-foreground border border-border/60"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-muted text-[11px] font-medium text-muted-foreground border border-border/60 truncate"
               >
                 <Check className="h-2.5 w-2.5 text-primary shrink-0" />
-                {f}
+                <span className="truncate">{f}</span>
               </span>
             ))}
-            {remaining > 0 && (
-              <button
-                onClick={() => setModalOpen(true)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/8 text-[11px] font-semibold text-primary border border-primary/20 hover:bg-primary/15 transition-colors"
-              >
-                +{remaining} more <ChevronRight className="h-3 w-3" />
-              </button>
-            )}
           </div>
 
-          {/* CTA */}
-          <div className="flex items-center justify-between pt-3.5 border-t border-border/50">
+          {/* Row 3 — always rendered, keeps spacing consistent */}
+          <div className="h-8 flex items-center mb-4">
+            {remaining > 0 ? (
+              <button
+                onClick={() => setModalOpen(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+              >
+                +{remaining} more inclusions
+              </button>
+            ) : null}
+          </div>
+
+          {/* Footer — pushed to bottom */}
+          <div className="flex items-center justify-between pt-3.5 border-t border-border/50 mt-auto">
             <button
               onClick={() => setModalOpen(true)}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
@@ -77,7 +88,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
             <Link
               href="/contact"
               onClick={onAvail}
-              className="inline-flex items-center justify-center h-9 px-5 rounded-xl bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
+              className="inline-flex items-center justify-center h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
               Avail Package
             </Link>
@@ -101,7 +112,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Funeral Package</p>
                 <div className="flex items-baseline gap-2 mt-0.5">
                   <h3 className="font-serif text-xl font-bold text-foreground">{title}</h3>
-                  <span className="font-serif text-base font-bold text-foreground">{price}</span>
+                  <span className="font-serif text-base font-bold text-foreground tabular-nums">{price}</span>
                 </div>
               </div>
               <button
@@ -117,7 +128,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
                 All Inclusions — {features.length} items
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2.5 gap-x-4">
                 {features.map((f, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm text-foreground">
                     <Check className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -132,7 +143,7 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
               <Link
                 href="/contact"
                 onClick={onAvail}
-                className="inline-flex items-center justify-center h-10 px-6 rounded-xl bg-foreground text-background text-sm font-semibold hover:bg-foreground/90 transition-colors"
+                className="inline-flex items-center justify-center h-10 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
               >
                 Avail This Package
               </Link>
