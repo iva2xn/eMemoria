@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { PackageCard } from '@/components/ui/package-card'
+import { ArrowLeft } from 'lucide-react'
 
 const PACKAGES = [
   {
@@ -68,35 +69,42 @@ export default function TraditionalBurialPage() {
       <HeroHeader />
       <main className="flex-1 bg-background">
 
-        {/* ── HERO — full bleed on mobile, rounded + padded on md+ ── */}
-        <div className="md:pt-10 md:px-6 md:max-w-6xl md:mx-auto">
-          <div className="relative h-[320px] md:h-[420px] lg:h-[500px] md:rounded-2xl overflow-hidden md:border md:border-border md:shadow-sm">
-            <Image
-              src="/sky.png"
-              alt="Traditional burial service"
-              fill
-              priority
-              className="object-cover object-center"
-            />
-            {/* Bottom-up gradient */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'linear-gradient(to top, var(--background) 0%, var(--background) 20%, rgba(255,255,255,0.05) 55%, transparent 100%)'
-              }}
-            />
-            {/* Text */}
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 z-10">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
-                Memorial Services
-              </p>
-              <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 leading-tight">
-                Traditional Burial
-              </h1>
-              <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
-                Complete traditional funeral service with viewing, ceremony, and full burial coordination.
-              </p>
-            </div>
+        {/* ── HERO — truly full bleed, no radius, no border ── */}
+        <div className="relative h-[320px] md:h-[440px] lg:h-[520px] overflow-hidden">
+          <Image
+            src="/sky.png"
+            alt="Traditional burial service"
+            fill
+            priority
+            className="object-cover object-center"
+          />
+          {/* Bottom-up gradient */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to top, var(--background) 0%, var(--background) 18%, rgba(255,255,255,0.04) 52%, transparent 100%)'
+            }}
+          />
+
+          {/* ← Back button — top left */}
+          <Link
+            href="/services"
+            className="absolute top-5 left-5 z-20 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/70 backdrop-blur-sm border border-border/60 text-xs font-semibold text-foreground hover:bg-background/90 transition-all"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Services
+          </Link>
+
+          {/* Text */}
+          <div className="absolute bottom-0 left-0 right-0 px-6 pb-8 md:px-10 md:pb-10 z-10 max-w-6xl mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              Memorial Services
+            </p>
+            <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 leading-tight">
+              Traditional Burial
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
+              Complete traditional funeral service with viewing, ceremony, and full burial coordination.
+            </p>
           </div>
         </div>
 
@@ -118,7 +126,7 @@ export default function TraditionalBurialPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {PACKAGES.map((pkg, index) => (
               <PackageCard
                 key={index}
