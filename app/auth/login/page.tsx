@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useStore } from '@/app/context/store'
 import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
-import { KeyRound, Mail, AlertCircle, CheckCircle2, ShieldAlert } from 'lucide-react'
+import { AlertBanner } from '@/components/ui/alert-banner'
+import { FormField } from '@/components/ui/form-field'
+import { KeyRound, Mail, ShieldAlert } from 'lucide-react'
 
 export default function LoginPage() {
   const { login, recoverPassword } = useStore()
@@ -36,9 +38,7 @@ export default function LoginPage() {
     const res = login(email, password)
     if (res.success) {
       setSuccessMsg(res.message)
-      setTimeout(() => {
-        router.push('/')
-      }, 1000)
+      setTimeout(() => router.push('/'), 1000)
     } else {
       setErrorMsg(res.message)
     }
@@ -71,7 +71,7 @@ export default function LoginPage() {
         <div className="absolute bottom-1/4 right-1/4 h-80 w-80 bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="w-full max-w-md bg-card border border-border/40 p-8 rounded-2xl shadow-xl transition-all duration-300">
-          
+
           {!showRecovery ? (
             /* LOGIN CARD */
             <div className="space-y-6">
@@ -94,43 +94,29 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {errorMsg && (
-                <div className="p-3.5 bg-destructive/15 text-destructive border border-destructive/20 rounded-lg flex items-center gap-2 text-sm">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {successMsg && (
-                <div className="p-3.5 bg-primary/15 text-primary border border-primary/20 rounded-lg flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
+              {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
+              {successMsg && <AlertBanner variant="success" message={successMsg} />}
 
               <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                    <input
-                      id="email"
-                      type="email"
-                      placeholder="client@gfs.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                    />
-                  </div>
-                </div>
+                <FormField
+                  id="email"
+                  label="Email Address"
+                  type="email"
+                  placeholder="client@gfs.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  icon={<Mail className="h-4.5 w-4.5" />}
+                />
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="pass" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Password
-                    </label>
+                <FormField
+                  id="pass"
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  icon={<KeyRound className="h-4.5 w-4.5" />}
+                  labelRight={
                     <button
                       type="button"
                       onClick={() => setShowRecovery(true)}
@@ -138,19 +124,8 @@ export default function LoginPage() {
                     >
                       Forgot password?
                     </button>
-                  </div>
-                  <div className="relative">
-                    <KeyRound className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                    <input
-                      id="pass"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                    />
-                  </div>
-                </div>
+                  }
+                />
 
                 <Button type="submit" className="w-full h-11 font-semibold mt-2">
                   Authenticate Account
@@ -174,42 +149,24 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {recoveryError && (
-                <div className="p-3.5 bg-destructive/15 text-destructive border border-destructive/20 rounded-lg flex items-center gap-2 text-sm">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{recoveryError}</span>
-                </div>
-              )}
-
-              {recoverySuccess && (
-                <div className="p-3.5 bg-primary/15 text-primary border border-primary/20 rounded-lg flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  <span>{recoverySuccess}</span>
-                </div>
-              )}
+              {recoveryError && <AlertBanner variant="error" message={recoveryError} />}
+              {recoverySuccess && <AlertBanner variant="success" message={recoverySuccess} />}
 
               <form onSubmit={handleRecovery} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="recovery-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                    <input
-                      id="recovery-email"
-                      type="email"
-                      placeholder="client@gfs.com"
-                      value={recoveryEmail}
-                      onChange={(e) => setRecoveryEmail(e.target.value)}
-                      className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                    />
-                  </div>
-                </div>
+                <FormField
+                  id="recovery-email"
+                  label="Email Address"
+                  type="email"
+                  placeholder="client@gfs.com"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  icon={<Mail className="h-4.5 w-4.5" />}
+                />
 
                 <Button type="submit" className="w-full h-11 font-semibold mt-2">
                   Send Recovery Request
                 </Button>
-                
+
                 <Button
                   type="button"
                   variant="ghost"

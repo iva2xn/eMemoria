@@ -1,0 +1,154 @@
+import React from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { HeroHeader } from '@/components/header'
+import { Button } from '@/components/ui/button'
+import { PackageCard } from '@/components/ui/package-card'
+
+const PACKAGES = [
+  {
+    title: 'OMB',
+    price: '₱25,000.00',
+    features: [
+      'CASKET', 'EMBALMING', 'FLOWER', 'LIGHTENING',
+      '2 PCS CANDLES', '15 PCS. CHAIRS', 'TARPLIN 2X3',
+      'PICTURE W/FRAME', 'PLAYING CARDS 6 PCS', 'GUEST BOOK',
+      'FULL OUT BAN', 'CARO',
+    ],
+  },
+  {
+    title: 'HALF GLASS',
+    price: '₱35,000.00',
+    features: [
+      'CASKET', 'EMBALMING', 'FLOWERS', 'LIGHTENING',
+      '4 PCS CANDLE', '20 CHAIRS', 'CARO',
+      '100 PCS BOTTLED WATER', 'TARPAULIN 2X3', 'PICTURE W/FRAME',
+      '1 BOX PLAYING CARDS', 'GUEST BOOK', 'FULL OUT BAN',
+      'WATER DISPENSER W/ 10 GALLON',
+    ],
+  },
+  {
+    title: 'JR FULL GLASS',
+    price: '₱47,000.00',
+    features: [
+      'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
+      '4 CANDLES', '20 CHAIRS TENT', 'WATER DISPENSER W/ 10 GALLON',
+      '1 BOX PLAYING CARDS', 'GUEST BOOK', 'PICTURE W/ FRAME',
+      'TARPAULIN 2X3', '100 PCS BOTTLED WATER', 'VIGIL LAST NIGHT',
+      'FULL OUT VAN', 'CARO',
+    ],
+  },
+  {
+    title: 'SR FULL GLASS',
+    price: '₱57,000.00',
+    features: [
+      'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
+      'WATER DISPENSER W/ 10 GALLON', '1 BOX PLAYING CARDS', 'GUEST BOOK',
+      '20 CHAIRS TENT', '4 CANDLES', 'TARPAULIN 2X3', 'PICTURE W/ FRAME',
+      'VIGIL LAST NIGHT', '100 PCS BOTTLED WATER', 'RADUS', 'CARO', 'FULL OUT VAN',
+    ],
+  },
+  {
+    title: 'ORDINARY METAL',
+    price: '₱75,000.00',
+    features: [
+      'CASKET', 'EMBALMING', 'LIGHTENING', 'FLOWERS (2 LAGAY)',
+      '4 CANDLES', '20 CHAIRS', 'WATER DISPENSER W/ 10 GALLON',
+      '1 BOX PLAYING CARDS', 'GUEST BOOK', 'TENT', 'PICTURE W/ FRAME',
+      'TARPAULIN 4X5', 'VIGIL LAST NIGHT', '100 PCS CUPCAKE',
+      '100 PCS BOTTLED WATER', '100 PCS COKE MISMO', 'FULL OUT VAN',
+      'KARWAHE', 'RADUS/ ROSE',
+    ],
+  },
+]
+
+export default function TraditionalBurialPage() {
+  return (
+    <>
+      <HeroHeader />
+      <main className="flex-1 bg-background">
+
+        {/* ── HERO — full bleed on mobile, rounded + padded on md+ ── */}
+        <div className="md:pt-10 md:px-6 md:max-w-6xl md:mx-auto">
+          <div className="relative h-[320px] md:h-[420px] lg:h-[500px] md:rounded-2xl overflow-hidden md:border md:border-border md:shadow-sm">
+            <Image
+              src="/sky.png"
+              alt="Traditional burial service"
+              fill
+              priority
+              className="object-cover object-center"
+            />
+            {/* Bottom-up gradient */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'linear-gradient(to top, var(--background) 0%, var(--background) 20%, rgba(255,255,255,0.05) 55%, transparent 100%)'
+              }}
+            />
+            {/* Text */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 z-10">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                Memorial Services
+              </p>
+              <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 leading-tight">
+                Traditional Burial
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
+                Complete traditional funeral service with viewing, ceremony, and full burial coordination.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── DESCRIPTION ── */}
+        <section className="py-10 max-w-6xl mx-auto px-6">
+          <p className="text-sm md:text-base text-muted-foreground leading-relaxed max-w-3xl">
+            Our traditional burial packages are thoughtfully designed to provide families with a dignified and complete farewell. Each package includes everything needed for a respectful wake and burial ceremony, with options suited to different family needs and budgets.
+          </p>
+        </section>
+
+        {/* ── PACKAGES ── */}
+        <section className="pb-16 max-w-6xl mx-auto px-6">
+          <div className="mb-8">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+              Choose a Package
+            </p>
+            <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground">
+              Service Packages
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {PACKAGES.map((pkg, index) => (
+              <PackageCard
+                key={index}
+                title={pkg.title}
+                price={pkg.price}
+                features={pkg.features}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* ── FOOTER CTA ── */}
+        <section className="py-16 bg-muted/30 border-t border-border px-6 text-center">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
+              We&apos;re Here for You
+            </p>
+            <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground mb-4">
+              Ready to arrange a service?
+            </h2>
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+              Contact our team to discuss the right package for your family. We are available 24 hours a day, 7 days a week.
+            </p>
+            <Button asChild size="lg" className="font-semibold rounded-xl px-8">
+              <Link href="/contact">Contact a Counselor</Link>
+            </Button>
+          </div>
+        </section>
+
+      </main>
+    </>
+  )
+}

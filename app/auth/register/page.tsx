@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useStore } from '@/app/context/store'
 import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
-import { Mail, KeyRound, User as UserIcon, AlertCircle, CheckCircle2, FileText, X } from 'lucide-react'
+import { AlertBanner } from '@/components/ui/alert-banner'
+import { FormField } from '@/components/ui/form-field'
+import { Mail, KeyRound, User as UserIcon, FileText, X } from 'lucide-react'
 
 export default function RegisterPage() {
   const { register } = useStore()
@@ -20,7 +22,6 @@ export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
-  // Terms and Conditions Modal state
   const [modalOpen, setModalOpen] = useState(false)
 
   const handleRegister = (e: React.FormEvent) => {
@@ -46,9 +47,7 @@ export default function RegisterPage() {
     const res = register(name, email, password)
     if (res.success) {
       setSuccessMsg('Account created successfully! Logging you in...')
-      setTimeout(() => {
-        router.push('/')
-      }, 1000)
+      setTimeout(() => router.push('/'), 1000)
     } else {
       setErrorMsg(res.message)
     }
@@ -63,99 +62,55 @@ export default function RegisterPage() {
         <div className="absolute bottom-1/4 right-1/4 h-80 w-80 bg-secondary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="w-full max-w-md bg-card border border-border/40 p-8 rounded-2xl shadow-xl transition-all duration-300">
-          
           <div className="space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-serif text-3xl font-bold text-foreground">Create Account</h1>
               <p className="text-sm text-muted-foreground">Register your account with Marcelo P. Gayeta Funeral Services.</p>
             </div>
 
-            {errorMsg && (
-              <div className="p-3.5 bg-destructive/15 text-destructive border border-destructive/20 rounded-lg flex items-center gap-2 text-sm">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>{errorMsg}</span>
-              </div>
-            )}
-
-            {successMsg && (
-              <div className="p-3.5 bg-primary/15 text-primary border border-primary/20 rounded-lg flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                <span>{successMsg}</span>
-              </div>
-            )}
+            {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
+            {successMsg && <AlertBanner variant="success" message={successMsg} />}
 
             <form onSubmit={handleRegister} className="space-y-4">
-              {/* Name */}
-              <div className="space-y-1.5">
-                <label htmlFor="reg-name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <UserIcon className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                  <input
-                    id="reg-name"
-                    type="text"
-                    placeholder="Juan Dela Cruz"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                  />
-                </div>
-              </div>
+              <FormField
+                id="reg-name"
+                label="Full Name"
+                type="text"
+                placeholder="Juan Dela Cruz"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                icon={<UserIcon className="h-4.5 w-4.5" />}
+              />
 
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label htmlFor="reg-email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                  <input
-                    id="reg-email"
-                    type="email"
-                    placeholder="juan@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                  />
-                </div>
-              </div>
+              <FormField
+                id="reg-email"
+                label="Email Address"
+                type="email"
+                placeholder="juan@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                icon={<Mail className="h-4.5 w-4.5" />}
+              />
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label htmlFor="reg-pass" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Password
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                  <input
-                    id="reg-pass"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                  />
-                </div>
-              </div>
+              <FormField
+                id="reg-pass"
+                label="Password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                icon={<KeyRound className="h-4.5 w-4.5" />}
+              />
 
-              {/* Confirm Password */}
-              <div className="space-y-1.5">
-                <label htmlFor="reg-confirm" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-3 h-4.5 w-4.5 text-muted-foreground/60" />
-                  <input
-                    id="reg-confirm"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full h-11 pl-11 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm"
-                  />
-                </div>
-              </div>
+              <FormField
+                id="reg-confirm"
+                label="Confirm Password"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                icon={<KeyRound className="h-4.5 w-4.5" />}
+              />
 
               {/* Terms and conditions Checkbox */}
               <div className="flex items-start gap-2.5 pt-1">
@@ -191,7 +146,6 @@ export default function RegisterPage() {
               </Link>
             </div>
           </div>
-
         </div>
       </main>
 
@@ -217,12 +171,12 @@ export default function RegisterPage() {
 
             {/* Scrollable Terms Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4 text-sm text-muted-foreground leading-relaxed">
-              <h3 className="font-serif text-base font-bold text-foreground">1. Memorial & Services Agreement</h3>
+              <h3 className="font-serif text-base font-bold text-foreground">1. Memorial &amp; Services Agreement</h3>
               <p>
                 By registering an account with Marcelo P. Gayeta Funeral Services, you acknowledge that all pricing quotes, memorial arrangements, and physical packages are subject to availability and formal validation by our staff counselors. Inclusions details (e.g. caskets, viewing rooms, hearse vehicles) are subject to scheduling constraints.
               </p>
 
-              <h3 className="font-serif text-base font-bold text-foreground">2. Payment & Reference Submission</h3>
+              <h3 className="font-serif text-base font-bold text-foreground">2. Payment &amp; Reference Submission</h3>
               <p>
                 Users are solely responsible for inputting accurate GCash and Bank Transfer reference numbers. Supplying duplicate, fraudulent, or falsified transaction proofs is strictly prohibited and will result in the immediate cancellation of bookings and termination of user access. Marcelo P. Gayeta Funeral Services reserves the right to audit and verify reference logs with relevant financial institutions.
               </p>
@@ -253,7 +207,7 @@ export default function RegisterPage() {
                   setModalOpen(false)
                 }}
               >
-                Acknowledge & Accept
+                Acknowledge &amp; Accept
               </Button>
             </div>
           </div>

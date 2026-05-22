@@ -3,8 +3,9 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { ServicePill } from '@/components/ui/service-pill'
 import Image from 'next/image'
-import { HeroHeader } from "@/components/header"
+import { HeroHeader } from '@/components/header'
 import { InfiniteSlider } from '@/components/motion-primitives/infinite-slider'
 import { ProgressiveBlur } from '@/components/motion-primitives/progressive-blur'
 import {
@@ -17,17 +18,28 @@ import {
   Home
 } from 'lucide-react'
 
+const SERVICE_PILLS = [
+  { icon: <Calendar className="h-3 w-3" />, label: 'Wake / memorial arrangements' },
+  { icon: <Truck className="h-3 w-3" />, label: 'Body retrieval / transfer' },
+  { icon: <Sparkles className="h-3 w-3" />, label: 'Embalming / body preparation' },
+  { icon: <Award className="h-3 w-3" />, label: 'Casket / coffin arrangements' },
+  { icon: <Truck className="h-3 w-3" />, label: 'Funeral hearse transportation' },
+  { icon: <Compass className="h-3 w-3" />, label: 'Burial coordination' },
+  { icon: <FileText className="h-3 w-3" />, label: 'Documentation assistance (death certificate / permits)' },
+  { icon: <Home className="h-3 w-3" />, label: 'Chapel or home wake setup (branch dependent)' },
+]
+
 export default function HeroSection() {
   return (
     <>
       <HeroHeader />
       <main className="@container overflow-x-hidden bg-[var(--surface-page)] dark:bg-[var(--dark-page)]">
         {/* HERO SECTION */}
-        <section 
+        <section
           className="relative overflow-hidden flex items-center w-full"
           style={{ minHeight: 'calc(100dvh - 4rem)' }}
         >
-          {/* Background Image (covers 100% of the hero) */}
+          {/* Background Image */}
           <div className="absolute inset-0 z-0 w-full">
             <Image
               src="/sky.png"
@@ -36,7 +48,7 @@ export default function HeroSection() {
               priority
               className="object-cover object-right lg:object-center w-full"
             />
-            {/* Mobile Overlay (Vertical Fade) */}
+            {/* Mobile Overlay */}
             <div className="absolute inset-0 pointer-events-none lg:hidden bg-gradient-to-b from-background/95 via-background/70 to-transparent" />
             <div
               className="absolute inset-0 pointer-events-none hidden lg:block"
@@ -64,17 +76,18 @@ export default function HeroSection() {
                   <Button
                     asChild
                     size="lg"
-                    className="px-6 text-base font-semibold w-full sm:w-auto shadow-md shadow-[var(--brand-green)]/10 bg-[var(--brand-green)] hover:bg-[var(--brand-green)]/95 text-[rgb(240,248,255)]">
+                    className="px-6 text-base font-semibold w-full sm:w-auto shadow-md shadow-primary/10 bg-primary hover:bg-primary/95 text-primary-foreground"
+                  >
                     <Link href="/services">
                       <span className="text-nowrap">Explore Service Packages</span>
                     </Link>
                   </Button>
                   <Button
-                    key={2}
                     asChild
                     size="lg"
                     variant="outline"
-                    className="px-6 text-base font-semibold w-full sm:w-auto hover:bg-muted/55 border-primary/20">
+                    className="px-6 text-base font-semibold w-full sm:w-auto hover:bg-muted/55 border-primary/20"
+                  >
                     <Link href="/contact">
                       <span className="text-nowrap">Contact a Counselor</span>
                     </Link>
@@ -84,7 +97,7 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* SERVICES SLIDER — absolute bottom, full width, transparent bg, equal spacing above/below */}
+          {/* SERVICES SLIDER */}
           <div className="absolute bottom-0 left-0 right-0 z-10 py-6">
             <div className="mx-auto max-w-6xl px-6">
               <p className="text-[10px] font-serif font-bold tracking-widest text-primary uppercase mb-4 text-center">
@@ -93,54 +106,9 @@ export default function HeroSection() {
             </div>
             <div className="relative overflow-hidden">
               <InfiniteSlider speedOnHover={20} speed={35} gap={24}>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Calendar className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Wake / memorial arrangements</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Truck className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Body retrieval / transfer</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Sparkles className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Embalming / body preparation</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Award className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Casket / coffin arrangements</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Truck className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Funeral hearse transportation</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Compass className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Burial coordination</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <FileText className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Documentation assistance (death certificate / permits)</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-primary/10 bg-card hover:border-accent-foreground/30 transition-all duration-300 shadow-2xs">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground shrink-0">
-                    <Home className="h-3 w-3" />
-                  </div>
-                  <span className="text-xs font-semibold tracking-wide text-foreground whitespace-nowrap">Chapel or home wake setup (branch dependent)</span>
-                </div>
+                {SERVICE_PILLS.map((pill, i) => (
+                  <ServicePill key={i} icon={pill.icon} label={pill.label} />
+                ))}
               </InfiniteSlider>
               <ProgressiveBlur className="pointer-events-none absolute left-0 top-0 h-full w-20" direction="left" blurIntensity={1} />
               <ProgressiveBlur className="pointer-events-none absolute right-0 top-0 h-full w-20" direction="right" blurIntensity={1} />

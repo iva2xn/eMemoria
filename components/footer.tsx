@@ -91,11 +91,11 @@ export function Footer() {
           &copy; {new Date().getFullYear()} Marcelo P. Gayeta Funeral Services. All rights reserved.
         </p>
         <div className="flex gap-4 text-xs text-muted-foreground">
-          <Link href="/contact#terms" className="hover:text-primary transition-colors">
+          <Link href="/terms" className="hover:text-primary transition-colors">
             Terms of Service
           </Link>
           <span>&middot;</span>
-          <Link href="/contact#privacy" className="hover:text-primary transition-colors">
+          <Link href="/privacy" className="hover:text-primary transition-colors">
             Privacy Policy
           </Link>
         </div>

@@ -15,10 +15,10 @@ export function HeroHeader() {
 
   const navLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Services Offered', href: '/services' },
-    { name: 'Columbarium', href: '/columbarium' },
-    { name: 'Billing & Payment', href: '/billing' },
-    { name: 'Contact & Inquiry', href: '/contact' },
+    { name: 'Obituaries', href: '/obituaries' },
+    { name: 'Funeral Services', href: '/services' },
+    { name: 'About Us', href: '/about' },
+    { name: 'Contact', href: '/contact' },
   ]
 
   const isActive = (href: string) => {

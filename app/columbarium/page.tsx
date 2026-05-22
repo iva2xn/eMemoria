@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 import { HeroHeader } from '@/components/header'
 import { X, ArrowRight, Phone } from 'lucide-react'
 
@@ -95,40 +96,108 @@ export default function ColumbariumPage() {
       <HeroHeader />
       <main className="flex-1 bg-background">
 
-        {/* Banner */}
-        <section className="py-10 bg-gradient-to-b from-[var(--brand-green)]/5 to-background border-b border-border/40 text-center">
-          <div className="mx-auto max-w-4xl px-6">
-            <h1 className="font-serif text-4xl md:text-5xl font-semibold text-[var(--brand-green)] tracking-tight">
-              Virtual Columbarium
-            </h1>
-            <div className="flex items-center justify-center gap-4 mt-3">
-              {(['available','reserved','occupied'] as SlotStatus[]).map(s => (
-                <span key={s} className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--surface-muted)] capitalize">
-                  <span className={`w-2 h-2 rounded-full ${
-                    s === 'available' ? 'bg-[var(--brand-green)]' :
-                    s === 'reserved'  ? 'bg-amber-400' : 'bg-rose-400'
-                  }`} />
-                  {counts[s]} {s}
-                </span>
-              ))}
+        {/* ── HERO — full bleed on mobile, rounded + padded on md+ ── */}
+        <div className="md:pt-10 md:px-6 md:max-w-6xl md:mx-auto">
+          <div className="relative h-[320px] md:h-[420px] lg:h-[500px] md:rounded-2xl overflow-hidden md:border md:border-border md:shadow-sm">
+            <Image
+              src="/sky.png"
+              alt="Columbarium"
+              fill
+              priority
+              className="object-cover object-center"
+            />
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'linear-gradient(to top, var(--background) 0%, var(--background) 20%, rgba(255,255,255,0.05) 55%, transparent 100%)'
+              }}
+            />
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 z-10">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+                Memorial Services
+              </p>
+              <h1 className="font-serif text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-2 leading-tight">
+                Columbarium
+              </h1>
+              <p className="text-sm md:text-base text-muted-foreground max-w-xl leading-relaxed">
+                A dedicated space designed to respectfully store and preserve cremation urns — view available niches and reserve a space for your loved ones.
+              </p>
             </div>
+          </div>
+        </div>
+
+        {/* ── INFO BLOCKS ── */}
+        <section className="py-10 max-w-6xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            {/* How to use */}
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Guide</p>
+              <h3 className="font-serif font-bold text-foreground mb-3">How to Use</h3>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-start gap-2"><span className="text-muted-foreground font-bold mt-0.5">·</span> Browse the available slots below</li>
+                <li className="flex items-start gap-2"><span className="text-muted-foreground font-bold mt-0.5">·</span> Click a slot to view details</li>
+                <li className="flex items-start gap-2"><span className="text-muted-foreground font-bold mt-0.5">·</span> Available slots can be reserved</li>
+                <li className="flex items-start gap-2"><span className="text-muted-foreground font-bold mt-0.5">·</span> Occupied slots are already assigned</li>
+              </ul>
+            </div>
+
+            {/* Legend */}
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Legend</p>
+              <h3 className="font-serif font-bold text-foreground mb-3">Slot Status</h3>
+              <ul className="text-sm text-muted-foreground space-y-3">
+                <li className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded bg-[#4CAF50] shrink-0" />
+                  <span><span className="font-semibold text-foreground">Available</span> — open for reservation</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded bg-[#F44336] shrink-0" />
+                  <span><span className="font-semibold text-foreground">Occupied</span> — already assigned</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded bg-[#FFC107] shrink-0" />
+                  <span><span className="font-semibold text-foreground">Reserved</span> — pending confirmation</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Prices */}
+            <div className="bg-card rounded-2xl p-6 border border-border shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Pricing</p>
+              <h3 className="font-serif font-bold text-foreground mb-3">Slot Rates</h3>
+              <ul className="text-sm space-y-2">
+                {[
+                  { label: 'Top Level', price: '₱25,000' },
+                  { label: 'Eye Level (Upper)', price: '₱35,000' },
+                  { label: 'Eye Level (Lower)', price: '₱25,000' },
+                  { label: 'Upper Bottom', price: '₱20,000' },
+                  { label: 'Lower Bottom', price: '₱20,000' },
+                  { label: 'Ground Level', price: '₱20,000' },
+                ].map(({ label, price }) => (
+                  <li key={label} className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{label}</span>
+                    <span className="font-semibold text-foreground font-mono">{price}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
           </div>
         </section>
 
-        <section className="py-10 max-w-6xl mx-auto px-4 md:px-6">
+
+        <section className="pb-10 max-w-6xl mx-auto px-4 md:px-6">
           <div className="grid grid-cols-1 gap-6 items-start">
 
             {/* ── WALL ── */}
-            <div className="rounded-2xl border border-[var(--brand-cream-border)] bg-card shadow-sm overflow-hidden">
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
 
               {/* Card header */}
-              <div className="px-5 py-3.5 border-b border-[var(--brand-cream-border)] flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--brand-green)]">
-                  Columbarium Wall — Front View
-                </span>
-                <span className="text-[10px] font-mono text-[var(--surface-muted)]">
-                  {ROWS} levels · {COLS} columns
-                </span>
+              <div className="px-5 py-6 flex items-center justify-center">
+                <h2 className="text-xl font-bold uppercase tracking-widest text-foreground">
+                  COLUMBARIUM SLOTS
+                </h2>
               </div>
 
               {/*
@@ -158,12 +227,12 @@ export default function ColumbariumPage() {
                               minWidth: LABEL_W,
                               background: 'var(--color-card, #fff)',
                             }}
-                            className={`px-4 py-3 align-middle border-r border-[var(--brand-cream-border)] ${!isLast ? 'border-b border-[var(--brand-cream-border)]' : ''}`}
+                            className={`px-4 py-3 align-middle border-r border-border ${!isLast ? 'border-b border-border' : ''}`}
                           >
-                            <p className="text-[11px] font-bold text-[var(--brand-green)] leading-tight whitespace-nowrap">
+                            <p className="text-[11px] font-bold text-primary leading-tight whitespace-nowrap">
                               {ROW_LABELS[row]}
                             </p>
-                            <p className="text-[10px] font-mono text-[var(--surface-muted)] mt-0.5 whitespace-nowrap">
+                            <p className="text-[10px] font-mono text-muted-foreground mt-0.5 whitespace-nowrap">
                               {formatPrice(ROW_PRICES[row])}
                             </p>
                           </td>
@@ -172,24 +241,24 @@ export default function ColumbariumPage() {
                           {rowSlots.map(slot => (
                             <td
                               key={slot.id}
-                              className={`p-1 ${!isLast ? 'border-b border-[var(--brand-cream-border)]/40' : ''}`}
+                              className={`p-1 ${!isLast ? 'border-b border-border' : ''}`}
                             >
                               <button
                                 disabled={slot.status === 'occupied'}
                                 onClick={() => handleSlotClick(slot)}
                                 className={`
-                                  w-9 h-9 rounded-lg border text-[10px] font-bold font-mono
+                                  w-10 h-10 rounded border border-[#2c312c]/20
                                   transition-all duration-150 flex items-center justify-center
                                   ${slot.status === 'available'
-                                    ? 'bg-[var(--brand-green)]/8 border-[var(--brand-green)]/20 hover:bg-[var(--brand-green)]/18 hover:border-[var(--brand-green)]/50 text-[var(--brand-green)] cursor-pointer'
+                                    ? 'bg-[#4CAF50] hover:bg-[#43a047] cursor-pointer'
                                     : slot.status === 'reserved'
-                                    ? 'bg-amber-400/10 border-amber-400/30 hover:bg-amber-400/20 hover:border-amber-500/50 text-amber-700 cursor-pointer'
-                                    : 'bg-rose-400/10 border-rose-400/25 text-rose-400/60 cursor-default'
+                                    ? 'bg-[#FFC107] hover:bg-[#ffb300] cursor-pointer'
+                                    : 'bg-[#F44336] cursor-default'
                                   }
-                                  ${selected?.id === slot.id ? 'ring-2 ring-[var(--brand-gold)] ring-offset-1' : ''}
+                                  ${selected?.id === slot.id ? 'ring-2 ring-black ring-offset-1' : ''}
                                 `}
                               >
-                                {slot.col}
+                                
                               </button>
                             </td>
                           ))}
@@ -201,23 +270,32 @@ export default function ColumbariumPage() {
               </div>
 
               {/* Legend */}
-              <div className="px-5 py-3 border-t border-[var(--brand-cream-border)] flex flex-wrap gap-5 items-center">
-                {(['available','reserved','occupied'] as SlotStatus[]).map(s => (
-                  <div key={s} className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--surface-muted)] capitalize">
-                    <span className={`w-3 h-3 rounded-sm border ${
-                      s === 'available' ? 'bg-[var(--brand-green)]/10 border-[var(--brand-green)]/25' :
-                      s === 'reserved'  ? 'bg-amber-400/10 border-amber-400/30' :
-                                          'bg-rose-400/10 border-rose-400/25'
-                    }`} />
-                    {s}
-                  </div>
-                ))}
-                <span className="ml-auto text-[10px] text-[var(--surface-muted)] italic hidden md:block">
-                  Hover to preview · Click to reserve
-                </span>
+              <div className="px-5 py-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  We are committed to providing a peaceful and respectful resting place where families can honor and remember their loved ones.
+                </p>
               </div>
             </div>
 
+          </div>
+        </section>
+
+        {/* ── RESERVATION CTA ── */}
+        <section className="py-16 bg-muted/30 border-t border-border px-6 text-center">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Reserve a Niche</p>
+            <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground mb-4">
+              Reservation
+            </h2>
+            <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+              Families may reserve a columbarium slot through the funeral service. For assistance, please contact Marcelo P. Gayeta Funeral Services directly.
+            </p>
+            <a
+              href="/contact"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+            >
+              Contact Us
+            </a>
           </div>
         </section>
 
@@ -228,18 +306,18 @@ export default function ColumbariumPage() {
             onClick={() => setModal(null)}
           >
             <div
-              className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-[var(--brand-cream-border)] overflow-hidden"
+              className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Modal header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--brand-cream-border)]">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border">
                 <div>
-                  <p className="font-mono font-bold text-lg text-[var(--brand-green)]">{modal.id}</p>
-                  <p className="text-[11px] text-[var(--surface-muted)]">{ROW_LABELS[modal.row]}</p>
+                  <p className="font-mono font-bold text-lg text-primary">{modal.id}</p>
+                  <p className="text-[11px] text-muted-foreground">{ROW_LABELS[modal.row]}</p>
                 </div>
                 <button
                   onClick={() => setModal(null)}
-                  className="h-8 w-8 rounded-full bg-muted/60 hover:bg-muted flex items-center justify-center text-[var(--surface-muted)] transition-colors"
+                  className="h-8 w-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -249,30 +327,30 @@ export default function ColumbariumPage() {
               <div className="px-5 py-5 space-y-4">
                 {/* Status badge */}
                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                  modal.status === 'available' ? 'bg-[var(--brand-green)]/10 border-[var(--brand-green)]/25 text-[var(--brand-green)]' :
+                  modal.status === 'available' ? 'bg-primary/10 border-primary/25 text-primary' :
                   modal.status === 'reserved'  ? 'bg-amber-400/10 border-amber-400/30 text-amber-700' :
                                                  'bg-rose-400/10 border-rose-400/25 text-rose-600'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
-                    modal.status === 'available' ? 'bg-[var(--brand-green)]' :
+                    modal.status === 'available' ? 'bg-primary' :
                     modal.status === 'reserved'  ? 'bg-amber-400' : 'bg-rose-400'
                   }`} />
                   {modal.status}
                 </span>
 
                 {/* Details */}
-                <div className="divide-y divide-[var(--brand-cream-border)] text-xs">
+                <div className="divide-y divide-border text-xs">
                   <div className="flex justify-between py-2.5">
-                    <span className="text-[var(--surface-muted)] font-semibold uppercase tracking-wider text-[10px]">Level</span>
-                    <span className="font-medium text-[var(--surface-text-dark)]">{ROW_LABELS[modal.row]}</span>
+                    <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Level</span>
+                    <span className="font-medium text-foreground">{ROW_LABELS[modal.row]}</span>
                   </div>
                   <div className="flex justify-between py-2.5">
-                    <span className="text-[var(--surface-muted)] font-semibold uppercase tracking-wider text-[10px]">Column</span>
-                    <span className="font-mono font-medium text-[var(--surface-text-dark)]">{modal.col} of {COLS}</span>
+                    <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Column</span>
+                    <span className="font-mono font-medium text-foreground">{modal.col} of {COLS}</span>
                   </div>
                   <div className="flex justify-between py-2.5 items-center">
-                    <span className="text-[var(--surface-muted)] font-semibold uppercase tracking-wider text-[10px]">Price</span>
-                    <span className="font-serif font-bold text-base text-[var(--brand-green)]">
+                    <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Price</span>
+                    <span className="font-serif font-bold text-base text-primary">
                       {formatPrice(ROW_PRICES[modal.row])}
                     </span>
                   </div>
@@ -292,13 +370,13 @@ export default function ColumbariumPage() {
                   <div className="space-y-2 pt-1">
                     <a
                       href={`/billing?product=columbarium&slot=${modal.id}&level=${encodeURIComponent(ROW_LABELS[modal.row])}&price=${ROW_PRICES[modal.row]}`}
-                      className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-[var(--brand-green)] hover:bg-[var(--brand-green)]/90 text-[rgb(240,248,255)] text-sm font-bold transition-colors"
+                      className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold transition-colors"
                     >
                       Reserve <ArrowRight className="h-4 w-4" />
                     </a>
                     <a
                       href={`/contact?slot=${modal.id}&action=inquire`}
-                      className="flex items-center justify-center gap-2 w-full h-10 rounded-xl border border-[var(--brand-green)]/25 hover:border-[var(--brand-green)]/50 hover:bg-[var(--brand-green)]/5 text-[var(--brand-green)] text-sm font-bold transition-colors"
+                      className="flex items-center justify-center gap-2 w-full h-10 rounded-xl border border-primary/25 hover:border-primary/50 hover:bg-primary/5 text-primary text-sm font-bold transition-colors"
                     >
                       <Phone className="h-3.5 w-3.5" /> Inquire
                     </a>
