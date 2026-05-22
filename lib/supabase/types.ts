@@ -94,6 +94,10 @@ export interface Obituary {
   age: number | null
   image_path: string
   is_published: boolean
+  venue_address: string | null
+  contact_number: string | null
+  submitter_name: string | null
+  submitter_email: string | null
   created_by: string | null
   created_at: string
   updated_at: string

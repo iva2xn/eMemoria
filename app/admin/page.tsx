@@ -8,6 +8,7 @@ import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { StatCard } from '@/components/ui/stat-card'
+import { TarpPreview } from '@/components/ui/tarp-preview'
 import type {
   Profile, Booking, Payment, Inquiry,
   ColumbariumSlot, Obituary,
@@ -291,7 +292,7 @@ function InquiriesTab() {
 // ─────────────────────────────────────────────────────────────
 // Bookings Tab
 // ─────────────────────────────────────────────────────────────
-type BookingRow = Booking & { guest_name?: string | null; guest_email?: string | null; profileName?: string; profileEmail?: string }
+type BookingRow = Booking & { guest_name?: string | null; guest_email?: string | null; profileName?: string; profileEmail?: string; paymentStatus?: string }
 
 function BookingsTab() {
   const supabase = createClient()
@@ -308,6 +309,7 @@ function BookingsTab() {
 
       if (!bookings) { setLoading(false); return }
 
+      // Fetch profiles
       const userIds = [...new Set(bookings.filter(b => b.user_id).map(b => b.user_id as string))]
       let profileMap: Record<string, { name: string; email: string }> = {}
       if (userIds.length > 0) {
@@ -315,11 +317,41 @@ function BookingsTab() {
         if (profiles) profileMap = Object.fromEntries(profiles.map(p => [p.id, { name: p.name, email: p.email }]))
       }
 
-      setRows(bookings.map(b => ({
-        ...b,
-        profileName:  b.user_id ? profileMap[b.user_id]?.name  : undefined,
-        profileEmail: b.user_id ? profileMap[b.user_id]?.email : undefined,
-      })))
+      // Fetch payments to determine paid status per booking
+      // Match by guest_email for guests, or by user_id+product_type for logged-in users
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('user_id,guest_email,status,product_type')
+        .eq('status', 'approved')
+        .in('product_type', ['package', 'columbarium', 'cremation', 'urn', 'general'])
+
+      // Build a set of keys that have approved payments
+      // Key = guest_email for guests, user_id for logged-in (but only non-admin payments)
+      const approvedEmails = new Set<string>()
+      const approvedUserIds = new Set<string>()
+      if (payments) {
+        payments.forEach(p => {
+          if (p.guest_email) approvedEmails.add(p.guest_email.toLowerCase())
+          if (p.user_id) approvedUserIds.add(p.user_id)
+        })
+      }
+
+      setRows(bookings.map(b => {
+        let isPaid = false
+        if (b.guest_email) {
+          isPaid = approvedEmails.has(b.guest_email.toLowerCase())
+        } else if (b.user_id) {
+          // Only mark paid if there's an approved payment from this user
+          // that is NOT the admin's own cash recording
+          isPaid = approvedUserIds.has(b.user_id)
+        }
+        return {
+          ...b,
+          profileName:  b.user_id ? profileMap[b.user_id]?.name  : undefined,
+          profileEmail: b.user_id ? profileMap[b.user_id]?.email : undefined,
+          paymentStatus: isPaid ? 'paid' : 'unpaid',
+        }
+      }))
       setLoading(false)
     }
     fetchBookings()
@@ -357,6 +389,7 @@ function BookingsTab() {
                 <th className="px-5 py-3">Amount</th>
                 <th className="px-5 py-3">Date</th>
                 <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Payment</th>
                 <th className="px-5 py-3">Actions</th>
               </tr>
             </thead>
@@ -372,10 +405,16 @@ function BookingsTab() {
                   <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(b.created_at).toLocaleDateString()}</td>
                   <td className="px-5 py-3.5"><Badge label={b.status} variant={statusVariant(b.status)} /></td>
                   <td className="px-5 py-3.5">
+                    <Badge
+                      label={b.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                      variant={b.paymentStatus === 'paid' ? 'green' : 'red'}
+                    />
+                  </td>
+                  <td className="px-5 py-3.5">
                     {b.status === 'pending' && (
                       <div className="flex gap-1.5">
                         <button onClick={() => updateStatus(b.id, 'active')} className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
-                          Activate
+                          Finished
                         </button>
                         <button onClick={() => updateStatus(b.id, 'cancelled')} className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors">
                           Cancel
@@ -435,17 +474,15 @@ function ProductsPopover({ payment }: { payment: PaymentRow }) {
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-border bg-muted/30 text-[10px] font-semibold text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
+        className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors underline-offset-2 hover:underline"
       >
-        <Package className="h-3 w-3 text-primary" />
         Products
-        <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" />
       </button>
       {open && (
         <div
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          className="absolute z-50 bottom-full mb-2 left-0 w-64 bg-card border border-border rounded-xl shadow-lg p-3 space-y-2"
+          className="absolute z-50 bottom-full mb-2 left-0 w-64 bg-card border border-border rounded-xl shadow-xl p-3 space-y-2"
         >
           <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border/50 pb-2 mb-1">
             Payment Products
@@ -682,8 +719,8 @@ function PaymentsTab() {
       </div>
 
       {filtered.length === 0 ? <EmptyState message="No payments match your search." /> : (
-        <div className="overflow-x-auto border border-border rounded-2xl bg-card">
-          <table className="w-full text-left text-xs border-collapse">
+        <div className="overflow-x-auto border border-border rounded-2xl bg-card" style={{ overflow: 'visible' }}>
+          <table className="w-full text-left text-xs border-collapse" style={{ overflow: 'visible' }}>
             <thead>
               <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 <th className="px-5 py-3">Client</th>
@@ -848,59 +885,174 @@ function ColumbariumTab() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Obituaries Tab
+// Obituaries Tab — with live tarp preview
 // ─────────────────────────────────────────────────────────────
 function ObituariesTab() {
   const supabase = createClient()
   const [rows, setRows] = useState<Obituary[]>([])
   const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<Obituary | null>(null)
+  // Editable fields for selected obituary
+  const [editName,    setEditName]    = useState('')
+  const [editBirth,   setEditBirth]   = useState('')
+  const [editDeath,   setEditDeath]   = useState('')
+  const [editAge,     setEditAge]     = useState('')
+  const [editVenue,   setEditVenue]   = useState('')
+  const [editContact, setEditContact] = useState('')
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     supabase.from('obituaries').select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setRows(data ?? []); setLoading(false) })
   }, [supabase])
 
+  const openEdit = (o: Obituary) => {
+    setSelected(o)
+    setEditName(o.full_name)
+    setEditBirth(o.birth_date ?? '')
+    setEditDeath(o.death_date ?? '')
+    setEditAge(o.age ? String(o.age) : '')
+    setEditVenue(o.venue_address ?? '')
+    setEditContact(o.contact_number ?? '')
+  }
+
+  const saveEdit = async () => {
+    if (!selected) return
+    setSaving(true)
+    const updates = {
+      full_name:      editName,
+      birth_date:     editBirth || null,
+      death_date:     editDeath || null,
+      age:            editAge ? Number(editAge) : null,
+      venue_address:  editVenue || null,
+      contact_number: editContact || null,
+    }
+    await supabase.from('obituaries').update(updates).eq('id', selected.id)
+    setRows(r => r.map(x => x.id === selected.id ? { ...x, ...updates } : x))
+    setSelected(prev => prev ? { ...prev, ...updates } : null)
+    setSaving(false)
+  }
+
   const togglePublish = async (id: string, current: boolean) => {
     await supabase.from('obituaries').update({ is_published: !current }).eq('id', id)
     setRows(r => r.map(x => x.id === id ? { ...x, is_published: !current } : x))
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, is_published: !current } : null)
+  }
+
+  const getPhotoUrl = (path: string) => {
+    if (!path || path === 'obituaries/placeholder.png') return null
+    const { data } = supabase.storage.from('obituaries').getPublicUrl(path)
+    return data.publicUrl
   }
 
   if (loading) return <Spinner />
 
   return (
-    <div>
+    <div className="space-y-6">
       <SectionHeader title="Obituaries" sub={`${rows.length} records · ${rows.filter(r => r.is_published).length} published`} />
+
       {rows.length === 0 ? <EmptyState message="No obituary records yet." /> : (
-        <div className="overflow-x-auto border border-border rounded-2xl bg-card">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3">Full Name</th>
-                <th className="px-5 py-3">Birth</th>
-                <th className="px-5 py-3">Death</th>
-                <th className="px-5 py-3">Age</th>
-                <th className="px-5 py-3">Published</th>
-                <th className="px-5 py-3">Toggle</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map(o => (
-                <tr key={o.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5 font-semibold text-foreground">{o.full_name}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{o.birth_date ?? '—'}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{o.death_date ?? '—'}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground">{o.age ?? '—'}</td>
-                  <td className="px-5 py-3.5"><Badge label={o.is_published ? 'Published' : 'Draft'} variant={o.is_published ? 'green' : 'muted'} /></td>
-                  <td className="px-5 py-3.5">
-                    <button onClick={() => togglePublish(o.id, o.is_published)}
-                      className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${o.is_published ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500' : 'bg-primary/10 border-primary/20 text-primary hover:bg-primary/20'}`}>
-                      {o.is_published ? 'Unpublish' : 'Publish'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {rows.map(o => (
+            <div key={o.id} className={`bg-card border rounded-2xl overflow-hidden transition-all ${selected?.id === o.id ? 'border-primary shadow-md' : 'border-border hover:border-primary/40'}`}>
+              {/* Mini tarp preview */}
+              <div className="p-3 bg-muted/20 border-b border-border">
+                <TarpPreview
+                  fullName={o.full_name}
+                  birthDate={o.birth_date ?? ''}
+                  deathDate={o.death_date ?? ''}
+                  age={o.age ?? ''}
+                  photoUrl={getPhotoUrl(o.image_path)}
+                  venueAddress={o.venue_address ?? ''}
+                  contactNumber={o.contact_number ?? ''}
+                />
+              </div>
+              {/* Info row */}
+              <div className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-foreground truncate">{o.full_name}</p>
+                  <p className="text-[10px] text-muted-foreground">{o.submitter_name ?? ''} · {o.submitter_email ?? ''}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge label={o.is_published ? 'Published' : 'Draft'} variant={o.is_published ? 'green' : 'muted'} />
+                  <button onClick={() => openEdit(o)}
+                    className="h-7 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors">
+                    Edit
+                  </button>
+                  <button onClick={() => togglePublish(o.id, o.is_published)}
+                    className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${o.is_published ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500' : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'}`}>
+                    {o.is_published ? 'Unpublish' : 'Publish'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit panel — live preview updates as you type */}
+      {selected && (
+        <div className="bg-card border border-primary/30 rounded-2xl overflow-hidden shadow-lg">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h3 className="text-sm font-bold text-foreground">Edit Obituary — Live Preview</h3>
+            <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">✕ Close</button>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
+            {/* Left: editable fields */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} className={inputCls} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Birth Date</label>
+                  <input type="date" value={editBirth} onChange={e => setEditBirth(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Death Date</label>
+                  <input type="date" value={editDeath} onChange={e => setEditDeath(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Age</label>
+                  <input type="number" value={editAge} onChange={e => setEditAge(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Venue / Address</label>
+                <input value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contact Number</label>
+                <input value={editContact} onChange={e => setEditContact(e.target.value)} className={inputCls} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </Button>
+                <button
+                  onClick={() => togglePublish(selected.id, selected.is_published)}
+                  className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${selected.is_published ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500' : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'}`}
+                >
+                  {selected.is_published ? 'Unpublish' : 'Publish'}
+                </button>
+              </div>
+            </div>
+            {/* Right: live tarp preview */}
+            <div className="px-6 py-5 bg-muted/10 flex flex-col gap-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live Tarp Preview</p>
+              <TarpPreview
+                fullName={editName || 'FULL NAME'}
+                birthDate={editBirth}
+                deathDate={editDeath}
+                age={editAge}
+                photoUrl={getPhotoUrl(selected.image_path)}
+                venueAddress={editVenue}
+                contactNumber={editContact}
+              />
+              <p className="text-[10px] text-muted-foreground">Updates as you type. Save to persist changes.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

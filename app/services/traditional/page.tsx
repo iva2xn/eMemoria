@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { PackageCard } from '@/components/ui/package-card'
+import { ObituaryForm } from '@/components/ui/obituary-form'
 import { ArrowLeft } from 'lucide-react'
 
 const PACKAGES = [
@@ -154,6 +155,22 @@ export default function TraditionalBurialPage() {
               <Link href="/billing?product=package&label=Traditional+Burial+Package">Reserve a Package</Link>
             </Button>
           </div>
+        </section>
+
+        {/* ── OBITUARY / TARP FORM ── */}
+        <section className="py-16 max-w-3xl mx-auto px-6">
+          <div className="mb-8 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">
+              Memorial Tarpaulin
+            </p>
+            <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground mb-3">
+              Submit Obituary Details
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+              Fill in the details below and we will prepare a memorial tarpaulin for your loved one. A live preview updates as you type.
+            </p>
+          </div>
+          <ObituaryForm />
         </section>
 
       </main>
