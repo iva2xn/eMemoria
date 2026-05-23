@@ -1246,13 +1246,34 @@ type PaymentRow = RawPayment & { profileName?: string; profileEmail?: string }
 
 function ProductsPopover({ payment }: { payment: PaymentRow }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const ref     = useRef<HTMLDivElement>(null)
+  const btnRef  = useRef<HTMLButtonElement>(null)
+  const [style, setStyle] = useState<React.CSSProperties>({})
 
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  const openPopover = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      const POPOVER_H = 180 // approximate height
+      const spaceAbove = r.top
+      const spaceBelow = window.innerHeight - r.bottom
+
+      // prefer below, flip above only if not enough room below
+      const showBelow = spaceBelow >= POPOVER_H || spaceBelow >= spaceAbove
+
+      setStyle(
+        showBelow
+          ? { position: 'fixed', top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 272) }
+          : { position: 'fixed', bottom: window.innerHeight - r.top + 6, left: Math.min(r.left, window.innerWidth - 272) }
+      )
+    }
+    setOpen(o => !o)
+  }
 
   const items = [
     { label: 'Type',      value: payment.product_type },
@@ -1265,9 +1286,10 @@ function ProductsPopover({ payment }: { payment: PaymentRow }) {
   return (
     <div ref={ref} className="relative inline-block">
       <button
-        onMouseEnter={() => setOpen(true)}
+        ref={btnRef}
+        onMouseEnter={openPopover}
         onMouseLeave={() => setOpen(false)}
-        onClick={() => setOpen(o => !o)}
+        onClick={openPopover}
         className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors underline-offset-2 hover:underline"
       >
         Products
@@ -1276,7 +1298,8 @@ function ProductsPopover({ payment }: { payment: PaymentRow }) {
         <div
           onMouseEnter={() => setOpen(true)}
           onMouseLeave={() => setOpen(false)}
-          className="absolute z-50 bottom-full mb-2 left-0 w-64 bg-card border border-border rounded-xl shadow-xl p-3 space-y-2"
+          style={style}
+          className="z-[200] w-64 bg-card border border-border rounded-xl shadow-xl p-3 space-y-2"
         >
           <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border/50 pb-2 mb-1">
             Payment Products
@@ -1513,8 +1536,8 @@ function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
       </div>
 
       {filtered.length === 0 ? <EmptyState message="No payments match your search." /> : (
-        <div className="overflow-x-auto border border-border rounded-2xl bg-card" style={{ overflow: 'visible' }}>
-          <table className="w-full text-left text-xs border-collapse" style={{ overflow: 'visible' }}>
+        <div className="overflow-x-auto border border-border rounded-2xl bg-card">
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 <th className="px-5 py-3">Client</th>
@@ -2342,13 +2365,13 @@ export default function AdminPage() {
 
         {/* Sticky tab bar */}
         <div className="border-b border-border/40 bg-background/95 backdrop-blur-sm sticky top-16 z-40">
-          <div className="max-w-6xl mx-auto px-6">
-            <div className="flex justify-center gap-0.5 overflow-x-auto py-1.5">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex gap-0.5 overflow-x-auto no-scrollbar py-1.5 px-3">
               {TABS.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
                     activeTab === tab.id
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
@@ -2363,7 +2386,7 @@ export default function AdminPage() {
         </div>
 
         {/* Content */}
-        <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="max-w-6xl mx-auto px-3 md:px-6 py-8">
           {tabContent[activeTab]}
         </div>
 
