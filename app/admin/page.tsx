@@ -2135,7 +2135,8 @@ function ObituariesTab() {
             <div className="px-6 py-5 bg-muted/10 flex flex-col gap-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live Tarp Preview</p>
               <TarpPreview
-                fullName={editName || 'FULL NAME'}
+                firstName={(editName || 'FULL NAME').trim().split(' ')[0] ?? ''}
+                lastName={(editName || 'FULL NAME').trim().split(' ').slice(-1)[0] ?? ''}
                 birthDate={editBirth}
                 deathDate={editDeath}
                 age={editAge}
