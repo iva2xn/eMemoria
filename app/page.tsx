@@ -80,7 +80,7 @@ export default function HeroSection() {
             <div
               className="absolute inset-0 pointer-events-none hidden lg:block"
               style={{
-                background: 'linear-gradient(to right, var(--background) 0%, var(--background) 40%, transparent 100%)'
+                background: 'linear-gradient(to right, var(--background) 0%, var(--background) 20%, transparent 100%)'
               }}
             />
           </div>
@@ -90,7 +90,7 @@ export default function HeroSection() {
             <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
               <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-foreground/15 text-xs font-bold uppercase tracking-widest text-foreground/60">
-                  <Award className="h-3.5 w-3.5" /> Established Since 2004
+                  <Award className="h-3.5 w-3.5" /> Est. Since 2004
                 </span>
                 <h1 className="mt-6 max-w-2xl text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-10 xl:text-6xl text-foreground leading-[1.1]">
                   Dignity, Honour &amp; Peace in Every Farewell
@@ -127,7 +127,7 @@ export default function HeroSection() {
           {/* SERVICES SLIDER */}
           <div className="absolute bottom-0 left-0 right-0 z-10 py-6">
             <div className="mx-auto max-w-6xl px-6">
-              <p className="text-[10px] font-serif font-bold tracking-widest text-foreground/50 uppercase mb-4 text-center">
+              <p className="text-[11px] lg:text-[11px] font-serif font-bold tracking-widest text-white lg:text-foreground/70 uppercase mb-4 text-center">
                 Our Professional Memorial Services
               </p>
             </div>

@@ -20,7 +20,7 @@ export function StatCard({ icon, label, value, className }: StatCardProps) {
         className
       )}
     >
-      <div className="h-12 w-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 border border-primary/10">
+      <div className="h-12 w-12 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
         {icon}
       </div>
       <div>

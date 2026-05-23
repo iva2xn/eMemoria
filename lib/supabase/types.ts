@@ -103,6 +103,26 @@ export interface Obituary {
   updated_at: string
 }
 
+export interface PaymentInfo {
+  id: 1
+  gcash_name: string
+  gcash_number: string
+  gcash_qr_path: string | null
+  bank1_name: string
+  bank1_account_name: string
+  bank1_account_number: string
+  bank2_name: string
+  bank2_account_name: string
+  bank2_account_number: string
+  bank3_name: string
+  bank3_account_name: string
+  bank3_account_number: string
+  bank4_name: string
+  bank4_account_name: string
+  bank4_account_number: string
+  updated_at: string
+}
+
 // Convenience type for the full DB shape (used by createClient generics)
 export interface Database {
   public: {
@@ -113,6 +133,7 @@ export interface Database {
       bookings: { Row: Booking; Insert: Omit<Booking, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Booking> }
       payments: { Row: Payment; Insert: Omit<Payment, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Payment> }
       obituaries: { Row: Obituary; Insert: Omit<Obituary, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Obituary> }
+      payment_info: { Row: PaymentInfo; Insert: never; Update: Partial<Omit<PaymentInfo, 'id' | 'updated_at'>> }
     }
     Enums: {
       user_role: UserRole
