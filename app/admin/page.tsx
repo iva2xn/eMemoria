@@ -2050,7 +2050,8 @@ function ObituariesTab() {
               {/* Mini tarp preview */}
               <div className="p-3 bg-muted/20 border-b border-border">
                 <TarpPreview
-                  fullName={o.full_name}
+                  firstName={o.full_name.trim().split(' ')[0] ?? ''}
+                  lastName={o.full_name.trim().split(' ').slice(-1)[0] ?? ''}
                   birthDate={o.birth_date ?? ''}
                   deathDate={o.death_date ?? ''}
                   age={o.age ?? ''}
