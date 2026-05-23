@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Playfair_Display, JetBrains_Mono } from "next/font/google"
 import { StoreProvider } from "@/app/context/store"
 import { Footer } from "@/components/footer"
+import { Watermark } from "@/components/ui/watermark"
 import "./globals.css"
 
 const fontSans = Plus_Jakarta_Sans({
@@ -39,6 +40,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground transition-colors duration-300">
         <StoreProvider>
+          <Watermark />
           <div className="flex flex-col flex-1 min-h-screen">
             {children}
             <Footer />
