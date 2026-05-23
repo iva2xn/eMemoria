@@ -7,7 +7,7 @@ import { HeroHeader } from '@/components/header'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { TarpPreview } from '@/components/ui/tarp-preview'
-import { UploadCloud, Info, User, FileText, X, CheckCircle2, ScrollText } from 'lucide-react'
+import { UploadCloud, Info, User, FileText, X, CheckCircle2, ScrollText, LogIn, UserPlus, ShieldCheck } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────
 const METHODS = [
@@ -231,11 +231,59 @@ function ObituaryModal({ submitterName, submitterEmail, submitterPhone, onDone }
   )
 }
 
+// ── Auth Gate Modal ──────────────────────────────────────────
+function AuthGateModal({ returnUrl }: { returnUrl: string }) {
+  const router = useRouter()
+  const encoded = encodeURIComponent(returnUrl)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
+        <div className="h-1.5 w-full bg-primary" />
+        <div className="px-8 py-8 flex flex-col items-center text-center gap-5">
+          <div className="h-16 w-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <ShieldCheck className="h-8 w-8 text-primary" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="font-serif text-xl font-bold text-foreground">Account Required</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Please sign in or create an account to avail our services. Your details will be pre-filled for a faster checkout.
+            </p>
+          </div>
+          <div className="w-full space-y-2.5">
+            <Button
+              onClick={() => router.push(`/auth/login?next=${encoded}`)}
+              className="w-full h-11 font-bold rounded-xl gap-2"
+            >
+              <LogIn className="h-4 w-4" /> Sign In
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/auth/register?next=${encoded}`)}
+              className="w-full h-11 font-bold rounded-xl gap-2"
+            >
+              <UserPlus className="h-4 w-4" /> Create Account
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Already verified? Sign in to continue.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main form ────────────────────────────────────────────────
 function BillingForm() {
   const params     = useSearchParams()
   const supabase   = createClient()
   const router     = useRouter()
+
+  // ── Auth gate ─────────────────────────────────────────────
+  // null = still loading, false = not logged in, true = logged in
+  const [authReady, setAuthReady] = useState<boolean | null>(null)
+  const [returnUrl, setReturnUrl] = useState('')
 
   // Load payment info for sidebar
   const [paymentInfo, setPaymentInfo] = useState<{
@@ -247,6 +295,28 @@ function BillingForm() {
   } | null>(null)
 
   useEffect(() => {
+    // Capture the current URL so we can redirect back after login
+    setReturnUrl(window.location.pathname + window.location.search)
+
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setAuthReady(false); return }
+
+      // Fetch profile to pre-fill contact fields
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setName(profile.name ?? '')
+        setEmail(profile.email ?? '')
+      }
+      setAuthReady(true)
+    }
+    init()
+
     supabase.from('payment_info').select('*').eq('id', 1).single()
       .then(({ data }) => setPaymentInfo(data ?? null))
   }, [supabase])
@@ -403,6 +473,9 @@ function BillingForm() {
 
   return (
     <>
+      {/* ── AUTH GATE ── */}
+      {authReady === false && <AuthGateModal returnUrl={returnUrl} />}
+
       {/* ── OBITUARY MODAL (package purchases only) ── */}
       {showObituaryModal && (
         <ObituaryModal
@@ -464,9 +537,16 @@ function BillingForm() {
 
             {/* ── SECTION 1: Contact Info ── */}
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-bold text-foreground">Contact Information</h3>
+              <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-bold text-foreground">Contact Information</h3>
+                </div>
+                {authReady === true && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/8 border border-primary/20 px-2 py-0.5 rounded-full">
+                    <ShieldCheck className="h-3 w-3" /> Pre-filled from your account
+                  </span>
+                )}
               </div>
               <div className="px-6 py-5 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -481,7 +561,9 @@ function BillingForm() {
                 </div>
                 <Field label="Email Address" required>
                   <input type="email" placeholder="juan@example.com" value={email}
-                    onChange={e => setEmail(e.target.value)} className={inp} />
+                    onChange={e => setEmail(e.target.value)}
+                    readOnly={authReady === true}
+                    className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                 </Field>
               </div>
             </div>

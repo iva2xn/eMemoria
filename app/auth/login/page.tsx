@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { HeroHeader } from '@/components/header'
@@ -11,8 +11,18 @@ import { FormField } from '@/components/ui/form-field'
 import { KeyRound, Mail } from 'lucide-react'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginForm() {
   const supabase = createClient()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const nextUrl = searchParams.get('next') ?? '/'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -39,8 +49,9 @@ export default function LoginPage() {
       return
     }
 
-    // Hard redirect so middleware runs and writes the session cookie
-    window.location.href = '/'
+    // Hard redirect so middleware runs and writes the session cookie,
+    // then land on the originally requested page (e.g. /billing?product=...)
+    window.location.href = nextUrl
   }
 
   const handleRecovery = async (e: React.FormEvent) => {
@@ -108,7 +119,7 @@ export default function LoginPage() {
 
               <div className="text-center pt-2 border-t border-border/30 text-sm text-muted-foreground">
                 Don&apos;t have an account?{' '}
-                <Link href="/auth/register" className="font-semibold text-primary hover:underline">
+                <Link href={`/auth/register${nextUrl !== '/' ? `?next=${encodeURIComponent(nextUrl)}` : ''}`} className="font-semibold text-primary hover:underline">
                   Register
                 </Link>
               </div>
