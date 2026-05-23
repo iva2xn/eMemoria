@@ -11,7 +11,7 @@ import { TarpPreview } from '@/components/ui/tarp-preview'
 import type {
   Profile, Booking, Payment, Inquiry,
   ColumbariumSlot, Obituary, PaymentInfo,
-  BookingStatus, PaymentStatus, SlotStatus,
+  BookingStatus, PaymentStatus, SlotStatus, UserRole,
 } from '@/lib/supabase/types'
 import {
   ShieldAlert, Mail, Users, Landmark, Clock,
@@ -87,7 +87,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 // ─────────────────────────────────────────────────────────────
 // Payment Info Card — editable GCash + bank details
 // ─────────────────────────────────────────────────────────────
-function PaymentInfoCard() {
+function PaymentInfoCard({ canEdit = true }: { canEdit?: boolean }) {
   const supabase = createClient()
   const qrInputRef = useRef<HTMLInputElement>(null)
 
@@ -155,7 +155,7 @@ function PaymentInfoCard() {
         </div>
         <div className="flex items-center gap-2">
           {saveMsg && <span className="text-[10px] font-semibold text-white/70">{saveMsg}</span>}
-          {editing ? (
+          {canEdit && (editing ? (
             <button
               onClick={save}
               disabled={saving}
@@ -170,7 +170,7 @@ function PaymentInfoCard() {
             >
               <Pencil className="h-3 w-3" /> Edit
             </button>
-          )}
+          ))}
         </div>
       </div>
 
@@ -829,7 +829,7 @@ function SalesReportModal({ onClose }: { onClose: () => void }) {
 // ─────────────────────────────────────────────────────────────
 // Overview Tab — live Supabase counts
 // ─────────────────────────────────────────────────────────────
-function OverviewTab() {
+function OverviewTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
   const [stats, setStats] = useState({ pending: 0, totalBookings: 0, inquiries: 0, profiles: 0, totalRevenue: 0 })
   const [pendingPayments, setPendingPayments] = useState<(Payment & { guest_name?: string; guest_email?: string })[]>([])
@@ -884,7 +884,7 @@ function OverviewTab() {
       {showReport && <SalesReportModal onClose={() => setShowReport(false)} />}
 
       {/* Payment receiving details */}
-      <PaymentInfoCard />
+      <PaymentInfoCard canEdit={currentRole === 'admin'} />
 
       {/* ── Stats container ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -946,9 +946,11 @@ function OverviewTab() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-serif font-bold text-primary text-xs">₱{Number(p.amount).toLocaleString()}</span>
-                    <button onClick={() => approve(p.id)} className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
-                      Approve
-                    </button>
+                    {currentRole === 'admin' && (
+                      <button onClick={() => approve(p.id)} className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
+                        Approve
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -1386,7 +1388,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   )
 }
 
-function PaymentsTab() {
+function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
   const [rows, setRows] = useState<PaymentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -1540,7 +1542,7 @@ function PaymentsTab() {
                   <td className="px-5 py-3.5"><Badge label={p.status} variant={statusVariant(p.status)} /></td>
                   <td className="px-5 py-3.5"><ProductsPopover payment={p} /></td>
                   <td className="px-5 py-3.5">
-                    {p.status === 'pending' ? (
+                    {p.status === 'pending' && currentRole === 'admin' ? (
                       <div className="flex gap-1.5">
                         <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
                           <Check className="h-3 w-3" /> Approve
@@ -1967,7 +1969,9 @@ function ObituariesTab() {
   const [selected, setSelected] = useState<Obituary | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   // Editable fields for selected obituary
-  const [editName,    setEditName]    = useState('')
+  const [editFirst,   setEditFirst]   = useState('')
+  const [editMiddle,  setEditMiddle]  = useState('')
+  const [editLast,    setEditLast]    = useState('')
   const [editBirth,   setEditBirth]   = useState('')
   const [editDeath,   setEditDeath]   = useState('')
   const [editAge,     setEditAge]     = useState('')
@@ -1982,7 +1986,10 @@ function ObituariesTab() {
 
   const openEdit = (o: Obituary) => {
     setSelected(o)
-    setEditName(o.full_name)
+    const parts = o.full_name.trim().split(' ')
+    setEditFirst(parts[0] ?? '')
+    setEditLast(parts.length > 1 ? parts[parts.length - 1] : '')
+    setEditMiddle(parts.length > 2 ? parts.slice(1, -1).join(' ') : '')
     setEditBirth(o.birth_date ?? '')
     setEditDeath(o.death_date ?? '')
     setEditAge(o.age ? String(o.age) : '')
@@ -1993,8 +2000,9 @@ function ObituariesTab() {
   const saveEdit = async () => {
     if (!selected) return
     setSaving(true)
+    const fullName = [editFirst.trim(), editMiddle.trim(), editLast.trim()].filter(Boolean).join(' ')
     const updates = {
-      full_name:      editName,
+      full_name:      fullName,
       birth_date:     editBirth || null,
       death_date:     editDeath || null,
       age:            editAge ? Number(editAge) : null,
@@ -2051,6 +2059,7 @@ function ObituariesTab() {
               <div className="p-3 bg-muted/20 border-b border-border">
                 <TarpPreview
                   firstName={o.full_name.trim().split(' ')[0] ?? ''}
+                  middleName={o.full_name.trim().split(' ').length > 2 ? o.full_name.trim().split(' ').slice(1, -1).join(' ') : ''}
                   lastName={o.full_name.trim().split(' ').slice(-1)[0] ?? ''}
                   birthDate={o.birth_date ?? ''}
                   deathDate={o.death_date ?? ''}
@@ -2093,9 +2102,19 @@ function ObituariesTab() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
             {/* Left: editable fields */}
             <div className="px-6 py-5 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} className={inputCls} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">First Name</label>
+                  <input value={editFirst} onChange={e => setEditFirst(e.target.value)} placeholder="e.g. Juan" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Middle Name</label>
+                  <input value={editMiddle} onChange={e => setEditMiddle(e.target.value)} placeholder="optional" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Last Name</label>
+                  <input value={editLast} onChange={e => setEditLast(e.target.value)} placeholder="e.g. Dela Cruz" className={inputCls} />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
@@ -2135,8 +2154,9 @@ function ObituariesTab() {
             <div className="px-6 py-5 bg-muted/10 flex flex-col gap-3">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live Tarp Preview</p>
               <TarpPreview
-                firstName={(editName || 'FULL NAME').trim().split(' ')[0] ?? ''}
-                lastName={(editName || 'FULL NAME').trim().split(' ').slice(-1)[0] ?? ''}
+                firstName={editFirst || 'FIRST'}
+                middleName={editMiddle}
+                lastName={editLast || 'LAST'}
                 birthDate={editBirth}
                 deathDate={editDeath}
                 age={editAge}
@@ -2156,21 +2176,34 @@ function ObituariesTab() {
 // ─────────────────────────────────────────────────────────────
 // Profiles Tab
 // ─────────────────────────────────────────────────────────────
-function ProfilesTab() {
+function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
   const [rows, setRows] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [changingRole, setChangingRole] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.from('profiles').select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setRows(data ?? []); setLoading(false) })
   }, [supabase])
 
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    setChangingRole(userId)
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    if (!error) {
+      setRows(r => r.map(p => p.id === userId ? { ...p, role: newRole } : p))
+    }
+    setChangingRole(null)
+  }
+
   const q = search.toLowerCase()
   const filtered = rows.filter(p => !q || [p.name, p.email, p.role].some(v => v?.toLowerCase().includes(q)))
 
   if (loading) return <Spinner />
+
+  const roleBadgeVariant = (role: UserRole): BadgeVariant =>
+    role === 'admin' ? 'blue' : role === 'staff' ? 'amber' : 'muted'
 
   return (
     <div>
@@ -2189,6 +2222,7 @@ function ProfilesTab() {
                 <th className="px-5 py-3">Email</th>
                 <th className="px-5 py-3">Role</th>
                 <th className="px-5 py-3">Joined</th>
+                {currentRole === 'admin' && <th className="px-5 py-3">Change Role</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -2196,8 +2230,30 @@ function ProfilesTab() {
                 <tr key={u.id} className="hover:bg-muted/20 transition-colors">
                   <td className="px-5 py-3.5 font-semibold text-foreground">{u.name}</td>
                   <td className="px-5 py-3.5 text-muted-foreground font-mono">{u.email}</td>
-                  <td className="px-5 py-3.5"><Badge label={u.role} variant={u.role === 'admin' ? 'blue' : 'muted'} /></td>
+                  <td className="px-5 py-3.5">
+                    <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+                  </td>
                   <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(u.created_at).toLocaleDateString()}</td>
+                  {currentRole === 'admin' && (
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        <select
+                          value={u.role}
+                          disabled={changingRole === u.id}
+                          onChange={e => handleRoleChange(u.id, e.target.value as UserRole)}
+                          className="h-7 pl-2.5 pr-7 rounded-lg bg-background border border-border/80 text-[11px] font-semibold text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50"
+                          aria-label={`Change role for ${u.name}`}
+                        >
+                          <option value="client">client</option>
+                          <option value="staff">staff</option>
+                          <option value="admin">admin</option>
+                        </select>
+                        {changingRole === u.id && (
+                          <div className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -2229,7 +2285,7 @@ export default function AdminPage() {
   }, [supabase, router])
 
   useEffect(() => {
-    if (profile !== undefined && profile?.role !== 'admin') router.push('/')
+    if (profile !== undefined && profile?.role !== 'admin' && profile?.role !== 'staff') router.push('/')
   }, [profile, router])
 
   // Loading state
@@ -2244,8 +2300,8 @@ export default function AdminPage() {
     )
   }
 
-  // Not admin
-  if (!profile || profile.role !== 'admin') {
+  // Not admin or staff
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
     return (
       <>
         <HeroHeader />
@@ -2265,14 +2321,16 @@ export default function AdminPage() {
     )
   }
 
+  const currentRole = profile.role
+
   const tabContent: Record<Tab, React.ReactNode> = {
-    overview:    <OverviewTab />,
+    overview:    <OverviewTab currentRole={currentRole} />,
     inquiries:   <InquiriesTab />,
     bookings:    <BookingsTab />,
-    payments:    <PaymentsTab />,
+    payments:    <PaymentsTab currentRole={currentRole} />,
     columbarium: <ColumbariumTab />,
     obituaries:  <ObituariesTab />,
-    profiles:    <ProfilesTab />,
+    profiles:    <ProfilesTab currentRole={currentRole} />,
   }
 
   return (

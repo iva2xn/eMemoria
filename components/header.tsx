@@ -105,12 +105,12 @@ export function HeroHeader() {
               {link.name}
             </Link>
           ))}
-          {authReady && profile?.role === 'admin' && (
+          {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
             <Link href="/admin"
               className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-border/50 text-foreground font-semibold hover:bg-muted transition-colors ${
                 isActive('/admin') ? 'bg-muted' : ''
               }`}>
-              <ShieldAlert className="h-3 w-3 text-muted-foreground" /> Admin
+              <ShieldAlert className="h-3 w-3 text-muted-foreground" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
             </Link>
           )}
         </nav>
@@ -147,10 +147,10 @@ export function HeroHeader() {
 
         {/* Mobile toggle */}
         <div className="flex md:hidden items-center gap-3">
-          {authReady && profile?.role === 'admin' && (
+          {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
             <Link href="/admin"
               className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border border-border/50 text-foreground font-semibold">
-              <ShieldAlert className="h-2.5 w-2.5 text-muted-foreground" /> Admin
+              <ShieldAlert className="h-2.5 w-2.5 text-muted-foreground" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
             </Link>
           )}
           <Button variant="ghost" size="icon"
@@ -176,12 +176,12 @@ export function HeroHeader() {
                 {link.name}
               </Link>
             ))}
-            {authReady && profile?.role === 'admin' && (
+            {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
               <Link href="/admin" onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-2 px-3 py-2.5 rounded-md text-base font-semibold text-primary transition-colors ${
                   isActive('/admin') ? 'bg-accent' : 'hover:bg-muted'
                 }`}>
-                <ShieldAlert className="h-4 w-4" /> Admin Panel
+                <ShieldAlert className="h-4 w-4" /> {profile?.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
               </Link>
             )}
 

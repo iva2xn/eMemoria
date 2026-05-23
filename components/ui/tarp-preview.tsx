@@ -219,7 +219,7 @@ export function TarpPreview({
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: BOTTOM_H, zIndex: 1 }}>
           <div style={{ height: '40%', background: 'rgba(255,255,255,0.95)', borderTop: '1px solid rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <span style={{ fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: 32, fontWeight: 900, color: '#111', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-              M. GAYETA FUNERAL HOME
+              M.G. FUNERAL HOMES
             </span>
           </div>
           <div style={{ height: '60%', background: 'rgb(34,197,94)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>

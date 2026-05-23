@@ -4,7 +4,7 @@
  * the project is linked to a Supabase project.
  */
 
-export type UserRole = 'client' | 'admin'
+export type UserRole = 'client' | 'admin' | 'staff'
 export type SlotStatus = 'available' | 'reserved' | 'occupied'
 export type BookingStatus = 'pending' | 'active' | 'completed' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected'
