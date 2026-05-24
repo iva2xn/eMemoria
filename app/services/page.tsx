@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { HeroHeader } from '@/components/header'
 import { ServiceCard } from '@/components/ui/service-card'
 
@@ -55,7 +55,6 @@ export default function ServicesPage() {
       <main className="flex-1 bg-background">
         <section className="py-16 md:py-24">
 
-          {/* Header */}
           <div className="text-center mb-10 md:mb-14 px-6">
             <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-5">
               Our Funeral Services
@@ -65,25 +64,16 @@ export default function ServicesPage() {
             </p>
           </div>
 
-          {/* ── MOBILE: horizontal snap carousel ── */}
+          {/* Mobile: horizontal snap carousel with auto-advance */}
           <div className="md:hidden">
             <div
               ref={sliderRef}
               className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-6 pb-4 no-scrollbar"
               style={{ scrollbarWidth: 'none' }}
             >
-              {SERVICES.map((s) => (
-                <div
-                  key={s.href}
-                  className="snap-center shrink-0 w-[80vw]"
-                >
-                  <ServiceCard
-                    title={s.title}
-                    description={s.description}
-                    href={s.href}
-                    imageSrc={s.imageSrc}
-                    imageAlt={s.imageAlt}
-                  />
+              {SERVICES.map(s => (
+                <div key={s.href} className="snap-center shrink-0 w-[80vw]">
+                  <ServiceCard {...s} />
                 </div>
               ))}
             </div>
@@ -96,8 +86,7 @@ export default function ServicesPage() {
                   onClick={() => {
                     const el = sliderRef.current
                     if (!el) return
-                    const cardWidth = el.scrollWidth / SERVICES.length
-                    el.scrollTo({ left: cardWidth * i, behavior: 'smooth' })
+                    el.scrollTo({ left: (el.scrollWidth / SERVICES.length) * i, behavior: 'smooth' })
                   }}
                   className="h-1.5 w-1.5 rounded-full bg-border hover:bg-foreground/40 transition-colors"
                   aria-label={`Go to slide ${i + 1}`}
@@ -106,18 +95,9 @@ export default function ServicesPage() {
             </div>
           </div>
 
-          {/* ── DESKTOP: 3-col grid ── */}
+          {/* Desktop: 3-col grid */}
           <div className="hidden md:grid md:grid-cols-3 gap-6 max-w-6xl mx-auto px-6">
-            {SERVICES.map((s) => (
-              <ServiceCard
-                key={s.href}
-                title={s.title}
-                description={s.description}
-                href={s.href}
-                imageSrc={s.imageSrc}
-                imageAlt={s.imageAlt}
-              />
-            ))}
+            {SERVICES.map(s => <ServiceCard key={s.href} {...s} />)}
           </div>
 
         </section>
