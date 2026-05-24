@@ -4,6 +4,9 @@ import { useEffect, useRef } from 'react'
 import { HeroHeader } from '@/components/header'
 import { ServiceCard } from '@/components/ui/service-card'
 
+// SERVICE REGISTRY — static list of all offered services.
+// Each entry maps to a ServiceCard; href is the destination page,
+// imageSrc is the card's background photo.
 const SERVICES = [
   {
     title: 'Traditional Burial',
@@ -31,7 +34,6 @@ const SERVICES = [
 export default function ServicesPage() {
   const sliderRef = useRef<HTMLDivElement>(null)
 
-  // Auto-advance the mobile carousel every 3 s
   useEffect(() => {
     const el = sliderRef.current
     if (!el) return
@@ -64,7 +66,6 @@ export default function ServicesPage() {
             </p>
           </div>
 
-          {/* Mobile: horizontal snap carousel with auto-advance */}
           <div className="md:hidden">
             <div
               ref={sliderRef}
@@ -78,7 +79,6 @@ export default function ServicesPage() {
               ))}
             </div>
 
-            {/* Dot indicators */}
             <div className="flex justify-center gap-1.5 mt-4">
               {SERVICES.map((_, i) => (
                 <button
@@ -95,7 +95,6 @@ export default function ServicesPage() {
             </div>
           </div>
 
-          {/* Desktop: 3-col grid */}
           <div className="hidden md:grid md:grid-cols-3 gap-6 max-w-6xl mx-auto px-6">
             {SERVICES.map(s => <ServiceCard key={s.href} {...s} />)}
           </div>

@@ -11,11 +11,17 @@ import type { ColumbariumSlot } from '@/lib/supabase/types'
 
 export default function ColumbariumPage() {
   const supabase = createClient()
+
+  // SLOT DATA — full list ng columbarium slots from Supabase
   const [slots,   setSlots]   = useState<ColumbariumSlot[]>([])
+
+  // LOADING STATE - self explanatory
   const [loading, setLoading] = useState(true)
+
+  // MODAL STATE — eto yung naghahandle ng active na slot/pinindot ni user
+  // null means no modal is open/active
   const [modal,   setModal]   = useState<ColumbariumSlot | null>(null)
 
-  // Fetch all slots once on mount — ordered for the grid
   useEffect(() => {
     supabase
       .from('columbarium_slots')
@@ -24,7 +30,6 @@ export default function ColumbariumPage() {
       .order('col_number')
       .then(({ data }) => { setSlots(data ?? []); setLoading(false) })
   }, [supabase])
-
   const counts = {
     available: slots.filter(s => s.status === 'available').length,
     reserved:  slots.filter(s => s.status === 'reserved').length,
@@ -54,7 +59,7 @@ export default function ColumbariumPage() {
           </div>
         </div>
 
-        {/* Info blocks: How to Use, Legend + live counts, Pricing */}
+        {/* INFO BLOCKS — finefetch nito yung live count para visible sa users yung availability */}
         <section className="py-10 max-w-6xl mx-auto px-6">
           <InfoBlocks
             available={counts.available}
@@ -64,7 +69,8 @@ export default function ColumbariumPage() {
           />
         </section>
 
-        {/* Slot grid */}
+        {/* SLOT GRID — eto yung visual nung columbarium 6×12 grid
+            clickable para mabuksan yung SlotModal / details about sa slot */}
         <section className="pb-10 max-w-6xl mx-auto px-4 md:px-6">
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             <div className="px-5 py-6 flex items-center justify-center">
@@ -91,7 +97,7 @@ export default function ColumbariumPage() {
           </div>
         </section>
 
-        {/* Reservation CTA */}
+        {/* RESERVATION CTA — deep-links to /billing with product=columbarium data pre-fill*/}
         <section className="py-16 bg-muted/30 border-t border-border px-6 text-center">
           <div className="max-w-2xl mx-auto">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Reserve a Niche</p>
@@ -108,7 +114,6 @@ export default function ColumbariumPage() {
 
       </main>
 
-      {/* Slot detail modal — shown when a slot is clicked */}
       {modal && (
         <SlotModal
           slot={modal}

@@ -112,13 +112,14 @@ export function TarpPreview({
   const PAD      = 28
 
   return (
-    // Outer wrapper: takes full width, height = scaled canvas height
+    // Outer wrapper: aspect-ratio keeps the border flush with the content
+    // at every size — no height mismatch on first render
     <div
       ref={wrapperRef}
       style={{
         width: '100%',
         maxWidth: CANVAS_W,
-        height: CANVAS_H * scale,
+        aspectRatio: `${CANVAS_W} / ${CANVAS_H}`,
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 12,

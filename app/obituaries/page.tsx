@@ -13,12 +13,15 @@ import type { Obituary } from '@/lib/supabase/types'
 export default function ObituariesPage() {
   const supabase = createClient()
 
+  // OBITUARY DATA — list of published obituaries from admin, 
+  // kasi upon user submission hindi yan naka auto publish
   const [allPublished, setAllPublished] = useState<RichObituary[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [selected,     setSelected]     = useState<RichObituary | null>(null)
-  const [showModal,    setShowModal]    = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<RichObituary | null>(null)
+  const [showModal, setShowModal] = useState(false)
 
-  // Fetch published obituaries and resolve photo URLs from storage
+  // OBITUARY FETCH — eto yung sa page naten for user previewing
+  // 10 max lang yung finefetch natin dito since masyadong magiging bloated if ddadagdagan
   useEffect(() => {
     const fetchObituaries = async () => {
       const { data, error } = await supabase
@@ -28,8 +31,6 @@ export default function ObituariesPage() {
         .order('created_at', { ascending: false })
 
       if (error) { setLoading(false); return }
-
-      // Attach a resolved public URL for each photo (null if placeholder)
       const enriched: RichObituary[] = (data ?? []).map((o: Obituary) => ({
         ...o,
         photoUrl: o.image_path && o.image_path !== 'obituaries/placeholder.png'
@@ -48,12 +49,10 @@ export default function ObituariesPage() {
     <>
       <HeroHeader />
 
-      {/* Full-viewport panel minus the 64px sticky header */}
       <main
         className="flex flex-col bg-background overflow-hidden"
         style={{ height: 'calc(100vh - 64px)' }}
       >
-        {/* Title row */}
         <div className="shrink-0 flex items-center justify-between px-6 pt-5 pb-3 border-b border-border/40">
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-foreground">Obituaries</h1>
           <Button
@@ -66,20 +65,17 @@ export default function ObituariesPage() {
           </Button>
         </div>
 
-        {/* Slideshow — takes all remaining height */}
         <div className="flex-1 min-h-0 flex items-center justify-center px-4 md:px-8 py-4">
           {loading ? (
             <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           ) : allPublished.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">No published obituaries yet.</p>
           ) : (
-            // onSelect opens the lightbox for a full-size view
             <ObituarySlideshow obituaries={allPublished} onSelect={setSelected} />
           )}
         </div>
       </main>
 
-      {/* Lightbox — full-size tarp view */}
       {selected && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-6 backdrop-blur-sm"
@@ -98,7 +94,6 @@ export default function ObituariesPage() {
         </div>
       )}
 
-      {/* Submission modal — visitors can submit an obituary for admin review */}
       {showModal && <ObituarySubmitModal onClose={() => setShowModal(false)} />}
     </>
   )

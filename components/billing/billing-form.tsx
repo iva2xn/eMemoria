@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
@@ -35,33 +34,37 @@ type PaymentInfo = {
   [key: string]: string | null
 }
 
-export function BillingForm() {
-  const params   = useSearchParams()
+// Props passed down from billing/page.tsx — all logic lives there
+type BillingFormProps = {
+  preProduct: string; preSlot: string; preLevel: string
+  prePrice: number;   preLabel: string
+  isColumbarium: boolean; isUrn: boolean; isPackage: boolean
+  reservationFee: number; SERVICE_FEE: number
+  authReady: boolean | null; returnUrl: string
+  prefillName: string; prefillEmail: string
+  onSubmit: (fields: {
+    name: string; email: string; phone: string
+    method: string; refNum: string; amount: string
+    notes: string; file: File | null; includeServiceFee: boolean
+  }) => Promise<'obituary' | void>
+}
+
+export function BillingForm({
+  preProduct, preSlot, preLevel, prePrice, preLabel,
+  isColumbarium, isUrn, isPackage, reservationFee, SERVICE_FEE,
+  authReady, returnUrl, prefillName, prefillEmail,
+  onSubmit,
+}: BillingFormProps) {
   const supabase = createClient()
-  const router   = useRouter()
-
-  // URL params
-  const preProduct = params.get('product') ?? ''
-  const preSlot    = params.get('slot')    ?? ''
-  const preLevel   = params.get('level')   ?? ''
-  const prePrice   = Number(params.get('price') ?? 0)
-  const preLabel   = params.get('label')   ?? ''
-
-  const isColumbarium  = preProduct === 'columbarium'
-  const isUrn          = preProduct === 'urn'
-  const isPackage      = preProduct === 'package'
-  const reservationFee = isColumbarium && prePrice ? Math.round(prePrice * 0.10) : 0
-  const SERVICE_FEE    = 25000
 
   const [includeServiceFee, setIncludeServiceFee] = useState(isUrn)
-  const urnTotal      = isUrn ? prePrice + (includeServiceFee ? SERVICE_FEE : 0) : 0
   const defaultAmount = isColumbarium
     ? String(reservationFee)
-    : isUrn ? String(urnTotal) : prePrice ? String(prePrice) : ''
+    : isUrn ? String(prePrice + (isUrn ? SERVICE_FEE : 0)) : prePrice ? String(prePrice) : ''
 
-  // Form state — declared before useEffect so init() can reference setters
-  const [name,     setName]     = useState('')
-  const [email,    setEmail]    = useState('')
+  // Local form state — presentation only, submit logic lives in the page
+  const [name,     setName]     = useState(prefillName)
+  const [email,    setEmail]    = useState(prefillEmail)
   const [phone,    setPhone]    = useState('')
   const [method,   setMethod]   = useState<MethodId>('gcash')
   const [refNum,   setRefNum]   = useState('')
@@ -72,40 +75,22 @@ export function BillingForm() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [showObituaryModal, setShowObituaryModal] = useState(false)
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
 
-  // Auth gate: null = loading, false = not logged in, true = logged in
-  const [authReady,    setAuthReady]    = useState<boolean | null>(null)
-  const [returnUrl,    setReturnUrl]    = useState('')
-  const [paymentInfo,  setPaymentInfo]  = useState<PaymentInfo | null>(null)
+  // Sync prefill when auth resolves
+  useEffect(() => { if (prefillName)  setName(prefillName)  }, [prefillName])
+  useEffect(() => { if (prefillEmail) setEmail(prefillEmail) }, [prefillEmail])
 
+  // Keep amount in sync when urn service-fee toggle changes
   useEffect(() => {
-    setReturnUrl(window.location.pathname + window.location.search)
+    if (isUrn) setAmount(String(prePrice + (includeServiceFee ? SERVICE_FEE : 0)))
+  }, [includeServiceFee, isUrn, prePrice, SERVICE_FEE])
 
-    const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setAuthReady(false); return }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('name, email')
-        .eq('id', user.id)
-        .single()
-
-      if (profile) {
-        setName(profile.name ?? '')
-        setEmail(profile.email ?? '')
-      }
-      setAuthReady(true)
-    }
-    init()
-
+  // Fetch payment info for the sidebar
+  useEffect(() => {
     supabase.from('payment_info').select('*').eq('id', 1).single()
       .then(({ data }) => setPaymentInfo(data ?? null))
   }, [supabase])
-
-  useEffect(() => {
-    if (isUrn) setAmount(String(prePrice + (includeServiceFee ? SERVICE_FEE : 0)))
-  }, [includeServiceFee, isUrn, prePrice])
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -123,70 +108,13 @@ export function BillingForm() {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid payment amount.'); return }
 
     setLoading(true)
-
-    let receiptPath: string | null = null
-    if (file) {
-      const ext  = file.name.split('.').pop()
-      const path = `receipts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadErr } = await supabase.storage.from('payments').upload(path, file, { upsert: false })
-      if (uploadErr) { setError('Receipt upload failed: ' + uploadErr.message); setLoading(false); return }
-      receiptPath = path
-    }
-
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const notesArr = [
-      preLevel ? `Level: ${preLevel}` : '',
-      isColumbarium && prePrice ? `Full price: ₱${prePrice.toLocaleString('en-PH')}` : '',
-      isColumbarium && reservationFee ? `Reservation fee (10%): ₱${reservationFee.toLocaleString('en-PH')}` : '',
-      isUrn && includeServiceFee ? `Includes ₱25,000 cremation service fee` : '',
-      isUrn && !includeServiceFee ? `Urn only (service fee waived)` : '',
-      notes.trim(),
-    ].filter(Boolean).join(' · ') || null
-
-    const payload = {
-      user_id:           user?.id ?? null,
-      guest_name:        user ? null : name.trim(),
-      guest_email:       user ? null : email.trim(),
-      guest_phone:       user ? null : phone.trim(),
-      product_type:      preProduct || 'general',
-      product_ref:       preSlot || preLabel || null,
-      method,
-      reference_number:  refNum.trim() || null,
-      amount:            Number(amount),
-      receipt_file_path: receiptPath,
-      notes:             notesArr,
-      status:            'pending',
-    }
-
-    const { error: insertErr } = await supabase.from('payments').insert(payload)
-    if (insertErr) { setError(insertErr.message); setLoading(false); return }
-
-    const shouldBook = !isUrn || includeServiceFee
-    if (shouldBook) {
-      const packageName = isColumbarium
-        ? `Columbarium Slot — ${preSlot || preLabel}`
-        : isUrn
-          ? `Cremation Service + ${preLabel}`
-          : preLabel || preProduct
-
-      await supabase.from('bookings').insert({
-        user_id:      user?.id ?? null,
-        guest_name:   user ? null : name.trim(),
-        guest_email:  user ? null : email.trim(),
-        guest_phone:  user ? null : phone.trim(),
-        package_name: packageName,
-        price:        Number(amount),
-        status:       'pending',
-        notes:        notesArr,
-      })
-    }
-
-    setLoading(false)
-    if (isPackage) {
-      setShowObituaryModal(true)
-    } else {
-      router.push('/?payment=success')
+    try {
+      const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee })
+      if (result === 'obituary') setShowObituaryModal(true)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -199,7 +127,7 @@ export function BillingForm() {
           submitterName={name}
           submitterEmail={email}
           submitterPhone={phone}
-          onDone={() => router.push('/?payment=success')}
+          onDone={() => { window.location.href = '/?payment=success' }}
         />
       )}
 
