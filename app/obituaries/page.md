@@ -66,8 +66,8 @@ INSERT obituaries {
   full_name, birth_date, death_date, age,
   image_path, venue_address, contact_number,
   submitter_name, submitter_email,
-  is_published: false   ← admin must approve before it goes live
-}
+  is_published: false   ← need i approvee ng admin to 
+  before maging visible dun sa live obituary slideshow
     ↓
 Error?   → show error banner
 Success  → show confirmation screen ("Obituary Submitted")

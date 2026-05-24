@@ -12,7 +12,7 @@ Page loads
 supabase.auth.getUser()
     ↓
 profile.role === 'admin' or 'staff' → show admin button sa navigation.
-if anything else (or not logged in)    → redirect to / lang
+if else (or not logged in)    → redirect lang sa /
 ```
 
 ## Tabs and what each one does
@@ -20,7 +20,8 @@ if anything else (or not logged in)    → redirect to / lang
 ---
 
 ### Overview Tab
-Reads live counts and recent records from Supabase.
+
+Checker ng live count and records from databasee.
 
 ```
 READ  payments   → count pending, sum approved revenue
@@ -56,32 +57,35 @@ READ payments WHERE created_at BETWEEN ? AND ?
 Displays summary cards + transactions table
 Export CSV  → builds CSV string, triggers browser download
 Export PDF  → uses jsPDF + jspdf-autotable, triggers download
+
+jsPDF btw → JavaScript package/library for generating PDF -Google
 ```
 
 ---
 
 ### Inquiries Tab
 ```
-READ inquiries ORDER BY created_at DESC
+READ inquiries ORDER BY created_at DESC <- meaning netong mga ganito is ano lang, read yung database list by creation time in descending order. Halos ganito lang lahat ng READ sa admin part.
       ↓
 Accordion list — click to expand
 
 On expand (if unread):
 UPDATE inquiries SET is_read=true WHERE id=?
       ↓
-Dot changes from green to grey
+Dot changes from green to grey once na read na ng staff or admin
 ```
 
 ---
 
 ### Bookings Tab
 ```
-READ bookings ORDER BY created_at DESC
+READ bookings ORDER BY created_at DESC 
+
 READ profiles WHERE id IN (user_ids from bookings)
 READ payments WHERE status='approved'
       ↓
 Enriches each booking with:
-  - profile name/email (if logged-in user)
+  - profile name/email galing sa auth data since required na naka auth
   - paymentStatus: 'paid' or 'unpaid'
     (matched by booking_id, or fallback: email+package_name)
 
@@ -98,6 +102,7 @@ Action buttons:
 ### Payments Tab
 ```
 READ payments ORDER BY created_at DESC
+
 READ profiles WHERE id IN (user_ids)
       ↓
 Enriches each payment with profile name/email
@@ -111,8 +116,6 @@ UPDATE payments SET status='approved', approved_at=now() WHERE id=?
 Reject button (admin only):
 UPDATE payments SET status='rejected' WHERE id=?
 
-Products popover: hover to see product_type, product_ref, booking_id, notes, receipt
-
 Record Cash Payment modal:
   Looks up profile by email → INSERT payments (status='approved', method='cash')
 ```
@@ -121,7 +124,7 @@ Record Cash Payment modal:
 
 ### Columbarium Tab
 ```
-READ columbarium_slots ORDER BY row_number, col_number
+READ columbarium_slots ORDER BY row_number, 
       ↓
 Visual 6×12 grid — color coded:
   Green  = available
@@ -129,7 +132,7 @@ Visual 6×12 grid — color coded:
   Red    = occupied
 
 Click a slot → detail modal shows:
-  level, column, price, occupant info (if any)
+  level, column, price, occupant info (if meron)
 
 Update Status buttons:
 UPDATE columbarium_slots SET status=? WHERE id=?

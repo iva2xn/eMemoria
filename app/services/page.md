@@ -29,7 +29,7 @@ No database calls. Fully static.
 ## Traditional Burial (`/services/traditional`)
 
 ### What it does
-Shows the 5 burial packages with their included items, a CTA to reserve, and an obituary/tarp submission form.
+List nung 5 burial packages with inclusions, reservation CTA and tarp submission floww.
 
 ### Packages
 | Package | Price |
@@ -44,6 +44,7 @@ Shows the 5 burial packages with their included items, a CTA to reserve, and an 
 ```
 Links to:
 /billing?product=package&label=Traditional+Burial+Package
+for pre-filling form
     ↓
 Billing page picks up the params and pre-fills the form
 ```
@@ -82,10 +83,7 @@ Each urn links to `/billing?product=urn&label=...&price=...`
 
 On the billing page, urn purchases show a toggle:
 ```
-Include ₱25,000 cremation service fee?
+Include ₱25,000 cremation service fee? 'nakalagay sa figma'
   ON  → total = urn price + ₱25,000
   OFF → urn only
 ```
-
-### No database calls
-Fully static page.

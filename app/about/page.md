@@ -17,6 +17,6 @@ None.
 ```
 User visits /about
       ↓
-Static HTML renders immediately
-No Supabase calls
+Static HTML renders
+No backend or database calls
 ```

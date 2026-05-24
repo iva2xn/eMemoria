@@ -5,6 +5,8 @@ Shows contact details and a message form. Visitors can send an inquiry that goes
 
 ## Layout
 ```
+For responsiveness magkaiba yung layout ng mobile sa desktop (Konti lang naman)
+
 Mobile:  form stacked below map
 Desktop: map on left, form on right (2-col grid)
 
@@ -41,12 +43,12 @@ Success  → show success state ("Message Received")
 ```
 Inquiry saved in DB with is_read = false
       ↓
-Admin sees it in the Inquiries tab (admin panel)
+makikita ng admin/staff sa (admin panel) inquiry tab
 Unread dot shows green, read dot shows grey
-Admin expands it → is_read flips to true
-Admin can reply via the "Reply via Email" button
-  (opens mailto: link with subject pre-filled)
+Admin/staff expands it → is_read flips to true
+Admin/staff can reply via the "Reply via Email" button
+  (opens mailto: link with subject pre-filled email)
 ```
 
 ## No auth required
-Anyone can submit a contact form — no login needed.
+Anyone can submit a contact form — no login needed update ko siguro to later? Sa payments lang ko lang kasi nilagay ehh

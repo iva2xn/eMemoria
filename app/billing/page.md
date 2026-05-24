@@ -9,9 +9,9 @@ Page loads
     ↓
 supabase.auth.getUser()
     ↓
-Not logged in → AuthGateModal appears (blocks the form)
-               User must Sign In or Register first
-               After login, ?next= redirects them back here
+Not logged in → AuthGateModal appears (blocked yung form)
+               User must Sign In or Register first for all payments
+
 Logged in    → Pre-fill name + email from their profile
                Form is usable
 ```
@@ -68,7 +68,7 @@ anything else       → redirect to /?payment=success
 
 ## ObituaryModal (package purchases only)
 ```
-Shown after payment is submitted for a traditional burial package
+Shown after ng payment submission for traditional burial package
       ↓
 User fills deceased info + uploads photo
 supabase.storage.upload('obituaries', photo)

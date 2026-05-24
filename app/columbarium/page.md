@@ -60,4 +60,4 @@ This page is read-only for visitors. Slot status is only changed by admins from 
 ## Info blocks (above the grid)
 - **How to Use** — static instructions
 - **Legend + live counts** — counts come from the fetched slots array (no extra query)
-- **Pricing** — static rates per row
+- **Pricing** — static rates galing sa figma
