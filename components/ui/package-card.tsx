@@ -21,7 +21,8 @@ function parsePrice(p: string) {
 
 export function PackageCard({ title, price, features, imageSrc, onAvail }: PackageCardProps) {
   const [modalOpen, setModalOpen] = useState(false)
-  const billingUrl = `/billing?product=package&label=${encodeURIComponent(title)}&price=${parsePrice(price)}`
+  // Route through document submission first — user must submit docs before paying
+  const availmentUrl = `/document-submission?product=package&label=${encodeURIComponent(title)}&price=${parsePrice(price)}`
 
   const preview = features.slice(0, PREVIEW_COUNT)
   const remaining = features.length - PREVIEW_COUNT
@@ -105,7 +106,7 @@ export function PackageCard({ title, price, features, imageSrc, onAvail }: Packa
               View all
             </button>
             <Link
-              href={billingUrl}
+              href={availmentUrl}
               onClick={onAvail}
               className="inline-flex items-center justify-center h-8 sm:h-9 px-4 sm:px-5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
             >
@@ -157,7 +158,7 @@ export function PackageCard({ title, price, features, imageSrc, onAvail }: Packa
 
             <div className="px-5 py-4 border-t border-border flex justify-end">
               <Link
-                href={billingUrl}
+                href={availmentUrl}
                 onClick={onAvail}
                 className="inline-flex items-center justify-center h-10 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
               >

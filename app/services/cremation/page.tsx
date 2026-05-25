@@ -76,7 +76,7 @@ export default function CremationPage() {
               </p>
             </div>
             <Button asChild size="lg" className="shrink-0 font-semibold rounded-xl px-8">
-              <Link href="/billing?product=cremation&label=Cremation+Service&price=25000">Reserve Now</Link>
+              <Link href="/document-submission?product=cremation&label=Cremation+Service&price=25000">Reserve Now</Link>
             </Button>
           </div>
         </section>
@@ -122,7 +122,7 @@ export default function CremationPage() {
             Speak with our team to learn more about cremation arrangements, memorial options, and available urn selections for your loved one.
           </p>
           <Button asChild size="lg" className="font-semibold rounded-xl px-8">
-            <Link href="/billing?product=cremation&label=Cremation+Service&price=25000">Arrange a Service</Link>
+            <Link href="/document-submission?product=cremation&label=Cremation+Service&price=25000">Arrange a Service</Link>
           </Button>
         </section>
 

@@ -14,11 +14,12 @@ function BillingContent() {
   // ── URL params ──────────────────────────────────────────────────────────────
   // eto yung chinecheck natin para makapag pre-fill tayo sa check-out form.
   // nakalagay yung data nung products sa services/cremation /traditional na ginagamit natin for pre-fill.
-  const preProduct = params.get('product') ?? ''
-  const preSlot    = params.get('slot')    ?? ''
-  const preLevel   = params.get('level')   ?? ''
-  const prePrice   = Number(params.get('price') ?? 0)
-  const preLabel   = params.get('label')   ?? ''
+  const preProduct   = params.get('product')      ?? ''
+  const preSlot      = params.get('slot')         ?? ''
+  const preLevel     = params.get('level')        ?? ''
+  const prePrice     = Number(params.get('price') ?? 0)
+  const preLabel     = params.get('label')        ?? ''
+  const documentSubmissionId = params.get('document_submission_id') ?? null   // set when coming from an approved document submission
 
   const isColumbarium  = preProduct === 'columbarium'
   const isUrn          = preProduct === 'urn'
@@ -98,6 +99,7 @@ function BillingContent() {
       receipt_file_path: receiptPath,
       notes:             notesArr,
       status:            'pending',
+      document_submission_id: documentSubmissionId,
     }
 
     const { error: insertErr } = await supabase.from('payments').insert(payload)
