@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { Check, X } from 'lucide-react'
 
@@ -10,6 +11,7 @@ interface PackageCardProps {
   title: string
   price: string
   features: string[]
+  imageSrc?: string
   onAvail?: () => void
 }
 
@@ -17,7 +19,7 @@ function parsePrice(p: string) {
   return p.replace(/[₱,]/g, '').trim()
 }
 
-export function PackageCard({ title, price, features, onAvail }: PackageCardProps) {
+export function PackageCard({ title, price, features, imageSrc, onAvail }: PackageCardProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const billingUrl = `/billing?product=package&label=${encodeURIComponent(title)}&price=${parsePrice(price)}`
 
@@ -30,9 +32,18 @@ export function PackageCard({ title, price, features, onAvail }: PackageCardProp
 
         {/* Image area */}
         <div className="relative h-36 sm:h-44 bg-muted/50 w-full overflow-hidden shrink-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted/30 flex items-center justify-center">
-            <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
-          </div>
+          {imageSrc ? (
+            <Image
+              src={imageSrc}
+              alt={title}
+              fill
+              className="object-cover object-center"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-muted to-muted/30 flex items-center justify-center">
+              <span className="text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">Photo</span>
+            </div>
+          )}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{ background: 'linear-gradient(to top, var(--card) 0%, transparent 55%)' }}

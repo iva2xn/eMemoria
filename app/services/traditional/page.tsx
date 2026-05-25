@@ -11,6 +11,7 @@ const PACKAGES = [
   {
     title: 'OMB',
     price: '₱25,000.00',
+    imageSrc: '/traditional/OMB.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER', 'LIGHTENING',
       '2 PCS CANDLES', '15 PCS. CHAIRS', 'TARPLIN 2X3',
@@ -21,6 +22,7 @@ const PACKAGES = [
   {
     title: 'HALF GLASS',
     price: '₱35,000.00',
+    imageSrc: '/traditional/HALFGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWERS', 'LIGHTENING',
       '4 PCS CANDLE', '20 CHAIRS', 'CARO',
@@ -32,6 +34,7 @@ const PACKAGES = [
   {
     title: 'JR FULL GLASS',
     price: '₱47,000.00',
+    imageSrc: '/traditional/JRFULL%20GGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
       '4 CANDLES', '20 CHAIRS TENT', 'WATER DISPENSER W/ 10 GALLON',
@@ -43,6 +46,7 @@ const PACKAGES = [
   {
     title: 'SR FULL GLASS',
     price: '₱57,000.00',
+    imageSrc: '/traditional/SRFULLGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
       'WATER DISPENSER W/ 10 GALLON', '1 BOX PLAYING CARDS', 'GUEST BOOK',
@@ -53,6 +57,7 @@ const PACKAGES = [
   {
     title: 'ORDINARY METAL',
     price: '₱75,000.00',
+    imageSrc: '/traditional/ORDINARYMETAL.png',
     features: [
       'CASKET', 'EMBALMING', 'LIGHTENING', 'FLOWERS (2 LAGAY)',
       '4 CANDLES', '20 CHAIRS', 'WATER DISPENSER W/ 10 GALLON',
@@ -133,6 +138,7 @@ export default function TraditionalBurialPage() {
                 key={index}
                 title={pkg.title}
                 price={pkg.price}
+                imageSrc={pkg.imageSrc}
                 features={pkg.features}
               />
             ))}

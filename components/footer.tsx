@@ -1,13 +1,13 @@
 import React from 'react'
 import Link from 'next/link'
-import { HeartHandshake, Phone, Mail, MapPin, Clock } from 'lucide-react'
+import { HeartHandshake, Phone, MapPin, Clock } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="w-full border-t border-border/40 bg-muted/30 py-12 md:py-16 mt-auto">
+    <footer className="w-full border-t border-border/40 bg-muted/30 py-10 md:py-12 mt-auto">
       <div className="mx-auto max-w-6xl px-6 grid grid-cols-1 md:grid-cols-4 gap-10">
-        
-        {/* Brand Legacy */}
+
+        {/* Brand */}
         <div className="md:col-span-2 space-y-4">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -44,7 +44,7 @@ export function Footer() {
             </li>
             <li>
               <Link href="/billing" className="text-muted-foreground hover:text-primary transition-colors">
-                Billing & Payments
+                Billing &amp; Payments
               </Link>
             </li>
             <li>
@@ -67,14 +67,12 @@ export function Footer() {
                 <span className="font-semibold text-foreground block">Sariaya Main Branch</span>
                 <span>
                   Maharlika Highway, Sitio Sta. Clara, Brgy. Sampaloc 2,
-                  <br />
-                  Sariaya, Quezon, Philippines
+                  <br />Sariaya, Quezon, Philippines
                 </span>
                 <span className="font-semibold text-foreground block mt-2">Lucena Branch (Closed Permanently)</span>
                 <span>
                   Old Manila South Road / National Road, Brgy. Ibabang Iyam,
-                  <br />
-                  Lucena City, Quezon
+                  <br />Lucena City, Quezon
                 </span>
               </div>
             </li>
@@ -86,11 +84,13 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-6 mt-12 pt-6 border-t border-border/20 flex flex-col md:flex-row items-center justify-between gap-4">
+      {/* Bottom bar — one line on desktop: copyright left, legal links right */}
+      <div className="mx-auto max-w-6xl px-6 mt-6 pt-4 border-t border-border/20
+                      flex flex-col md:flex-row items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} Marcelo P. Gayeta Funeral Services. All rights reserved.
         </p>
-        <div className="flex gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <Link href="/terms" className="hover:text-primary transition-colors">
             Terms of Service
           </Link>
