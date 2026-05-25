@@ -10,11 +10,11 @@ import { Button } from './ui/button'
 import { Menu, X, User as UserIcon, LogOut, ShieldAlert } from 'lucide-react'
 
 const NAV_LINKS = [
-  { name: 'Home',             href: '/' },
-  { name: 'Obituaries',       href: '/obituaries' },
-  { name: 'Funeral Services', href: '/services' },
-  { name: 'About Us',         href: '/about' },
-  { name: 'Contact',          href: '/contact' },
+  { name: 'Home',             href: '/',         authRequired: false },
+  { name: 'Obituaries',       href: '/obituaries', authRequired: true },
+  { name: 'Funeral Services', href: '/services', authRequired: false },
+  { name: 'About Us',         href: '/about',    authRequired: false },
+  { name: 'Contact',          href: '/contact',  authRequired: false },
 ]
 
 // Module-level cache — survives page navigations (component remounts)
@@ -95,7 +95,7 @@ export function HeroHeader() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-6">
-          {NAV_LINKS.map(link => (
+          {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
             <Link key={link.href} href={link.href}
               className={`text-sm font-medium transition-colors hover:text-primary ${
                 isActive(link.href)
@@ -165,7 +165,7 @@ export function HeroHeader() {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-lg animate-in fade-in slide-in-from-top-4 duration-200">
           <div className="space-y-1.5 px-6 py-4">
-            {NAV_LINKS.map(link => (
+            {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
               <Link key={link.href} href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`block px-3 py-2.5 rounded-md text-base font-medium transition-colors ${

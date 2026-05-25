@@ -2,18 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Badge, Spinner, type BadgeVariant } from './admin-primitives'
+import { Spinner } from './admin-primitives'
 import { PaymentInfoCard } from './payment-info-card'
 import { SalesReportModal } from './sales-report-modal'
-import { Clock, BookOpen, Mail, Users, Landmark, TrendingUp, BarChart3 } from 'lucide-react'
-import type { Booking, Inquiry, Payment, UserRole } from '@/lib/supabase/types'
+import { Clock, Mail, Users, Landmark, TrendingUp, BarChart3 } from 'lucide-react'
+import type { Inquiry, Payment, UserRole } from '@/lib/supabase/types'
 
 export function OverviewTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
-  const [stats, setStats] = useState({ pending: 0, totalBookings: 0, inquiries: 0, profiles: 0, totalRevenue: 0 })
+  const [stats, setStats] = useState({ pending: 0, inquiries: 0, profiles: 0, totalRevenue: 0 })
   const [pendingPayments, setPendingPayments] = useState<(Payment & { guest_name?: string; guest_email?: string })[]>([])
   const [recentInquiries, setRecentInquiries] = useState<Inquiry[]>([])
-  const [recentBookings, setRecentBookings] = useState<(Booking & { guest_name?: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [showReport, setShowReport] = useState(false)
 
@@ -21,30 +20,25 @@ export function OverviewTab({ currentRole }: { currentRole: UserRole }) {
     setLoading(true)
     const [
       { count: pending },
-      { count: totalBookings },
       { count: inquiries },
       { count: profiles },
       { data: pendingRows },
       { data: recentInq },
-      { data: recentBook },
       { data: approvedPayments },
     ] = await Promise.all([
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('bookings').select('*', { count: 'exact', head: true }),
       supabase.from('inquiries').select('*', { count: 'exact', head: true }),
       supabase.from('profiles').select('*', { count: 'exact', head: true }),
       supabase.from('payments').select('id,method,reference_number,amount,user_id,guest_name,guest_email').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       supabase.from('inquiries').select('id,name,email,subject,message,is_read,created_at').order('created_at', { ascending: false }).limit(3),
-      supabase.from('bookings').select('id,package_name,price,status,created_at,guest_name,guest_email,user_id').order('created_at', { ascending: false }).limit(4),
       supabase.from('payments').select('amount').eq('status', 'approved'),
     ])
 
     const totalRevenue = (approvedPayments ?? []).reduce((sum, p) => sum + Number(p.amount), 0)
 
-    setStats({ pending: pending ?? 0, totalBookings: totalBookings ?? 0, inquiries: inquiries ?? 0, profiles: profiles ?? 0, totalRevenue })
+    setStats({ pending: pending ?? 0, inquiries: inquiries ?? 0, profiles: profiles ?? 0, totalRevenue })
     setPendingPayments((pendingRows ?? []) as (Payment & { guest_name?: string; guest_email?: string })[])
     setRecentInquiries(recentInq ?? [])
-    setRecentBookings((recentBook ?? []) as (Booking & { guest_name?: string })[])
     setLoading(false)
   }, [supabase])
 
@@ -80,7 +74,6 @@ export function OverviewTab({ currentRole }: { currentRole: UserRole }) {
         <div className="grid grid-cols-2 lg:grid-cols-5 divide-x divide-y lg:divide-y-0 divide-border/60">
           {[
             { icon: <Clock className="h-5 w-5" />,    label: 'Pending Payments',  value: String(stats.pending),                              sub: 'awaiting review' },
-            { icon: <BookOpen className="h-5 w-5" />, label: 'Total Bookings',    value: String(stats.totalBookings),                        sub: 'all time' },
             { icon: <Mail className="h-5 w-5" />,     label: 'Inquiries',         value: String(stats.inquiries),                            sub: 'submitted' },
             { icon: <Users className="h-5 w-5" />,    label: 'Registered Users',  value: String(stats.profiles),                             sub: 'accounts' },
             { icon: <Landmark className="h-5 w-5" />, label: 'Total Revenue',     value: `₱${stats.totalRevenue.toLocaleString('en-PH')}`,   sub: 'approved payments' },
@@ -99,7 +92,7 @@ export function OverviewTab({ currentRole }: { currentRole: UserRole }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Pending approvals */}
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
@@ -127,28 +120,6 @@ export function OverviewTab({ currentRole }: { currentRole: UserRole }) {
                       </button>
                     )}
                   </div>
-                </div>
-              ))
-            }
-          </div>
-        </div>
-
-        {/* Recent bookings */}
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-border/50">
-            <h3 className="text-sm font-bold text-foreground">Recent Bookings</h3>
-          </div>
-          <div className="p-4 space-y-2">
-            {recentBookings.length === 0
-              ? <p className="text-xs text-muted-foreground italic text-center py-6">No bookings yet.</p>
-              : recentBookings.map(b => (
-                <div key={b.id} className="p-3 rounded-xl border border-border bg-background">
-                  <div className="flex justify-between items-start gap-2">
-                    <p className="text-xs font-semibold text-foreground truncate">{b.guest_name ?? '—'}</p>
-                    <Badge label={b.status} variant={b.status === 'active' ? 'green' : b.status === 'pending' ? 'amber' : 'muted'} />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{b.package_name}</p>
-                  <p className="text-[10px] font-bold text-primary mt-0.5">₱{Number(b.price).toLocaleString()}</p>
                 </div>
               ))
             }

@@ -8,30 +8,28 @@ import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { OverviewTab }    from '@/components/admin/overview-tab'
 import { InquiriesTab }   from '@/components/admin/inquiries-tab'
-import { BookingsTab }    from '@/components/admin/bookings-tab'
 import { PaymentsTab }    from '@/components/admin/payments-tab'
 import { ColumbariumTab } from '@/components/admin/columbarium-tab'
 import { ObituariesTab }  from '@/components/admin/obituaries-tab'
 import { ProfilesTab }    from '@/components/admin/profiles-tab'
 import { DocumentSubmissionsTab } from '@/components/admin/document-submissions-tab'
 import {
-  LayoutDashboard, Mail, BookOpen, CreditCard,
+  LayoutDashboard, Mail, CreditCard,
   Grid3X3, ScrollText, UserCircle2, ShieldAlert, ClipboardList,
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
 // TAB REGISTRY — eto yung secondary navigation sa admin page
-type Tab = 'overview' | 'inquiries' | 'bookings' | 'payments' | 'columbarium' | 'obituaries' | 'profiles' | 'availments'
+type Tab = 'overview' | 'inquiries' | 'payments' | 'columbarium' | 'obituaries' | 'profiles' | 'availments'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',    label: 'Overview',    icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
-  { id: 'inquiries',   label: 'Inquiries',   icon: <Mail className="h-3.5 w-3.5" /> },
+  { id: 'overview',    label: 'Overview',        icon: <LayoutDashboard className="h-3.5 w-3.5" /> },
+  { id: 'inquiries',   label: 'Inquiries',        icon: <Mail className="h-3.5 w-3.5" /> },
   { id: 'availments',  label: 'Doc Submissions',  icon: <ClipboardList className="h-3.5 w-3.5" /> },
-  { id: 'bookings',    label: 'Bookings',    icon: <BookOpen className="h-3.5 w-3.5" /> },
-  { id: 'payments',    label: 'Payments',    icon: <CreditCard className="h-3.5 w-3.5" /> },
-  { id: 'columbarium', label: 'Columbarium', icon: <Grid3X3 className="h-3.5 w-3.5" /> },
-  { id: 'obituaries',  label: 'Obituaries',  icon: <ScrollText className="h-3.5 w-3.5" /> },
-  { id: 'profiles',    label: 'Profiles',    icon: <UserCircle2 className="h-3.5 w-3.5" /> },
+  { id: 'payments',    label: 'Payments',         icon: <CreditCard className="h-3.5 w-3.5" /> },
+  { id: 'columbarium', label: 'Columbarium',      icon: <Grid3X3 className="h-3.5 w-3.5" /> },
+  { id: 'obituaries',  label: 'Obituaries',       icon: <ScrollText className="h-3.5 w-3.5" /> },
+  { id: 'profiles',    label: 'Profiles',         icon: <UserCircle2 className="h-3.5 w-3.5" /> },
 ]
 
 export default function AdminPage() {
@@ -109,7 +107,6 @@ export default function AdminPage() {
     overview:    <OverviewTab currentRole={currentRole} />,
     inquiries:   <InquiriesTab />,
     availments:  <DocumentSubmissionsTab />,
-    bookings:    <BookingsTab />,
     payments:    <PaymentsTab currentRole={currentRole} />,
     columbarium: <ColumbariumTab />,
     obituaries:  <ObituariesTab />,
