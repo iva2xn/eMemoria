@@ -8,9 +8,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 export async function POST(req: NextRequest) {
+  const resend = new Resend(process.env.RESEND_API_KEY)
   const { availmentId, status, recipientEmail, recipientName, packageLabel, packagePrice, productType, rejectionReason } =
     await req.json()
 
@@ -99,8 +98,8 @@ export async function POST(req: NextRequest) {
 
   try {
     await resend.emails.send({
-      from: 'eFuneraria — M.P. Gayeta Funeral Services <onboarding@resend.dev>',
-      to: 'iva2xn@gmail.com', // Resend test-mode restriction: can only send to account owner email
+      from: 'eFuneraria — M.P. Gayeta Funeral Services <noreply@ememoria.site>',
+      to: recipientEmail,
       subject,
       html,
     })
