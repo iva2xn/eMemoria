@@ -8,7 +8,7 @@ import { DocumentSubmissionForm } from '@/components/document-submission/documen
 function DocumentSubmissionContent() {
   const params = useSearchParams()
 
-  // URL params passed from the "Avail" button on service pages
+  // URL params passed from the "Avail" button sa service pages
   const productType  = params.get('product') ?? 'package'
   const productRef   = params.get('ref')     ?? ''
   const productLabel = params.get('label')   ?? ''
