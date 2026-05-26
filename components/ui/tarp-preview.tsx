@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { Download } from 'lucide-react'
 
 interface TarpPreviewProps {
   firstName: string
@@ -14,6 +15,7 @@ interface TarpPreviewProps {
   venueAddress?: string
   contactNumber?: string
   fullName?: string // legacy
+  showDownload?: boolean
 }
 
 function formatDisplayDate(dateStr: string) {
@@ -48,9 +50,12 @@ export function TarpPreview({
   venueAddress,
   contactNumber,
   fullName,
+  showDownload = false,
 }: TarpPreviewProps) {
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const canvasRef  = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const [downloading, setDownloading] = useState(false)
 
   // Measure wrapper width and compute scale
   useEffect(() => {
@@ -65,6 +70,30 @@ export function TarpPreview({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  const handleDownload = useCallback(async () => {
+    const el = canvasRef.current
+    if (!el) return
+    setDownloading(true)
+    try {
+      const { toPng } = await import('html-to-image')
+      // Temporarily reset transform so html-to-image captures at full resolution
+      el.style.transform = 'scale(1)'
+      const dataUrl = await toPng(el, { width: CANVAS_W, height: CANVAS_H, pixelRatio: 2 })
+      el.style.transform = `scale(${scale})`
+      const a = document.createElement('a')
+      const name = [firstName, lastName].filter(Boolean).join('_').replace(/\s+/g, '_').toUpperCase() || 'tarpaulin'
+      a.download = `${name}_tarp.png`
+      a.href = dataUrl
+      a.click()
+    } catch (err) {
+      console.error('Tarp download failed:', err)
+      // Restore transform even on error
+      if (canvasRef.current) canvasRef.current.style.transform = `scale(${scale})`
+    } finally {
+      setDownloading(false)
+    }
+  }, [firstName, lastName, scale])
 
   // Resolve names
   let line1 = (firstName || 'FIRST NAME').trim().toUpperCase()
@@ -112,8 +141,9 @@ export function TarpPreview({
   const PAD      = 28
 
   return (
-    // Outer wrapper: aspect-ratio keeps the border flush with the content
-    // at every size — no height mismatch on first render
+    <>
+    {/* Outer wrapper: aspect-ratio keeps the border flush with the content
+        at every size — no height mismatch on first render */}
     <div
       ref={wrapperRef}
       style={{
@@ -129,6 +159,7 @@ export function TarpPreview({
     >
       {/* Fixed-size inner canvas, scaled down */}
       <div
+        ref={canvasRef}
         style={{
           position: 'absolute',
           top: 0,
@@ -236,5 +267,17 @@ export function TarpPreview({
 
       </div>
     </div>
+
+    {showDownload && (
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
+        className="mt-3 inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        <Download className="h-3.5 w-3.5" />
+        {downloading ? 'Generating…' : 'Download as PNG'}
+      </button>
+    )}
+    </>
   )
 }

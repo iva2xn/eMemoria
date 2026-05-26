@@ -227,80 +227,143 @@ export function DocumentSubmissionsTab() {
       {filtered.length === 0
         ? <EmptyState message="No document submissions match this filter." />
         : (
-          <div className="overflow-x-auto border border-border rounded-2xl bg-card">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-5 py-3">Client</th>
-                  <th className="px-5 py-3">Package</th>
-                  <th className="px-5 py-3">Documents</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {filtered.map(s => (
-                  <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <p className="font-semibold text-foreground">{s.profileName ?? s.guest_name ?? '—'}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{s.profileEmail ?? s.guest_email ?? ''}</p>
+          <>
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {filtered.map(s => (
+                <div key={s.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">{s.profileName ?? s.guest_name ?? '—'}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono truncate">{s.profileEmail ?? s.guest_email ?? ''}</p>
                       {s.guest_phone && <p className="text-[10px] text-muted-foreground font-mono">{s.guest_phone}</p>}
-                    </td>
-                    <td className="px-5 py-3.5">
+                    </div>
+                    <Badge
+                      label={s.status === 'pending_review' ? 'Pending' : s.status}
+                      variant={statusVariant(s.status)}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Package</p>
                       <p className="font-semibold text-foreground">{s.product_label ?? s.product_type}</p>
                       {s.product_price && (
-                        <p className="text-[10px] text-primary font-serif font-bold">
-                          ₱{Number(s.product_price).toLocaleString()}
-                        </p>
+                        <p className="text-[10px] text-primary font-serif font-bold">₱{Number(s.product_price).toLocaleString()}</p>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 space-y-1">
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Date</p>
+                      <p className="font-mono text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Documents</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
                       <DocLink path={s.doc_death_certificate}  label="Death Cert" />
                       <DocLink path={s.doc_barangay_indigency} label="Barangay Indigency" />
                       <DocLink path={s.doc_valid_id}           label="Valid ID" />
                       {s.doc_medico_legal && <DocLink path={s.doc_medico_legal} label="Medico Legal" />}
-                    </td>
-                    <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">
-                      {new Date(s.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge
-                        label={s.status === 'pending_review' ? 'Pending Review' : s.status}
-                        variant={statusVariant(s.status)}
-                      />
-                      {s.rejection_reason && (
-                        <p className="text-[10px] text-muted-foreground mt-1 max-w-[160px] truncate" title={s.rejection_reason}>
-                          {s.rejection_reason}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {s.status === 'pending_review' && (
-                        <div className="flex gap-1.5">
-                          <button
-                            onClick={() => approve(s)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
-                          >
-                            <CheckCircle2 className="h-3 w-3" /> Approve
-                          </button>
-                          <button
-                            onClick={() => setRejectTarget(s)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-destructive text-white text-[10px] font-bold hover:bg-destructive/90 transition-colors"
-                          >
-                            <XCircle className="h-3 w-3" /> Reject
-                          </button>
-                        </div>
-                      )}
-                      {s.status !== 'pending_review' && (
-                        <span className="text-[10px] text-muted-foreground">—</span>
-                      )}
-                    </td>
+                    </div>
+                  </div>
+                  {s.rejection_reason && (
+                    <p className="text-[10px] text-muted-foreground italic">{s.rejection_reason}</p>
+                  )}
+                  {s.status === 'pending_review' && (
+                    <div className="flex gap-1.5 pt-1 border-t border-border/40">
+                      <button
+                        onClick={() => approve(s)}
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
+                      >
+                        <CheckCircle2 className="h-3 w-3" /> Approve
+                      </button>
+                      <button
+                        onClick={() => setRejectTarget(s)}
+                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-destructive text-white text-[10px] font-bold hover:bg-destructive/90 transition-colors"
+                      >
+                        <XCircle className="h-3 w-3" /> Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto border border-border rounded-2xl bg-card">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <th className="px-5 py-3">Client</th>
+                    <th className="px-5 py-3">Package</th>
+                    <th className="px-5 py-3">Documents</th>
+                    <th className="px-5 py-3">Date</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map(s => (
+                    <tr key={s.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <p className="font-semibold text-foreground">{s.profileName ?? s.guest_name ?? '—'}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{s.profileEmail ?? s.guest_email ?? ''}</p>
+                        {s.guest_phone && <p className="text-[10px] text-muted-foreground font-mono">{s.guest_phone}</p>}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="font-semibold text-foreground">{s.product_label ?? s.product_type}</p>
+                        {s.product_price && (
+                          <p className="text-[10px] text-primary font-serif font-bold">
+                            ₱{Number(s.product_price).toLocaleString()}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 space-y-1">
+                        <DocLink path={s.doc_death_certificate}  label="Death Cert" />
+                        <DocLink path={s.doc_barangay_indigency} label="Barangay Indigency" />
+                        <DocLink path={s.doc_valid_id}           label="Valid ID" />
+                        {s.doc_medico_legal && <DocLink path={s.doc_medico_legal} label="Medico Legal" />}
+                      </td>
+                      <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">
+                        {new Date(s.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Badge
+                          label={s.status === 'pending_review' ? 'Pending Review' : s.status}
+                          variant={statusVariant(s.status)}
+                        />
+                        {s.rejection_reason && (
+                          <p className="text-[10px] text-muted-foreground mt-1 max-w-[160px] truncate" title={s.rejection_reason}>
+                            {s.rejection_reason}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {s.status === 'pending_review' && (
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => approve(s)}
+                              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
+                            >
+                              <CheckCircle2 className="h-3 w-3" /> Approve
+                            </button>
+                            <button
+                              onClick={() => setRejectTarget(s)}
+                              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-destructive text-white text-[10px] font-bold hover:bg-destructive/90 transition-colors"
+                            >
+                              <XCircle className="h-3 w-3" /> Reject
+                            </button>
+                          </div>
+                        )}
+                        {s.status !== 'pending_review' && (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )
       }
 

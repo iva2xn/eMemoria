@@ -47,51 +47,92 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
         />
       </div>
       {filtered.length === 0 ? <EmptyState message="No profiles match your search." /> : (
-        <div className="overflow-x-auto border border-border rounded-2xl bg-card">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3">Name</th>
-                <th className="px-5 py-3">Email</th>
-                <th className="px-5 py-3">Role</th>
-                <th className="px-5 py-3">Joined</th>
-                {currentRole === 'admin' && <th className="px-5 py-3">Change Role</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(u => (
-                <tr key={u.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5 font-semibold text-foreground">{u.name}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground font-mono">{u.email}</td>
-                  <td className="px-5 py-3.5">
-                    <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
-                  </td>
-                  <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(u.created_at).toLocaleDateString()}</td>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map(u => (
+              <div key={u.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{u.name}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">{u.email}</p>
+                  </div>
+                  <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                  <p className="text-[10px] text-muted-foreground font-mono">
+                    Joined {new Date(u.created_at).toLocaleDateString()}
+                  </p>
                   {currentRole === 'admin' && (
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <select
-                          value={u.role}
-                          disabled={changingRole === u.id}
-                          onChange={e => handleRoleChange(u.id, e.target.value as UserRole)}
-                          className="h-7 pl-2.5 pr-7 rounded-lg bg-background border border-border/80 text-[11px] font-semibold text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50"
-                          aria-label={`Change role for ${u.name}`}
-                        >
-                          <option value="client">client</option>
-                          <option value="staff">staff</option>
-                          <option value="admin">admin</option>
-                        </select>
-                        {changingRole === u.id && (
-                          <div className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                        )}
-                      </div>
-                    </td>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={u.role}
+                        disabled={changingRole === u.id}
+                        onChange={e => handleRoleChange(u.id, e.target.value as UserRole)}
+                        className="h-7 pl-2.5 pr-7 rounded-lg bg-background border border-border/80 text-[11px] font-semibold text-foreground focus:border-primary/60 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50"
+                        aria-label={`Change role for ${u.name}`}
+                      >
+                        <option value="client">client</option>
+                        <option value="staff">staff</option>
+                        <option value="admin">admin</option>
+                      </select>
+                      {changingRole === u.id && (
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                      )}
+                    </div>
                   )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto border border-border rounded-2xl bg-card">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3">Name</th>
+                  <th className="px-5 py-3">Email</th>
+                  <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Joined</th>
+                  {currentRole === 'admin' && <th className="px-5 py-3">Change Role</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(u => (
+                  <tr key={u.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-5 py-3.5 font-semibold text-foreground">{u.name}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground font-mono">{u.email}</td>
+                    <td className="px-5 py-3.5">
+                      <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+                    </td>
+                    <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(u.created_at).toLocaleDateString()}</td>
+                    {currentRole === 'admin' && (
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={u.role}
+                            disabled={changingRole === u.id}
+                            onChange={e => handleRoleChange(u.id, e.target.value as UserRole)}
+                            className="h-7 pl-2.5 pr-7 rounded-lg bg-background border border-border/80 text-[11px] font-semibold text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer disabled:opacity-50"
+                            aria-label={`Change role for ${u.name}`}
+                          >
+                            <option value="client">client</option>
+                            <option value="staff">staff</option>
+                            <option value="admin">admin</option>
+                          </select>
+                          {changingRole === u.id && (
+                            <div className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   )

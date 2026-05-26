@@ -221,7 +221,24 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
   useEffect(() => { load() }, [load])
 
   const approve = async (id: string) => {
+    // Find the payment row so we can check product_type and product_ref
+    const payment = rows.find(r => r.id === id)
+
     await supabase.from('payments').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', id)
+
+    // Auto-reserve the columbarium slot when a columbarium payment is approved
+    if (payment?.product_type === 'columbarium' && payment?.product_ref) {
+      await supabase
+        .from('columbarium_slots')
+        .update({
+          status:               'reserved',
+          reserved_by_user_id:  payment.user_id ?? null,
+          reserved_at:          new Date().toISOString(),
+        })
+        .eq('slot_code', payment.product_ref)
+        .eq('status', 'available') // safety: don't overwrite occupied slots
+    }
+
     setRows(r => r.map(x => x.id === id ? { ...x, status: 'approved' as PaymentStatus } : x))
   }
 
@@ -286,51 +303,101 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
       </div>
 
       {filtered.length === 0 ? <EmptyState message="No payments match your search." /> : (
-        <div className="overflow-x-auto border border-border rounded-2xl bg-card">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <th className="px-5 py-3">Client</th>
-                <th className="px-5 py-3">Method</th>
-                <th className="px-5 py-3">Reference</th>
-                <th className="px-5 py-3">Amount</th>
-                <th className="px-5 py-3">Date</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Products</th>
-                <th className="px-5 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(p => (
-                <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <p className="font-semibold text-foreground">{p.profileName ?? p.guest_name ?? '—'}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono">{p.profileEmail ?? p.guest_email ?? ''}</p>
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {filtered.map(p => (
+              <div key={p.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground text-sm truncate">{p.profileName ?? p.guest_name ?? '—'}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono truncate">{p.profileEmail ?? p.guest_email ?? ''}</p>
                     {p.guest_phone && <p className="text-[10px] text-muted-foreground font-mono">{p.guest_phone}</p>}
-                  </td>
-                  <td className="px-5 py-3.5"><Badge label={p.method} variant="blue" /></td>
-                  <td className="px-5 py-3.5 font-mono text-muted-foreground text-[10px]">{p.reference_number ?? '—'}</td>
-                  <td className="px-5 py-3.5 font-serif font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
-                  <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(p.created_at).toLocaleDateString()}</td>
-                  <td className="px-5 py-3.5"><Badge label={p.status} variant={statusVariant(p.status)} /></td>
-                  <td className="px-5 py-3.5"><ProductsPopover payment={p} /></td>
-                  <td className="px-5 py-3.5">
-                    {p.status === 'pending' && currentRole === 'admin' ? (
-                      <div className="flex gap-1.5">
-                        <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
-                          <Check className="h-3 w-3" /> Approve
-                        </button>
-                        <button onClick={() => reject(p.id)} className="inline-flex items-center h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors">
-                          Reject
-                        </button>
-                      </div>
-                    ) : <span className="text-[10px] text-muted-foreground">—</span>}
-                  </td>
+                  </div>
+                  <Badge label={p.status} variant={statusVariant(p.status)} />
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Amount</p>
+                    <p className="font-serif font-bold text-primary">₱{Number(p.amount).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Method</p>
+                    <Badge label={p.method} variant="blue" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Reference</p>
+                    <p className="font-mono text-foreground">{p.reference_number ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Date</p>
+                    <p className="font-mono text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-border/40">
+                  <ProductsPopover payment={p} />
+                  {p.status === 'pending' && currentRole === 'admin' ? (
+                    <div className="flex gap-1.5">
+                      <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
+                        <Check className="h-3 w-3" /> Approve
+                      </button>
+                      <button onClick={() => reject(p.id)} className="inline-flex items-center h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors">
+                        Reject
+                      </button>
+                    </div>
+                  ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto border border-border rounded-2xl bg-card">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <th className="px-5 py-3">Client</th>
+                  <th className="px-5 py-3">Method</th>
+                  <th className="px-5 py-3">Reference</th>
+                  <th className="px-5 py-3">Amount</th>
+                  <th className="px-5 py-3">Date</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Products</th>
+                  <th className="px-5 py-3">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map(p => (
+                  <tr key={p.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <p className="font-semibold text-foreground">{p.profileName ?? p.guest_name ?? '—'}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">{p.profileEmail ?? p.guest_email ?? ''}</p>
+                      {p.guest_phone && <p className="text-[10px] text-muted-foreground font-mono">{p.guest_phone}</p>}
+                    </td>
+                    <td className="px-5 py-3.5"><Badge label={p.method} variant="blue" /></td>
+                    <td className="px-5 py-3.5 font-mono text-muted-foreground text-[10px]">{p.reference_number ?? '—'}</td>
+                    <td className="px-5 py-3.5 font-serif font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
+                    <td className="px-5 py-3.5 text-muted-foreground font-mono text-[10px]">{new Date(p.created_at).toLocaleDateString()}</td>
+                    <td className="px-5 py-3.5"><Badge label={p.status} variant={statusVariant(p.status)} /></td>
+                    <td className="px-5 py-3.5"><ProductsPopover payment={p} /></td>
+                    <td className="px-5 py-3.5">
+                      {p.status === 'pending' && currentRole === 'admin' ? (
+                        <div className="flex gap-1.5">
+                          <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
+                            <Check className="h-3 w-3" /> Approve
+                          </button>
+                          <button onClick={() => reject(p.id)} className="inline-flex items-center h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors">
+                            Reject
+                          </button>
+                        </div>
+                      ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {showCashModal && (
