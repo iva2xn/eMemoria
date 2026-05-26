@@ -133,6 +133,7 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                   lastName={lastName || 'LAST NAME'} birthDate={birthDate}
                   deathDate={deathDate} age={age} photoUrl={photoPreview}
                   venueAddress={venueAddress} contactNumber={contactNumber}
+                  showDownload
                 />
               </div>
 

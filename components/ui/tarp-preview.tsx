@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useRef, useEffect, useState, useCallback } from 'react'
 import { Download } from 'lucide-react'
 
@@ -173,12 +172,11 @@ export function TarpPreview({
         }}
       >
         {/* ── BACKGROUND IMAGE ── */}
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/obituarybg.png"
           alt=""
-          fill
-          style={{ objectFit: 'cover', objectPosition: 'center', zIndex: 0 }}
-          priority
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', zIndex: 0 }}
         />
 
         {/* ── MAIN AREA ── */}
@@ -204,7 +202,8 @@ export function TarpPreview({
             {/* Logo + dates */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
               <div style={{ position: 'relative', width: 76, height: 76, borderRadius: '50%', overflow: 'hidden', background: 'white', border: '1.5px solid rgba(34,197,94,0.3)', flexShrink: 0 }}>
-                <Image src="/logo.png" alt="M.P. Gayeta" fill className="object-cover" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="M.P. Gayeta" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={dateStyle}>
@@ -232,11 +231,12 @@ export function TarpPreview({
           }}>
             {photoUrl ? (
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src={photoUrl}
                   alt={`${line1} ${line2}`}
-                  fill
-                  style={{ objectFit: 'cover', objectPosition: 'center top' }}
+                  crossOrigin="anonymous"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
                 />
               </div>
             ) : (

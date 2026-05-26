@@ -304,6 +304,7 @@ export function ObituariesTab() {
                     birthDate={o.birth_date ?? ''} deathDate={o.death_date ?? ''}
                     age={o.age ?? ''} photoUrl={getPhotoUrl(o.image_path)}
                     venueAddress={o.venue_address ?? ''} contactNumber={o.contact_number ?? ''}
+                    showDownload
                   />
                 </div>
                 <div className="px-4 py-3 flex items-center justify-between gap-3">
@@ -389,6 +390,7 @@ export function ObituariesTab() {
                 deathDate={editDeath} age={editAge}
                 photoUrl={getPhotoUrl(selected.image_path)}
                 venueAddress={editVenue} contactNumber={editContact}
+                showDownload
               />
               <p className="text-[10px] text-muted-foreground">Updates as you type. Save to persist changes.</p>
             </div>
