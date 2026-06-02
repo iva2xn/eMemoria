@@ -18,15 +18,16 @@
 --   OR: supabase db push  (if using the Supabase CLI)
 --
 -- Table of contents:
---   1.  Shared helpers  (reusable functions + triggers)
---   2.  profiles        (user accounts)
---   3.  columbarium_slots (the 6×12 niche grid)
---   4.  inquiries       (contact form submissions)
---   5.  bookings        (service reservations)
---   6.  payments        (payment submissions)
---   7.  obituaries      (tarp / memorial records)
---   8.  payment_info    (GCash + bank details, single row)
---   9.  Storage buckets (file uploads)
+--   1.  Shared helpers        (reusable functions + triggers)
+--   2.  profiles              (user accounts)
+--   3.  columbarium_slots     (the 6×12 niche grid)
+--   4.  inquiries             (contact form submissions)
+--   5.  bookings              (service reservations)
+--   6.  document_submissions  (pre-payment document review)
+--   7.  payments              (payment submissions)
+--   8.  obituaries            (tarp / memorial records)
+--   9.  payment_info          (GCash + bank details, single row)
+--   10. Storage buckets       (file uploads)
 -- ============================================================
 
 
@@ -65,6 +66,13 @@ CREATE TYPE public.payment_status AS ENUM (
   'pending',    -- submitted by client, waiting for admin to verify
   'approved',   -- admin confirmed the payment
   'rejected'    -- admin rejected it (wrong amount, fake receipt, etc.)
+);
+
+-- Status enum for document submission workflow
+CREATE TYPE public.document_submission_status AS ENUM (
+  'pending_review',  -- submitted, waiting for staff to check docs
+  'approved',        -- docs verified, customer may proceed to payment
+  'rejected'         -- docs rejected, reason stored in rejection_reason
 );
 
 -- Payment methods clients can use
@@ -426,7 +434,92 @@ CREATE POLICY "Staff and admins can update bookings"
 
 
 -- ============================================================
--- 6. PAYMENTS
+-- 6. DOCUMENT SUBMISSIONS
+-- ============================================================
+-- What is this table?
+--   Before a customer can pay for a traditional burial package,
+--   they must first submit required documents for staff review.
+--   Once approved, they receive an email with a link to the
+--   billing page and can proceed to pay.
+--
+-- Required documents:
+--   - Death Certificate
+--   - Barangay Indigency
+--   - Valid ID
+--   - Medico Legal (optional — only if death was non-natural)
+--
+-- Status flow:
+--   pending_review → approved  (staff confirms docs are valid)
+--                 → rejected   (staff rejects with a reason)
+--
+-- Guest support: same pattern as bookings — user_id OR guest_*
+-- ============================================================
+
+CREATE TABLE public.document_submissions (
+  id  uuid  PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Who submitted — either a logged-in user or a guest
+  user_id     uuid  REFERENCES public.profiles (id) ON DELETE CASCADE,
+  guest_name  text,
+  guest_email text,
+  guest_phone text,
+
+  -- What package they want to avail
+  product_type  text          NOT NULL,  -- 'package', 'cremation', etc.
+  product_ref   text,                    -- package name e.g. 'OMB'
+  product_label text,                    -- display label e.g. 'OMB — ₱25,000'
+  product_price numeric(10,2),
+
+  -- Required document storage paths (Supabase Storage: 'document-submissions' bucket)
+  doc_death_certificate   text,   -- required
+  doc_barangay_indigency  text,   -- required
+  doc_valid_id            text,   -- required
+  doc_medico_legal        text,   -- optional (non-natural death)
+
+  -- Workflow
+  status            document_submission_status  NOT NULL DEFAULT 'pending_review',
+  rejection_reason  text,                        -- filled when status = 'rejected'
+  reviewed_by       uuid  REFERENCES public.profiles (id) ON DELETE SET NULL,
+  reviewed_at       timestamptz,
+
+  -- Email notification tracking — prevents double-sending
+  notified_at  timestamptz,
+
+  created_at  timestamptz  NOT NULL DEFAULT now(),
+  updated_at  timestamptz  NOT NULL DEFAULT now()
+);
+
+CREATE INDEX document_submissions_user_id_idx ON public.document_submissions (user_id);
+CREATE INDEX document_submissions_status_idx  ON public.document_submissions (status);
+
+CREATE TRIGGER document_submissions_updated_at
+  BEFORE UPDATE ON public.document_submissions
+  FOR EACH ROW EXECUTE PROCEDURE public.set_updated_at();
+
+-- RLS
+ALTER TABLE public.document_submissions ENABLE ROW LEVEL SECURITY;
+
+-- Logged-in users can view and create their own submissions
+CREATE POLICY "Users can view their own document submissions"
+  ON public.document_submissions FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create document submissions"
+  ON public.document_submissions FOR INSERT
+  WITH CHECK (auth.uid() = user_id OR (auth.uid() IS NULL AND user_id IS NULL));
+
+-- Staff and admins can view and update all submissions
+CREATE POLICY "Staff and admins can view all document submissions"
+  ON public.document_submissions FOR SELECT
+  USING (public.is_staff_or_admin());
+
+CREATE POLICY "Staff and admins can update document submissions"
+  ON public.document_submissions FOR UPDATE
+  USING (public.is_staff_or_admin());
+
+
+-- ============================================================
+-- 7. PAYMENTS
 -- ============================================================
 -- What is this table?
 --   When a client submits a payment (GCash, bank, or cash),
@@ -453,7 +546,10 @@ CREATE TABLE public.payments (
   guest_phone text,
 
   -- Optional link to a booking row (set when auto-booking is created)
-  booking_id  uuid            REFERENCES public.bookings (id) ON DELETE SET NULL,
+  booking_id              uuid  REFERENCES public.bookings (id) ON DELETE SET NULL,
+
+  -- Optional link to the document submission that preceded this payment
+  document_submission_id  uuid  REFERENCES public.document_submissions (id) ON DELETE SET NULL,
 
   -- What was paid for
   product_type  text          NOT NULL, -- see values above
@@ -517,7 +613,7 @@ CREATE POLICY "Staff and admins can insert payments"
 
 
 -- ============================================================
--- 7. OBITUARIES
+-- 8. OBITUARIES
 -- ============================================================
 -- What is this table?
 --   Stores memorial tarpaulin records. Each row has the
@@ -594,7 +690,7 @@ CREATE POLICY "Staff and admins can manage all obituaries"
 
 
 -- ============================================================
--- 8. PAYMENT INFO
+-- 9. PAYMENT INFO
 -- ============================================================
 -- What is this table?
 --   A single-row config table that stores the funeral home's
@@ -669,15 +765,16 @@ CREATE POLICY "Admins can update payment info"
 
 
 -- ============================================================
--- 9. STORAGE BUCKETS
+-- 10. STORAGE BUCKETS
 -- ============================================================
 -- What are storage buckets?
 --   Supabase Storage is like a file hosting service built into
---   your project. Buckets are folders. We use three:
+--   your project. Buckets are folders. We use four:
 --
---   obituaries   — photos of the deceased for tarp generation
---   payments     — receipt screenshots uploaded by clients
---   payment-info — the GCash QR code image (public)
+--   obituaries            — photos of the deceased for tarp generation
+--   document-submissions  — sensitive legal documents (private)
+--   payments              — receipt screenshots uploaded by clients
+--   payment-info          — the GCash QR code image (public)
 --
 -- Public vs private:
 --   public = true  → anyone with the URL can view the file
@@ -692,6 +789,17 @@ VALUES (
   true,
   5242880,  -- 5 MB max per file
   ARRAY['image/png', 'image/jpeg', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- Document submissions bucket (private — sensitive legal documents)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'document-submissions',
+  'document-submissions',
+  false,
+  10485760,  -- 10 MB per file
+  ARRAY['image/png', 'image/jpeg', 'image/webp', 'application/pdf']
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -747,6 +855,20 @@ CREATE POLICY "Staff and admins can view receipts"
   ON storage.objects FOR SELECT
   USING (
     bucket_id = 'payments'
+    AND public.is_staff_or_admin()
+  );
+
+-- ── Storage policies: document-submissions bucket ────────────
+-- Anyone can upload their own documents
+CREATE POLICY "Anyone can upload submission documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'document-submissions');
+
+-- Only staff/admins can view submitted documents
+CREATE POLICY "Staff and admins can view submission documents"
+  ON storage.objects FOR SELECT
+  USING (
+    bucket_id = 'document-submissions'
     AND public.is_staff_or_admin()
   );
 
