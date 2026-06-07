@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
+import { NotificationPanel } from '@/components/admin/notification-panel'
 import { Menu, X, User as UserIcon, LogOut, ShieldAlert } from 'lucide-react'
 
 const NAV_LINKS = [
@@ -113,6 +114,9 @@ export function AdminHeader({
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Notification bell */}
+          {authReady && profile && <NotificationPanel />}
+
           {/* Logout — always visible */}
           {authReady && profile && (
             <Button variant="ghost" size="icon" onClick={handleLogout}

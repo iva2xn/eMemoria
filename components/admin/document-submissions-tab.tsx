@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge, SectionHeader, EmptyState, Spinner } from './admin-primitives'
 import { FileText, ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 import type { DocumentSubmission, DocumentSubmissionStatus } from '@/lib/supabase/types'
 
 type SubmissionRow = DocumentSubmission & { profileName?: string; profileEmail?: string }
@@ -28,6 +29,7 @@ function RejectModal({
     setLoading(true)
 
     const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
 
     await supabase.from('document_submissions').update({
       status:           'rejected',
@@ -53,6 +55,18 @@ function RejectModal({
         }),
       })
     }
+
+    const clientName = submission.profileName ?? submission.guest_name ?? 'a client'
+    await logActivity({
+      category:     'log',
+      event_type:   'doc_submission_rejected',
+      entity_table: 'document_submissions',
+      entity_id:    submission.id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} rejected documents from ${clientName}: "${reason.trim().slice(0, 80)}"`,
+      metadata:     { client: clientName, reason: reason.trim() },
+    })
 
     setLoading(false)
     onDone()
@@ -164,6 +178,7 @@ export function DocumentSubmissionsTab() {
 
   const approve = async (s: SubmissionRow) => {
     const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
 
     await supabase.from('document_submissions').update({
       status:      'approved',
@@ -187,6 +202,18 @@ export function DocumentSubmissionsTab() {
         }),
       })
     }
+
+    const clientName = s.profileName ?? s.guest_name ?? 'a client'
+    await logActivity({
+      category:     'log',
+      event_type:   'doc_submission_approved',
+      entity_table: 'document_submissions',
+      entity_id:    s.id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} approved documents from ${clientName} for ${s.product_label ?? s.product_type}`,
+      metadata:     { client: clientName, package: s.product_label },
+    })
 
     setRows(r => r.map(x => x.id === s.id ? { ...x, status: 'approved' as DocumentSubmissionStatus } : x))
   }

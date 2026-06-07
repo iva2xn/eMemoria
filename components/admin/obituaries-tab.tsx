@@ -7,6 +7,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
 import { Badge, SectionHeader, EmptyState, Spinner, inputCls } from './admin-primitives'
 import { ScrollText, UploadCloud, X, Check, Plus } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 import type { Obituary } from '@/lib/supabase/types'
 
 // ── Create Tarp Modal ────────────────────────────────────────
@@ -255,9 +256,24 @@ export function ObituariesTab() {
   }
 
   const togglePublish = async (id: string, current: boolean) => {
+    const { data: { user } } = supabase.auth.getUser ? await supabase.auth.getUser() : { data: { user: null } }
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+    const obit = rows.find(r => r.id === id)
+
     await supabase.from('obituaries').update({ is_published: !current }).eq('id', id)
     setRows(r => r.map(x => x.id === id ? { ...x, is_published: !current } : x))
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, is_published: !current } : null)
+
+    await logActivity({
+      category:     'log',
+      event_type:   !current ? 'obituary_published' : 'obituary_unpublished',
+      entity_table: 'obituaries',
+      entity_id:    id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} ${!current ? 'published' : 'unpublished'} obituary for ${obit?.full_name ?? 'unknown'}`,
+      metadata:     { full_name: obit?.full_name },
+    })
   }
 
   const getPhotoUrl = (path: string) => {

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Badge, SectionHeader, EmptyState, Spinner, type BadgeVariant } from './admin-primitives'
 import { Search } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
 export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
@@ -20,8 +21,24 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     setChangingRole(userId)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+    const target = rows.find(p => p.id === userId)
+
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
-    if (!error) setRows(r => r.map(p => p.id === userId ? { ...p, role: newRole } : p))
+    if (!error) {
+      setRows(r => r.map(p => p.id === userId ? { ...p, role: newRole } : p))
+      await logActivity({
+        category:     'log',
+        event_type:   'role_changed',
+        entity_table: 'profiles',
+        entity_id:    userId,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} changed ${target?.name ?? 'a user'}'s role to ${newRole}`,
+        metadata:     { target_name: target?.name, old_role: target?.role, new_role: newRole },
+      })
+    }
     setChangingRole(null)
   }
 

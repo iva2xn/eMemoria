@@ -6,6 +6,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { Badge, SectionHeader, EmptyState, Spinner, inputCls, type BadgeVariant } from './admin-primitives'
 import { Search, Check, Banknote, ChevronDown } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
 type RawPayment = Payment & {
@@ -221,29 +222,55 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
   useEffect(() => { load() }, [load])
 
   const approve = async (id: string) => {
-    // Find the payment row so we can check product_type and product_ref
     const payment = rows.find(r => r.id === id)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorProfile = user ? rows.find(r => r.id === user.id) : null
+    const actorName = actorProfile?.profileName ?? 'Staff'
 
     await supabase.from('payments').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', id)
 
-    // Auto-reserve the columbarium slot when a columbarium payment is approved
     if (payment?.product_type === 'columbarium' && payment?.product_ref) {
       await supabase
         .from('columbarium_slots')
-        .update({
-          status:               'reserved',
-          reserved_by_user_id:  payment.user_id ?? null,
-          reserved_at:          new Date().toISOString(),
-        })
+        .update({ status: 'reserved', reserved_by_user_id: payment.user_id ?? null, reserved_at: new Date().toISOString() })
         .eq('slot_code', payment.product_ref)
-        .eq('status', 'available') // safety: don't overwrite occupied slots
+        .eq('status', 'available')
     }
+
+    const clientName = payment?.profileName ?? payment?.guest_name ?? 'a client'
+    await logActivity({
+      category:     'log',
+      event_type:   'payment_approved',
+      entity_table: 'payments',
+      entity_id:    id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} approved a payment of ₱${Number(payment?.amount ?? 0).toLocaleString()} from ${clientName}`,
+      metadata:     { amount: payment?.amount, client: clientName },
+    })
 
     setRows(r => r.map(x => x.id === id ? { ...x, status: 'approved' as PaymentStatus } : x))
   }
 
   const reject = async (id: string) => {
+    const payment = rows.find(r => r.id === id)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+
     await supabase.from('payments').update({ status: 'rejected' }).eq('id', id)
+
+    const clientName = payment?.profileName ?? payment?.guest_name ?? 'a client'
+    await logActivity({
+      category:     'log',
+      event_type:   'payment_rejected',
+      entity_table: 'payments',
+      entity_id:    id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} rejected a payment from ${clientName}`,
+      metadata:     { amount: payment?.amount, client: clientName },
+    })
+
     setRows(r => r.map(x => x.id === id ? { ...x, status: 'rejected' as PaymentStatus } : x))
   }
 

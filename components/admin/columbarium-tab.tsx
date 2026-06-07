@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SectionHeader, EmptyState, Spinner } from './admin-primitives'
 import { X } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 import type { ColumbariumSlot, SlotStatus } from '@/lib/supabase/types'
 
 const ROW_LABELS: Record<number, string> = {
@@ -26,14 +27,29 @@ export function ColumbariumTab() {
   const updateSlotStatus = async (newStatus: SlotStatus) => {
     if (!selected) return
     setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+
     const { error } = await supabase
       .from('columbarium_slots')
       .update({ status: newStatus })
       .eq('id', selected.id)
+
     if (!error) {
       const updated = { ...selected, status: newStatus }
       setRows(r => r.map(s => s.id === selected.id ? updated : s))
       setSelected(updated)
+
+      await logActivity({
+        category:     'log',
+        event_type:   `slot_${newStatus}`,
+        entity_table: 'columbarium_slots',
+        entity_id:    selected.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} marked slot ${selected.slot_code} as ${newStatus}`,
+        metadata:     { slot_code: selected.slot_code, status: newStatus },
+      })
     }
     setSaving(false)
   }
