@@ -72,12 +72,12 @@ export function NotificationPanel() {
 
   // Fetch just the unread count on mount + poll every 30s regardless of panel open state
   const fetchUnreadCount = useCallback(async () => {
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from('activity_log')
       .select('id', { count: 'exact', head: true })
       .eq('category', 'notification')
       .eq('is_read', false)
-    setUnreadCount(count ?? 0)
+    if (!error) setUnreadCount(count ?? 0)
   }, [supabase])
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export function NotificationPanel() {
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center leading-none">
+          <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none pointer-events-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -156,19 +156,12 @@ export function NotificationPanel() {
       {open && (
         <div
           ref={panelRef}
-          className="
-            fixed left-1/2 -translate-x-1/2 top-16 w-[calc(100vw-2rem)] max-w-sm
-            sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-10 sm:w-96
-            bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden
-            animate-in fade-in slide-in-from-top-2 duration-150
-          ">
+          className="fixed left-1/2 -translate-x-1/2 top-16 w-[calc(100vw-2rem)] max-w-sm sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-10 sm:w-96 bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
             <h3 className="text-sm font-bold text-foreground">Activity</h3>
-            <button
-              onClick={markAllRead}
-              className="text-[10px] font-semibold text-primary hover:underline"
-            >
+            <button onClick={markAllRead} className="text-[10px] font-semibold text-primary hover:underline">
               Mark all read
             </button>
           </div>
@@ -211,24 +204,17 @@ export function NotificationPanel() {
                   <li
                     key={entry.id}
                     onClick={() => { if (!entry.is_read) markOneRead(entry.id) }}
-                    className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30 ${
-                      !entry.is_read ? 'bg-primary/5' : ''
-                    }`}
+                    className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30 ${!entry.is_read ? 'bg-primary/5' : ''}`}
                   >
-                    {/* Icon bubble */}
                     <div className={`shrink-0 mt-0.5 h-7 w-7 rounded-full flex items-center justify-center text-white ${dotColor(entry)}`}>
                       <EventIcon eventType={entry.event_type} />
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <p className={`text-xs leading-snug ${!entry.is_read ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
                         {entry.message}
                       </p>
                       <p className="text-[10px] text-muted-foreground/70 mt-0.5">{timeAgo(entry.created_at)}</p>
                     </div>
-
-                    {/* Unread dot */}
                     {!entry.is_read && (
                       <div className="shrink-0 mt-2 h-2 w-2 rounded-full bg-primary" />
                     )}
@@ -236,13 +222,6 @@ export function NotificationPanel() {
                 ))}
               </ul>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="border-t border-border/50 px-4 py-2.5 text-center">
-            <p className="text-[10px] text-muted-foreground">
-              Showing latest {displayed.length} entries · refreshes every 30s
-            </p>
           </div>
         </div>
       )}
