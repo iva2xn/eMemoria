@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { HeroHeader, AdminHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { OverviewTab }    from '@/components/admin/overview-tab'
 import { InquiriesTab }   from '@/components/admin/inquiries-tab'
@@ -65,7 +65,7 @@ export default function AdminPage() {
   if (profile === undefined) {
     return (
       <>
-        <HeroHeader />
+        <AdminHeader />
         <main className="flex-1 flex items-center justify-center py-32 bg-background">
           <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </main>
@@ -78,7 +78,7 @@ export default function AdminPage() {
   if (!profile || (profile.role !== 'admin' && profile.role !== 'staff')) {
     return (
       <>
-        <HeroHeader />
+        <AdminHeader />
         <main className="flex-1 flex flex-col items-center justify-center py-32 px-6 text-center space-y-5 bg-background">
           <div className="h-14 w-14 bg-destructive/5 rounded-full flex items-center justify-center border border-destructive/10">
             <ShieldAlert className="h-7 w-7 text-destructive" />
@@ -115,35 +115,12 @@ export default function AdminPage() {
 
   return (
     <>
-      <HeroHeader />
+      <AdminHeader tabs={TABS} activeTab={activeTab} onTabChange={id => setActiveTab(id as Tab)} />
       <main className="flex-1 bg-background min-h-screen">
-
-        <div className="border-b border-border/40 bg-background/95 backdrop-blur-sm sticky top-16 z-40">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex gap-0.5 overflow-x-auto no-scrollbar py-1.5 px-3">
-              {TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
-                    activeTab === tab.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                  }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
         {/* TAB PANEL — renders whichever component the activeTab key points to */}
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-8">
           {tabContent[activeTab]}
         </div>
-
       </main>
     </>
   )

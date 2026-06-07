@@ -34,10 +34,24 @@ function LoginContent() {
     if (!email || !password) { setErrorMsg('Please fill in all fields.'); return }
 
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password })
     setLoading(false)
 
     if (error) { setErrorMsg('Invalid email or password.'); return }
+
+    // Check role — redirect admins/staff to the admin panel
+    if (signInData.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', signInData.user.id)
+        .single()
+      if (profile?.role === 'admin' || profile?.role === 'staff') {
+        window.location.href = '/admin'
+        return
+      }
+    }
+
     window.location.href = nextUrl
   }
 
