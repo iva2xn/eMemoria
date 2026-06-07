@@ -33,8 +33,9 @@ export function AdminHeader({
   const router   = useRouter()
   const supabase = useRef(createClient()).current
 
-  const [profile, setProfile] = useState<Profile | null>(cachedProfile ?? null)
-  const [authReady, setAuthReady] = useState(cachedProfile !== undefined)
+  const [profile, setProfile]         = useState<Profile | null>(cachedProfile ?? null)
+  const [authReady, setAuthReady]     = useState(cachedProfile !== undefined)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     if (cachedProfile !== undefined) {
@@ -62,8 +63,14 @@ export function AdminHeader({
     cachedProfile = null
     await supabase.auth.signOut()
     setProfile(null)
+    setMobileMenuOpen(false)
     router.push('/')
     router.refresh()
+  }
+
+  const handleTabClick = (id: string) => {
+    onTabChange?.(id)
+    setMobileMenuOpen(false)
   }
 
   return (
@@ -81,12 +88,12 @@ export function AdminHeader({
           </div>
         </Link>
 
-        {/* Divider */}
-        <div className="h-5 w-px bg-border/50 shrink-0" />
+        {/* Divider — desktop only */}
+        <div className="hidden md:block h-5 w-px bg-border/50 shrink-0" />
 
-        {/* Tabs — center, fill remaining space */}
+        {/* Tabs — desktop only, center, fill remaining space */}
         {tabs && tabs.length > 0 && (
-          <nav className="flex items-center gap-0.5 overflow-x-auto no-scrollbar flex-1">
+          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto no-scrollbar flex-1">
             {tabs.map(tab => (
               <button
                 key={tab.id}
@@ -98,25 +105,53 @@ export function AdminHeader({
                 }`}
               >
                 {tab.icon}
-                <span className="hidden md:inline">{tab.label}</span>
+                {tab.label}
               </button>
             ))}
           </nav>
         )}
 
-        {/* User + logout — right */}
-        {authReady && profile && (
-          <div className="flex items-center gap-2 bg-muted/60 pl-2.5 pr-1.5 py-1 rounded-full border border-border/60 shrink-0 ml-auto">
-            <ShieldAlert className="h-3 w-3 text-muted-foreground" />
-            <span className="hidden md:inline text-xs font-semibold text-foreground max-w-[100px] truncate">{profile.name}</span>
+        {/* Right side */}
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Logout — always visible */}
+          {authReady && profile && (
             <Button variant="ghost" size="icon" onClick={handleLogout}
-              className="h-6 w-6 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
               title="Logout">
-              <LogOut className="h-3 w-3" />
+              <LogOut className="h-4 w-4" />
             </Button>
-          </div>
-        )}
+          )}
+
+          {/* Hamburger — mobile only */}
+          <Button variant="ghost" size="icon"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden text-foreground">
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile drawer */}
+      {mobileMenuOpen && tabs && (
+        <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-lg animate-in fade-in slide-in-from-top-4 duration-200">
+          <div className="space-y-1.5 px-6 py-4">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-base font-medium transition-colors text-left ${
+                  activeTab === tab.id
+                    ? 'bg-accent text-primary font-semibold'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </header>
   )
 }
@@ -219,19 +254,11 @@ export function HeroHeader() {
         <div className="hidden md:flex items-center gap-3">
           {authReady && (
             profile ? (
-              <div className="flex items-center gap-3 bg-muted/60 pl-3 pr-2 py-1.5 rounded-full border border-border/60">
-                <div className="flex items-center gap-1.5">
-                  <UserIcon className="h-3.5 w-3.5 text-secondary" />
-                  <span className="text-xs font-semibold text-foreground max-w-[100px] truncate">
-                    {profile.name}
-                  </span>
-                </div>
-                <Button variant="ghost" size="icon" onClick={handleLogout}
-                  className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="Logout">
-                  <LogOut className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              <Button variant="ghost" size="icon" onClick={handleLogout}
+                className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Logout">
+                <LogOut className="h-4 w-4" />
+              </Button>
             ) : (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild>
@@ -288,19 +315,10 @@ export function HeroHeader() {
             <div className="border-t border-border/40 pt-4 mt-2">
               {authReady && (
                 profile ? (
-                  <div className="flex items-center justify-between bg-muted/40 p-3 rounded-lg border border-border/40">
-                    <div className="flex items-center gap-2">
-                      <UserIcon className="h-4 w-4 text-secondary" />
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-foreground">{profile.name}</span>
-                        <span className="text-xs text-muted-foreground">{profile.email}</span>
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={handleLogout}
-                      className="text-destructive hover:bg-destructive/10 gap-1">
-                      <LogOut className="h-4 w-4" /> Logout
-                    </Button>
-                  </div>
+                  <Button variant="ghost" size="icon" onClick={handleLogout}
+                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     <Button variant="outline" size="sm" asChild onClick={() => setMobileMenuOpen(false)}>
