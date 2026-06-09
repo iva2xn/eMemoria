@@ -46,7 +46,7 @@ function ResetPasswordForm() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!otp || otp.length < 6) { setError('Please enter the 6-digit code from your email.'); return }
+    if (!otp || otp.length < 6) { setError('Please enter the code from your email.'); return }
 
     setLoading(true)
     const { error } = await supabase.auth.verifyOtp({
@@ -131,7 +131,7 @@ function ResetPasswordForm() {
           <div className="text-center space-y-2 mb-6">
             <h1 className="font-serif text-3xl font-bold text-foreground">Check Your Email</h1>
             <p className="text-sm text-muted-foreground">
-              We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>.
+              We sent a reset code to <span className="font-medium text-foreground">{email}</span>.
               Enter it below.
             </p>
           </div>
@@ -140,9 +140,9 @@ function ResetPasswordForm() {
 
           <form onSubmit={handleVerifyOtp} className="space-y-4 mt-4">
             <FormField
-              id="otp" label="6-Digit Code" type="text"
-              placeholder="123456" value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              id="otp" label="Reset Code" type="text"
+              placeholder="82052410" value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
               icon={<ShieldCheck className="h-4.5 w-4.5" />}
             />
             <Button type="submit" disabled={loading} className="w-full h-11 font-semibold mt-2">
