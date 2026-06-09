@@ -32,41 +32,17 @@ function ResetPasswordForm() {
       return
     }
 
-    // Strategy 1: hash fragment with access_token (immune to Gmail prefetch)
+    const type         = hash.get('type') ?? params.get('type')
     const accessToken  = hash.get('access_token')
     const refreshToken = hash.get('refresh_token')
-    const type         = hash.get('type') ?? params.get('type')
+    const tokenHash    = params.get('token_hash')
+    const code         = params.get('code')
 
-    if (accessToken && type === 'recovery') {
-      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken ?? '' })
-        .then(({ error }) => {
-          if (error) setError('This reset link has expired. Please request a new one.')
-          else setSessionReady(true)
-        })
-      return
-    }
-
-    // Strategy 2: token_hash query param
-    const tokenHash = params.get('token_hash')
-    if (tokenHash && type === 'recovery') {
-      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
-        if (error) setError('This reset link has expired. Please request a new one.')
-        else setSessionReady(true)
-      })
-      return
-    }
-
-    // Strategy 3: code query param (PKCE)
-    const code = params.get('code')
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) setError('This reset link has expired. Please request a new one.')
-        else setSessionReady(true)
-      })
-      return
-    }
-
-    // Strategy 4: listen for PASSWORD_RECOVERY auth event
+    // Always register the PASSWORD_RECOVERY listener first.
+    // Supabase fires this event automatically when it detects a recovery
+    // hash fragment (#access_token=...&type=recovery) on page load — even
+    // before any manual setSession call. This covers the case where the
+    // refresh_token is empty (which causes setSession to fail).
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setSessionReady(true)
@@ -78,10 +54,53 @@ function ResetPasswordForm() {
       setError('Invalid or expired reset link. Please request a new one.')
     }, 5000)
 
-    return () => {
+    const cleanup = () => {
       subscription.unsubscribe()
       clearTimeout(timeout)
     }
+
+    // Strategy 1: hash fragment — both tokens present, call setSession explicitly
+    if (accessToken && refreshToken && type === 'recovery') {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (error) {
+            // setSession failed; the onAuthStateChange listener above may still
+            // fire if Supabase processed the hash on its own — wait for it.
+          }
+          // on success the PASSWORD_RECOVERY event will fire and setSessionReady
+        })
+      return cleanup
+    }
+
+    // Strategy 2: token_hash query param (email OTP flow)
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ error }) => {
+          if (error) {
+            clearTimeout(timeout)
+            setError('This reset link has expired. Please request a new one.')
+            subscription.unsubscribe()
+          }
+        })
+      return cleanup
+    }
+
+    // Strategy 3: code query param (PKCE — handled server-side by /auth/callback,
+    // but kept as a client-side fallback in case the callback wasn't reached)
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ error }) => {
+          if (error) {
+            clearTimeout(timeout)
+            setError('This reset link has expired. Please request a new one.')
+            subscription.unsubscribe()
+          }
+        })
+      return cleanup
+    }
+
+    // No token in URL at all — the listener + timeout will handle it
+    return cleanup
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
