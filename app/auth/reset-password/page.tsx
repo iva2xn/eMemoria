@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
@@ -10,13 +10,14 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { KeyRound, Mail, ShieldCheck } from 'lucide-react'
 
 // Step 1 — collect email and send OTP
-// Step 2 — enter 6-digit OTP to verify identity
+// Step 2 — enter OTP to verify identity
 // Step 3 — set new password
 type Step = 'email' | 'otp' | 'password'
 
 function ResetPasswordForm() {
-  const supabase = createClient()
-  const router   = useRouter()
+  const supabase     = createClient()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
 
   const [step,     setStep]     = useState<Step>('email')
   const [email,    setEmail]    = useState('')
@@ -26,6 +27,15 @@ function ResetPasswordForm() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [success,  setSuccess]  = useState(false)
+
+  // If the email link included ?email=..., pre-fill and jump to OTP step
+  useEffect(() => {
+    const emailParam = searchParams.get('email')
+    if (emailParam) {
+      setEmail(emailParam)
+      setStep('otp')
+    }
+  }, [searchParams])
 
   // Step 1: send a 6-digit OTP to the user's email
   const handleSendOtp = async (e: React.FormEvent) => {
