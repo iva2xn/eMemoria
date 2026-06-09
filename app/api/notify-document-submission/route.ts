@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
         </div>
         <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">
           If you have any questions, please contact us at
-          <a href="mailto:iva2xn@gmail.com" style="color: #15803d;">iva2xn@gmail.com</a>
+          <a href="mailto:support@ememoria.site" style="color: #15803d;">support@ememoria.site</a>
           or call <strong>+63 918 901 9978</strong> (available 24/7).
         </p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
         </p>
         <p style="font-size: 13px; color: #6b7280; line-height: 1.6;">
           Contact us at
-          <a href="mailto:iva2xn@gmail.com" style="color: #15803d;">iva2xn@gmail.com</a>
+          <a href="mailto:support@ememoria.site" style="color: #15803d;">support@ememoria.site</a>
           or call <strong>+63 918 901 9978</strong> (available 24/7).
         </p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
