@@ -21,11 +21,33 @@ function ResetPasswordForm() {
   const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
-    // Strategy 1: token_hash in query params (Supabase PKCE with link protection disabled)
-    const params = new URLSearchParams(window.location.search)
-    const tokenHash = params.get('token_hash')
-    const type      = params.get('type')
+    // Check for error params first (link already consumed / expired)
+    const params   = new URLSearchParams(window.location.search)
+    const hashStr  = window.location.hash.replace('#', '')
+    const hash     = new URLSearchParams(hashStr)
 
+    const errorCode = params.get('error_code') ?? hash.get('error_code')
+    if (errorCode) {
+      setError('This reset link has expired. Please request a new one.')
+      return
+    }
+
+    // Strategy 1: hash fragment with access_token (immune to Gmail prefetch)
+    const accessToken  = hash.get('access_token')
+    const refreshToken = hash.get('refresh_token')
+    const type         = hash.get('type') ?? params.get('type')
+
+    if (accessToken && type === 'recovery') {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken ?? '' })
+        .then(({ error }) => {
+          if (error) setError('This reset link has expired. Please request a new one.')
+          else setSessionReady(true)
+        })
+      return
+    }
+
+    // Strategy 2: token_hash query param
+    const tokenHash = params.get('token_hash')
     if (tokenHash && type === 'recovery') {
       supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' }).then(({ error }) => {
         if (error) setError('This reset link has expired. Please request a new one.')
@@ -34,7 +56,7 @@ function ResetPasswordForm() {
       return
     }
 
-    // Strategy 2: code in query params (standard PKCE)
+    // Strategy 3: code query param (PKCE)
     const code = params.get('code')
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
@@ -44,7 +66,7 @@ function ResetPasswordForm() {
       return
     }
 
-    // Strategy 3: PASSWORD_RECOVERY event via hash fragment (implicit flow)
+    // Strategy 4: listen for PASSWORD_RECOVERY auth event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setSessionReady(true)
@@ -52,10 +74,9 @@ function ResetPasswordForm() {
       }
     })
 
-    // If none of the above match after a short delay, show error
     const timeout = setTimeout(() => {
-      if (!sessionReady) setError('Invalid or expired reset link.')
-    }, 4000)
+      setError('Invalid or expired reset link. Please request a new one.')
+    }, 5000)
 
     return () => {
       subscription.unsubscribe()

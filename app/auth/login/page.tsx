@@ -63,7 +63,9 @@ function LoginContent() {
 
     setRecoveryLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      // Route through the server-side callback so the one-time PKCE code is
+      // exchanged before any email scanner / prefetcher can consume it.
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
     })
     setRecoveryLoading(false)
 
