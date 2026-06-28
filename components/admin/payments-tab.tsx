@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { Badge, SectionHeader, EmptyState, Spinner, inputCls, type BadgeVariant } from './admin-primitives'
+import { PaymentInfoCard } from './payment-info-card'
 import { Search, Check, Banknote, ChevronDown } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
@@ -293,6 +294,7 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
 
   return (
     <div className="space-y-6">
+      <PaymentInfoCard canEdit={currentRole === 'admin'} />
       <div className="flex items-start justify-between gap-4">
         <SectionHeader
           title="Payments"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Plus_Jakarta_Sans, Playfair_Display, JetBrains_Mono } from "next/font/google"
-import { Footer } from "@/components/footer"
+import { ConditionalFooter } from "@/components/conditional-footer"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const fontSans = Plus_Jakarta_Sans({
@@ -35,12 +36,15 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground transition-colors duration-300">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <div className="flex flex-col flex-1 min-h-screen">
             {children}
-            <Footer />
+            <ConditionalFooter />
           </div>
+        </ThemeProvider>
       </body>
     </html>
   )
