@@ -72,34 +72,50 @@ export function HeroSection() {
             fill priority
             className="object-cover object-right lg:object-center w-full"
           />
-          <div className="absolute inset-0 pointer-events-none lg:hidden bg-gradient-to-b from-background/95 via-background/70 to-transparent" />
+          {/* Mobile: stronger top-down fade */}
+          <div className="absolute inset-0 pointer-events-none lg:hidden bg-gradient-to-b from-background via-background/85 to-background/20" />
+          {/* Desktop: left panel fade, deeper coverage */}
           <div
             className="absolute inset-0 pointer-events-none hidden lg:block"
-            style={{ background: 'linear-gradient(to right, var(--background) 0%, var(--background) 20%, transparent 100%)' }}
+            style={{ background: 'linear-gradient(to right, var(--background) 0%, var(--background) 35%, rgba(0,0,0,0) 65%)' }}
           />
+          {/* Subtle vignette bottom */}
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background/60 to-transparent pointer-events-none" />
         </div>
 
         {/* Content */}
         <div className="relative z-10 w-full" style={{ paddingTop: 'clamp(3rem, 8vh, 6rem)', paddingBottom: 'clamp(8rem, 16vh, 12rem)' }}>
           <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
             <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-foreground/15 text-xs font-bold uppercase tracking-widest text-foreground/60">
-                <Award className="h-3.5 w-3.5" /> Est. Since 2004
-              </span>
-              <h1 className="mt-6 max-w-2xl text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-10 xl:text-6xl text-foreground leading-[1.1]">
+
+              {/* Eyebrow */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-bold uppercase tracking-widest text-primary">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                Est. Since 2004 · Sariaya, Quezon
+              </div>
+
+              <h1 className="mt-6 text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-8 xl:text-[3.75rem] text-foreground leading-[1.08]">
                 Dignity, Honour &amp; Peace in Every Farewell
               </h1>
-              <p className="mt-8 max-w-2xl text-pretty text-base md:text-lg text-muted-foreground leading-relaxed font-medium">
-                Marcelo P. Gayeta Funeral Services provides compassionate care, dignified casket provisions, funeral hearse transport, and custom wake arrangements tailored for Quezon Province families.
+
+              <p className="mt-6 text-base md:text-lg text-muted-foreground leading-relaxed">
+                Compassionate care, dignified services, and full coordination — for Quezon Province families when it matters most.
               </p>
-              <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-                <Button asChild size="lg" className="px-6 text-base font-semibold w-full sm:w-auto shadow-md shadow-primary/10 bg-primary hover:bg-primary/95 text-primary-foreground">
-                  <Link href="/services"><span className="text-nowrap">Explore Service Packages</span></Link>
+
+              <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+                <Button asChild size="lg" className="px-7 text-sm font-semibold w-full sm:w-auto rounded-xl shadow-lg shadow-primary/20">
+                  <Link href="/services">Explore Service Packages</Link>
                 </Button>
-                <Button asChild size="lg" variant="outline" className="px-6 text-base font-semibold w-full sm:w-auto hover:bg-muted/55 border-primary/20">
-                  <Link href="/contact"><span className="text-nowrap">Contact a Counselor</span></Link>
+                <Button asChild size="lg" variant="outline" className="px-7 text-sm font-semibold w-full sm:w-auto rounded-xl border-foreground/20 hover:bg-background/80 hover:border-foreground/30 backdrop-blur-sm">
+                  <Link href="/contact">Talk to a Counselor</Link>
                 </Button>
               </div>
+
+              {/* Trust line */}
+              <p className="mt-6 text-xs text-muted-foreground/70 text-center lg:text-left">
+                Available 24 / 7 · Free initial consultation · No hidden fees
+              </p>
+
             </div>
           </div>
         </div>

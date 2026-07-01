@@ -59,10 +59,10 @@ export default function ContactPage() {
       <HeroHeader />
       <main className="flex-1 bg-background">
 
-        <div className="border-b border-border/40 bg-muted/30 px-6 py-12 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Get in Touch</p>
-          <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-3">Contact Us</h1>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+        <div className="max-w-2xl mx-auto px-6 pt-16 pb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">Get in Touch</p>
+          <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-4">Contact Us</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
             Our team is available around the clock to assist your family with care and compassion.
           </p>
         </div>

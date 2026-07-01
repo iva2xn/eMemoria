@@ -57,12 +57,13 @@ export default function ServicesPage() {
       <main className="flex-1 bg-background">
         <section className="py-16 md:py-24">
 
-          <div className="text-center mb-10 md:mb-14 px-6">
+          <div className="text-center mb-12 md:mb-16 px-6">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-3">What We Offer</p>
             <h1 className="font-serif text-4xl md:text-5xl font-bold text-foreground mb-5">
               Our Funeral Services
             </h1>
-            <p className="text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Providing compassionate, professional funeral services tailored to honor your loved one and support your family during this difficult time.
+            <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              Professional, compassionate services tailored to honor your loved one and support your family.
             </p>
           </div>
 
