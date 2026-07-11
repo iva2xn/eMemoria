@@ -88,21 +88,15 @@ export function HeroSection() {
           <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
             <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
 
-              {/* Eyebrow */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-bold uppercase tracking-widest text-primary">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                Est. Since 2004 · Sariaya, Quezon
-              </div>
-
-              <h1 className="mt-6 text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-8 xl:text-[3.75rem] text-foreground leading-[1.08]">
+              <h1 className="text-balance text-4xl font-serif font-bold md:text-5xl xl:text-[3.75rem] text-foreground leading-[1.08]">
                 Dignity, Honour &amp; Peace in Every Farewell
               </h1>
 
-              <p className="mt-6 text-base md:text-lg text-muted-foreground leading-relaxed">
-                Compassionate care, dignified services, and full coordination — for Quezon Province families when it matters most.
+              <p className="mt-5 text-base md:text-lg text-muted-foreground leading-relaxed">
+                Compassionate care and full coordination for Quezon Province families — when it matters most.
               </p>
 
-              <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
                 <Button asChild size="lg" className="px-7 text-sm font-semibold w-full sm:w-auto rounded-xl shadow-lg shadow-primary/20">
                   <Link href="/services">Explore Service Packages</Link>
                 </Button>
@@ -110,11 +104,6 @@ export function HeroSection() {
                   <Link href="/contact">Talk to a Counselor</Link>
                 </Button>
               </div>
-
-              {/* Trust line */}
-              <p className="mt-6 text-xs text-muted-foreground/70 text-center lg:text-left">
-                Available 24 / 7 · Free initial consultation · No hidden fees
-              </p>
 
             </div>
           </div>
