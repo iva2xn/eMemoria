@@ -166,11 +166,37 @@ export function HeroHeader() {
 
   const supabase = useRef(createClient()).current
 
-  // If we already resolved the profile in a previous mount, start with it
-  // so there is zero flicker on navigation.
   const [profile, setProfile]     = useState<Profile | null>(cachedProfile ?? null)
   const [authReady, setAuthReady] = useState(cachedProfile !== undefined)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Scroll state — strict hysteresis, no flickering
+  // Collapses once scrolled past HIDE_AT, only reopens once back under SHOW_AT
+  const HIDE_AT = 80   // px — scroll past this to collapse
+  const SHOW_AT = 20   // px — must come back under this to re-expand
+
+  const [topBarVisible, setTopBarVisible] = useState(true)
+
+  useEffect(() => {
+    let ticking = false
+
+    const handleScroll = () => {
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => {
+        const y = window.scrollY
+        setTopBarVisible(prev => {
+          if (prev && y > HIDE_AT) return false   // collapse
+          if (!prev && y < SHOW_AT) return true   // re-expand
+          return prev                              // no change — stable
+        })
+        ticking = false
+      })
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     // If the cache already has a value we can skip the initial getSession round-trip.
@@ -220,39 +246,27 @@ export function HeroHeader() {
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/70 backdrop-blur-xl transition-all duration-300">
-      <div className="mx-auto flex max-w-6xl h-16 items-center justify-between px-6">
-
+    <header
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ease-out ${
+        topBarVisible
+          ? 'border-b border-border/30 bg-background/70 backdrop-blur-xl'
+          : 'border-b border-transparent bg-transparent backdrop-blur-none'
+      }`}
+      style={{ height: topBarVisible ? '4rem' : '3rem' }}
+    >
+      {/* Brand + auth row — fades out when scrolled */}
+      <div
+        className={`mx-auto flex max-w-6xl h-16 items-center justify-between px-6 transition-all duration-300 ease-out ${
+          topBarVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3 pointer-events-none'
+        }`}
+      >
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.png" alt="M. P. Gayeta Funeral Services" width={36} height={36} className="rounded-full object-cover" />
-          <div className="flex flex-col">
+          <div className="hidden md:flex flex-col">
             <span className="font-serif text-sm font-bold leading-tight tracking-wide text-foreground">M. P. GAYETA</span>
             <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans">Funeral Services</span>
           </div>
         </Link>
-
-        <nav className="hidden md:flex items-center gap-1 bg-muted/50 border border-border/40 rounded-full px-1.5 py-1">
-          {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
-            <Link key={link.href} href={link.href}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isActive(link.href)
-                  ? 'bg-background text-foreground shadow-sm border border-border/40'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
-              }`}>
-              {link.name}
-            </Link>
-          ))}
-          {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
-            <Link href="/admin"
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
-                isActive('/admin')
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
-              }`}>
-              <ShieldAlert className="h-3 w-3" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
-            </Link>
-          )}
-        </nav>
 
         <div className="hidden md:flex items-center gap-2">
           {authReady && (
@@ -286,6 +300,30 @@ export function HeroHeader() {
           </Button>
         </div>
       </div>
+
+      {/* Pill nav — always visible, centered, floats when bar is hidden */}
+      <nav className="hidden md:flex items-center gap-1 rounded-full px-1.5 py-1 bg-muted/70 border border-border/40 backdrop-blur-xl shadow-sm absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
+          <Link key={link.href} href={link.href}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+              isActive(link.href)
+                ? 'bg-background text-foreground shadow-sm border border-border/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
+            }`}>
+            {link.name}
+          </Link>
+        ))}
+        {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
+          <Link href="/admin"
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+              isActive('/admin')
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
+            }`}>
+            <ShieldAlert className="h-3 w-3" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
+          </Link>
+        )}
+      </nav>
 
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border/30 bg-background/95 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
