@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { UploadCloud, User, FileText, Info, ShieldCheck } from 'lucide-react'
+import { useDraftForm } from '@/lib/hooks/use-draft-form'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
@@ -83,14 +84,29 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setAuthReady(false); return }
       const { data: profile } = await supabase
-        .from('profiles').select('name, email').eq('id', user.id).single()
-      if (profile) { setPrefillName(profile.name ?? ''); setPrefillEmail(profile.email ?? '') }
+        .from('profiles').select('name, email, phone').eq('id', user.id).single()
+      if (profile) {
+        setPrefillName(profile.name ?? '')
+        setPrefillEmail(profile.email ?? '')
+        if (profile.phone) setPhone(profile.phone)
+      }
       setAuthReady(true)
     })
   }, [supabase])
 
   useEffect(() => { if (prefillName)  setName(prefillName)  }, [prefillName])
   useEffect(() => { if (prefillEmail) setEmail(prefillEmail) }, [prefillEmail])
+
+  // Draft persistence — restore text fields on mount, save on change
+  const { clearDraft } = useDraftForm(
+    `doc-submission-draft-${productRef || productType}`,
+    { name, email, phone },
+    (saved) => {
+      if (saved.name  && !prefillName)  setName(saved.name)
+      if (saved.email && !prefillEmail) setEmail(saved.email)
+      if (saved.phone) setPhone(saved.phone)
+    },
+  )
 
   // Upload a single document file to the 'document-submissions' bucket
   const uploadDoc = async (file: File, label: string): Promise<string> => {
@@ -148,6 +164,12 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
 
       if (insertErr) throw new Error(insertErr.message)
 
+      // Save phone to profile for future prefill
+      if (user && phone.trim()) {
+        await supabase.from('profiles').update({ phone: phone.trim() }).eq('id', user.id)
+      }
+
+      clearDraft()
       // Redirect to status page
       router.push(`/document-submission/status?id=${submission.id}`)
     } catch (err: unknown) {
@@ -221,6 +243,11 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
           <h3 className="text-sm font-bold text-foreground">Required Documents</h3>
         </div>
         <div className="px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="sm:col-span-2">
+            <p className="text-[11px] text-muted-foreground bg-muted/50 border border-border rounded-xl px-3 py-2">
+              Files cannot be saved between sessions — please re-upload your documents.
+            </p>
+          </div>
           <DocUpload
             label="Death Certificate" required
             hint="Official PSA or local civil registry copy"

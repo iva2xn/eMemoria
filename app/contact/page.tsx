@@ -6,26 +6,29 @@ import { HeroHeader } from '@/components/header'
 import { ContactDetailsBar } from '@/components/contact/contact-details-bar'
 import { MapBlock } from '@/components/contact/map-block'
 import { InquiryFormCard } from '@/components/contact/inquiry-form-card'
+import { useDraftForm } from '@/lib/hooks/use-draft-form'
 
 export default function ContactPage() {
   const supabase = createClient()
 
-  // FORM STATE - odits sinesave yung lahat ng live input sa form para i prep for submit logic.
   const [name,    setName]    = useState('')
   const [email,   setEmail]   = useState('')
   const [subject, setSubject] = useState('Funeral Package Inquiry')
   const [message, setMessage] = useState('')
-
-  // FEEDBACK STATE — eto yung notif kung success ba, nag error, 
-  // or if may di ka na fill up-an na required form
   const [success, setSuccess] = useState(false)
   const [error,   setError]   = useState('')
-
-  // LOADING STATE — gets nyo na to
   const [loading, setLoading] = useState(false)
 
-  // SUBMIT HANDLER — eto yung nagvavalidate ng required fields 
-  // at nagiinsert nung mga sinend ng user sa database table
+  const { clearDraft } = useDraftForm(
+    'contact-inquiry-draft',
+    { name, email, subject, message },
+    (saved) => {
+      if (saved.name)    setName(saved.name)
+      if (saved.email)   setEmail(saved.email)
+      if (saved.subject) setSubject(saved.subject)
+      if (saved.message) setMessage(saved.message)
+    },
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,6 +44,7 @@ export default function ContactPage() {
 
     if (insertErr) { setError(insertErr.message); return }
 
+    clearDraft()
     setSuccess(true)
     setName(''); setEmail(''); setMessage('')
   }

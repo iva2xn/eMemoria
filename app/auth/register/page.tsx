@@ -9,6 +9,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { FormField } from '@/components/ui/form-field'
 import { EmailVerifyModal } from '@/components/auth/email-verify-modal'
 import { Mail, KeyRound, User } from 'lucide-react'
+import { useDraftForm } from '@/lib/hooks/use-draft-form'
 
 export default function RegisterPage() {
   const supabase = createClient()
@@ -21,6 +22,16 @@ export default function RegisterPage() {
   const [error,    setError]    = useState('')
   const [showVerifyModal,   setShowVerifyModal]   = useState(false)
   const [registeredEmail,   setRegisteredEmail]   = useState('')
+
+  // Persist name + email only — never persist passwords
+  const { clearDraft } = useDraftForm(
+    'register-draft',
+    { name, email },
+    (saved) => {
+      if (saved.name)  setName(saved.name)
+      if (saved.email) setEmail(saved.email)
+    },
+  )
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,6 +51,7 @@ export default function RegisterPage() {
 
     if (signUpError) { setError(signUpError.message); return }
 
+    clearDraft()
     setRegisteredEmail(email)
     setShowVerifyModal(true)
   }

@@ -29,10 +29,11 @@ function BillingContent() {
 
   // ── Auth + profile pre-fill ─────────────────────────────────────────────────
   // pre-fill logic null = loading, false = guest, true = authenticated
-  const [authReady,   setAuthReady]   = useState<boolean | null>(null)
-  const [prefillName, setPrefillName] = useState('')
+  const [authReady,    setAuthReady]    = useState<boolean | null>(null)
+  const [prefillName,  setPrefillName]  = useState('')
   const [prefillEmail, setPrefillEmail] = useState('')
-  const [returnUrl,   setReturnUrl]   = useState('')
+  const [prefillPhone, setPrefillPhone] = useState('')
+  const [returnUrl,    setReturnUrl]    = useState('')
 
   useEffect(() => {
     setReturnUrl(window.location.pathname + window.location.search)
@@ -42,13 +43,14 @@ function BillingContent() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('name, email')
+        .select('name, email, phone')
         .eq('id', user.id)
         .single()
 
       if (profile) {
-        setPrefillName(profile.name  ?? '')
+        setPrefillName(profile.name   ?? '')
         setPrefillEmail(profile.email ?? '')
+        setPrefillPhone(profile.phone ?? '')
       }
       setAuthReady(true)
     })
@@ -105,6 +107,11 @@ function BillingContent() {
     const { error: insertErr } = await supabase.from('payments').insert(payload)
     if (insertErr) throw new Error(insertErr.message)
 
+    // Save phone to profile for future prefill
+    if (user && phone.trim()) {
+      await supabase.from('profiles').update({ phone: phone.trim() }).eq('id', user.id)
+    }
+
     // Create a booking for everything pero hindi to nagseset ng booking if urn-only (no service fee)
     const shouldBook = !isUrn || includeServiceFee
     if (shouldBook) {
@@ -149,6 +156,7 @@ function BillingContent() {
       returnUrl={returnUrl}
       prefillName={prefillName}
       prefillEmail={prefillEmail}
+      prefillPhone={prefillPhone}
       // Submit handler
       onSubmit={handleSubmit}
     />

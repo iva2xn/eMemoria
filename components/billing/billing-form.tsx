@@ -8,6 +8,7 @@ import { ObituaryModal } from './obituary-modal'
 import { AuthGateModal } from './auth-gate-modal'
 import { PaymentSidebar } from './payment-sidebar'
 import { UploadCloud, Info, User, FileText, ShieldCheck } from 'lucide-react'
+import { useDraftForm } from '@/lib/hooks/use-draft-form'
 
 const METHODS = [
   { id: 'gcash',    label: 'GCash' },
@@ -41,7 +42,7 @@ type BillingFormProps = {
   isColumbarium: boolean; isUrn: boolean; isPackage: boolean
   reservationFee: number; SERVICE_FEE: number
   authReady: boolean | null; returnUrl: string
-  prefillName: string; prefillEmail: string
+  prefillName: string; prefillEmail: string; prefillPhone: string
   onSubmit: (fields: {
     name: string; email: string; phone: string
     method: string; refNum: string; amount: string
@@ -52,7 +53,7 @@ type BillingFormProps = {
 export function BillingForm({
   preProduct, preSlot, preLevel, prePrice, preLabel,
   isColumbarium, isUrn, isPackage, reservationFee, SERVICE_FEE,
-  authReady, returnUrl, prefillName, prefillEmail,
+  authReady, returnUrl, prefillName, prefillEmail, prefillPhone,
   onSubmit,
 }: BillingFormProps) {
   const supabase = createClient()
@@ -80,6 +81,22 @@ export function BillingForm({
   // Sync prefill when auth resolves
   useEffect(() => { if (prefillName)  setName(prefillName)  }, [prefillName])
   useEffect(() => { if (prefillEmail) setEmail(prefillEmail) }, [prefillEmail])
+  useEffect(() => { if (prefillPhone) setPhone(prefillPhone) }, [prefillPhone])
+
+  // Draft persistence
+  const { clearDraft } = useDraftForm(
+    `billing-draft-${preProduct}-${preSlot || 'noslot'}`,
+    { name, email, phone, method, refNum, amount, notes },
+    (saved) => {
+      if (saved.name   && !prefillName)  setName(saved.name)
+      if (saved.email  && !prefillEmail) setEmail(saved.email)
+      if (saved.phone)  setPhone(saved.phone)
+      if (saved.method && METHODS.find(m => m.id === saved.method)) setMethod(saved.method as MethodId)
+      if (saved.refNum) setRefNum(saved.refNum)
+      if (saved.notes)  setNotes(saved.notes)
+      // Don't restore amount — it's derived from product price
+    },
+  )
 
   // Keep amount in sync when urn service-fee toggle changes
   useEffect(() => {
@@ -111,6 +128,7 @@ export function BillingForm({
     try {
       const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee })
       if (result === 'obituary') setShowObituaryModal(true)
+      else clearDraft()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
