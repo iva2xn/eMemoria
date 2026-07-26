@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { HeroHeader } from '@/components/header'
 import { HeroSection } from '@/components/home/hero-section'
-import { FeaturedServices } from '@/components/home/featured-services'
+import { BentoSection } from '@/components/home/bento-section'
 
 export default function HomePage() {
   return (
@@ -13,7 +13,7 @@ export default function HomePage() {
         <Suspense>
           <HeroSection />
         </Suspense>
-        <FeaturedServices />
+        <BentoSection />
       </main>
     </>
   )

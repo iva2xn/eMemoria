@@ -40,7 +40,7 @@ export function HeroSection() {
 
   return (
     <>
-      {/* ── Toast ── */}
+      {/* Payment success toast */}
       {showToast && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-card border border-border shadow-xl max-w-sm w-[calc(100vw-3rem)] animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -59,104 +59,69 @@ export function HeroSection() {
         </div>
       )}
 
-      {/* ── Hero ── */}
       <section
-        className="relative w-full overflow-hidden bg-background"
+        className="relative overflow-hidden flex items-center w-full"
         style={{ minHeight: 'calc(100dvh - 4rem)' }}
       >
-
-        {/* ── Full-bleed background image ── */}
-        <div className="absolute inset-0 z-0">
+        {/* Background */}
+        <div className="absolute inset-0 z-0 w-full">
           <Image
             src="/sky.png"
             alt="Serene sky background"
             fill priority
-            className="object-cover object-right lg:object-center"
+            className="object-cover object-right lg:object-center w-full"
           />
-          {/* Mobile: strong top fade so text is always readable */}
-          <div className="absolute inset-0 pointer-events-none lg:hidden bg-gradient-to-b from-background/95 via-background/80 to-background/30" />
-          {/* Desktop: left solid → transparent, image shows fully on the right */}
+          <div className="absolute inset-0 pointer-events-none lg:hidden bg-gradient-to-b from-background via-background/85 to-background/20" />
           <div
             className="absolute inset-0 pointer-events-none hidden lg:block"
-            style={{
-              background: 'linear-gradient(to right, var(--background) 0%, var(--background) 14%, color-mix(in srgb, var(--background) 50%, transparent) 36%, transparent 55%)',
-            }}
+            style={{ background: 'linear-gradient(to right, var(--background) 0%, var(--background) 35%, rgba(0,0,0,0) 65%)' }}
           />
-          {/* Bottom vignette — blends into slider */}
-          <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background/60 to-transparent pointer-events-none" />
         </div>
 
-        {/* ── Content ── */}
-        <div
-          className="relative z-10 mx-auto max-w-6xl px-6 lg:px-4 flex flex-col justify-center"
-          style={{
-            minHeight: 'calc(100dvh - 4rem)',
-            paddingBottom: '7rem',
-          }}
-        >
-<div className="max-w-[480px] lg:pl-2">
+        {/* Content */}
+        <div className="relative z-10 w-full" style={{ paddingTop: 'clamp(3rem, 8vh, 6rem)', paddingBottom: 'clamp(8rem, 16vh, 12rem)' }}>
+          <div className="relative mx-auto flex max-w-6xl flex-col px-6 lg:block">
+            <div className="mx-auto max-w-lg text-center lg:ml-0 lg:w-1/2 lg:text-left">
 
-            {/* Provenance */}
-            <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-primary/70 mb-7">
-              Sariaya, Quezon Province
-            </p>
+              <h1 className="text-balance text-4xl font-serif font-bold md:text-5xl xl:text-[3.75rem] text-foreground leading-[1.08]">
+                Dignity, Honour &amp; Peace in Every Farewell
+              </h1>
 
-            {/* Headline */}
-            <h1 className="font-serif font-bold text-foreground leading-[1.04]">
-              <span className="block text-[2.8rem] sm:text-5xl xl:text-[4.5rem]">
-                Dignity,
-              </span>
-              <span className="block text-[2.8rem] sm:text-5xl xl:text-[4.5rem]">
-                Honour &amp; Peace
-              </span>
-              <span className="block text-xl sm:text-2xl xl:text-[1.85rem] text-muted-foreground font-medium mt-3 leading-snug">
-                in Every Farewell
-              </span>
-            </h1>
+              <p className="mt-5 text-base md:text-lg text-muted-foreground leading-relaxed">
+                Compassionate care and full coordination for Quezon Province families — when it matters most.
+              </p>
 
-            {/* Subtext */}
-            <p className="mt-6 text-[0.9375rem] text-muted-foreground leading-[1.8] max-w-sm">
-              Compassionate care and full coordination for Quezon Province families — when it matters most.
-            </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+                <Button asChild size="lg" className="px-7 text-sm font-semibold w-full sm:w-auto rounded-xl shadow-lg shadow-primary/20">
+                  <Link href="/services">Explore Service Packages</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="px-7 text-sm font-semibold w-full sm:w-auto rounded-xl border-foreground/20 hover:bg-background/80 hover:border-foreground/30 backdrop-blur-sm">
+                  <Link href="/contact">Talk to a Counselor</Link>
+                </Button>
+              </div>
 
-            {/* CTAs */}
-            <div className="mt-9 flex flex-wrap gap-3 items-center">
-              <Button
-                asChild size="lg"
-                className="rounded-xl px-7 text-sm font-semibold shadow-md shadow-primary/20 h-12"
-              >
-                <Link href="/services">Explore Service Packages</Link>
-              </Button>
-              <Button
-                asChild size="lg" variant="ghost"
-                className="rounded-xl px-5 text-sm font-semibold h-12 text-foreground hover:bg-muted/60 gap-1.5 group"
-              >
-                <Link href="/contact">
-                  Talk to a Counselor
-                  <span className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
-                </Link>
-              </Button>
             </div>
-
           </div>
         </div>
 
-        {/* ── Services slider ── */}
-        <div className="absolute bottom-0 left-0 right-0 z-10">
-          <div className="mx-auto max-w-6xl px-6 lg:px-8 mb-3">
-            <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        {/* Services slider */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 py-6">
+          <div className="mx-auto max-w-6xl px-6">
+            <p className="text-[11px] font-serif font-bold tracking-widest text-white lg:text-foreground/70 uppercase mb-4 text-center">
+              Our Professional Memorial Services
+            </p>
           </div>
-          <div className="relative overflow-hidden pb-5">
-            <InfiniteSlider speedOnHover={20} speed={35} gap={20}>
+          <div className="relative overflow-hidden">
+            <InfiniteSlider speedOnHover={20} speed={35} gap={24}>
               {SERVICE_PILLS.map((pill, i) => (
                 <ServicePill key={i} icon={pill.icon} label={pill.label} />
               ))}
             </InfiniteSlider>
-            <ProgressiveBlur className="pointer-events-none absolute left-0 top-0 h-full w-24" direction="left" blurIntensity={1} />
-            <ProgressiveBlur className="pointer-events-none absolute right-0 top-0 h-full w-24" direction="right" blurIntensity={1} />
+            <ProgressiveBlur className="pointer-events-none absolute left-0 top-0 h-full w-20" direction="left" blurIntensity={1} />
+            <ProgressiveBlur className="pointer-events-none absolute right-0 top-0 h-full w-20" direction="right" blurIntensity={1} />
           </div>
         </div>
-
       </section>
     </>
   )
