@@ -4,11 +4,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
 import { NotificationPanel } from '@/components/admin/notification-panel'
-import { Menu, X, User as UserIcon, LogOut, ShieldAlert } from 'lucide-react'
+import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon } from 'lucide-react'
 
 const NAV_LINKS = [
   { name: 'Home',             href: '/',         authRequired: false },
@@ -163,6 +164,9 @@ export function AdminHeader({
 export function HeroHeader() {
   const pathname = usePathname()
   const router   = useRouter()
+  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const supabase = useRef(createClient()).current
 
@@ -269,6 +273,17 @@ export function HeroHeader() {
         </Link>
 
         <div className="hidden md:flex items-center gap-2">
+          {/* Theme toggle */}
+          {mounted && (
+            <Button
+              variant="ghost" size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          )}
           {authReady && (
             profile ? (
               <Button variant="ghost" size="icon" onClick={handleLogout}
@@ -345,14 +360,26 @@ export function HeroHeader() {
                 <ShieldAlert className="h-4 w-4" /> {profile?.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
               </Link>
             )}
-            <div className="border-t border-border/30 pt-3 mt-1">
+            <div className="border-t border-border/30 pt-3 mt-1 space-y-1">
+              {/* Theme toggle */}
+              {mounted && (
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-colors"
+                >
+                  {theme === 'dark'
+                    ? <><Sun className="h-4 w-4" /> Light Mode</>
+                    : <><Moon className="h-4 w-4" /> Dark Mode</>
+                  }
+                </button>
+              )}
               {authReady && (
                 profile ? (
                   <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors">
                     <LogOut className="h-4 w-4" /> Sign Out
                   </button>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 pt-1">
                     <Button variant="outline" size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>
                       <Link href="/auth/login">Login</Link>
                     </Button>
