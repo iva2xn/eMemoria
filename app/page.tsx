@@ -3,17 +3,17 @@
 import { Suspense } from 'react'
 import { HeroHeader } from '@/components/header'
 import { HeroSection } from '@/components/home/hero-section'
-import { BentoSection } from '@/components/home/bento-section'
+import { HomeSections } from '@/components/home/home-sections'
 
 export default function HomePage() {
   return (
     <>
       <HeroHeader />
-      <main className="@container overflow-x-hidden bg-[var(--surface-page)] dark:bg-[var(--dark-page)]">
+      <main className="overflow-x-hidden bg-background">
         <Suspense>
           <HeroSection />
         </Suspense>
-        <BentoSection />
+        <HomeSections />
       </main>
     </>
   )
