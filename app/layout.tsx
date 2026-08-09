@@ -1,23 +1,11 @@
 import type { Metadata } from "next"
-import { Plus_Jakarta_Sans, Playfair_Display, JetBrains_Mono } from "next/font/google"
+import { Inter } from "next/font/google"
 import { ConditionalFooter } from "@/components/conditional-footer"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
-const fontSans = Plus_Jakarta_Sans({
+const font = Inter({
   variable: "--font-sans",
-  subsets: ["latin"],
-  display: "swap",
-})
-
-const fontSerif = Playfair_Display({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  display: "swap",
-})
-
-const fontMono = JetBrains_Mono({
-  variable: "--font-mono",
   subsets: ["latin"],
   display: "swap",
 })
@@ -35,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} h-full antialiased`}
+      className={`${font.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground transition-colors duration-300">

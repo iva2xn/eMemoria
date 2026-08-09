@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Button } from '@/components/ui/button'
-import { ArrowRight, Search, FileText, HeartHandshake } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 const STATS = [
   { value: '20+',  label: 'Years of Service' },
@@ -14,28 +13,6 @@ const SERVICE_CARDS = [
   { img: '/services/traditional.png', title: 'Traditional Burial',  sub: 'Complete wake & burial coordination',  href: '/services/traditional' },
   { img: '/services/cremation.png',   title: 'Cremation Services',  sub: 'Dignified cremation with urn selection', href: '/services/cremation' },
   { img: '/services/columbarium.png', title: 'Columbarium',         sub: 'Reserve a niche for your loved one',    href: '/columbarium' },
-]
-
-const STEPS = [
-  {
-    icon: Search,
-    step: '01',
-    title: 'Choose a Service',
-    desc: 'Browse our packages and select the one that best fits your family\'s needs and budget.',
-  },
-  {
-    icon: FileText,
-    step: '02',
-    title: 'Submit Documents',
-    desc: 'Upload the required documents through our secure portal. Our team reviews within the day.',
-    highlight: true,
-  },
-  {
-    icon: HeartHandshake,
-    step: '03',
-    title: 'We Handle Everything',
-    desc: 'From retrieval to burial, our counselors coordinate every detail so your family can grieve in peace.',
-  },
 ]
 
 export function HomeSections() {
@@ -103,118 +80,78 @@ export function HomeSections() {
         </div>
       </section>
 
-      {/* ── 3-step process ── */}
-      <section className="px-4 sm:px-6 py-10 w-full">
-        <div className="mx-auto max-w-6xl">
-
-          <div className="text-center mb-10">
-            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-foreground">
-              Arranging a Service Made Simple
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              We guide your family through every step — from choosing a package to the final farewell.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {STEPS.map((step) => {
-              const Icon = step.icon
-              return (
-                <div key={step.step}
-                  className={`rounded-2xl p-6 flex flex-col gap-4 ${
-                    step.highlight
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-card border border-border'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-                      step.highlight ? 'bg-white/15' : 'bg-primary/10'
-                    }`}>
-                      <Icon className={`h-5 w-5 ${step.highlight ? 'text-white' : 'text-primary'}`} />
-                    </div>
-                    <span className={`text-xs font-bold font-mono ${
-                      step.highlight ? 'text-white/50' : 'text-muted-foreground'
-                    }`}>{step.step}</span>
-                  </div>
-                  <div>
-                    <h3 className={`font-bold text-base ${step.highlight ? 'text-white' : 'text-foreground'}`}>
-                      {step.title}
-                    </h3>
-                    <p className={`text-sm mt-1.5 leading-relaxed ${
-                      step.highlight ? 'text-white/65' : 'text-muted-foreground'
-                    }`}>
-                      {step.desc}
-                    </p>
-                  </div>
-                  {step.highlight && (
-                    <Button asChild size="sm"
-                      className="mt-auto rounded-xl bg-white text-primary hover:bg-white/90 font-semibold">
-                      <Link href="/document-submission">Submit Documents</Link>
-                    </Button>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
       {/* ── Bottom CTA ── */}
       <section className="px-4 sm:px-6 py-12 pb-16 w-full">
         <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8 lg:gap-12 items-stretch">
 
             {/* Left Column: Image Card + Badge */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3.5">
               {/* Image Box */}
               <div className="relative w-full aspect-[4/3] md:aspect-[1/1] lg:aspect-[4/5] rounded-[2rem] overflow-hidden border border-border/40 shadow-sm">
-                <Image src="/about.jpg" alt="Compassionate memorial service" fill
-                  className="object-cover object-center" />
+                <Image 
+                  src="/about.jpg" 
+                  alt="Compassionate memorial service" 
+                  fill
+                  className="object-cover object-center" 
+                />
               </div>
               {/* Promo Badge Box */}
-              <div className="bg-[#F4F8FC] border border-[#E2ECF7] rounded-2xl p-4 flex items-center justify-between">
+              <div className="bg-muted/30 border border-border/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                 <div>
                   <span className="text-xl font-black text-primary block leading-none">20% OFF</span>
-                  <span className="text-[10px] text-muted-foreground mt-1.5 block font-medium">Pre-planning arrangements</span>
+                  <span className="text-[10px] text-muted-foreground mt-2 block font-medium">Pre-planning arrangements</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] font-mono tracking-wider text-muted-foreground block">VALID UNTIL</span>
-                  <span className="text-xs font-bold text-foreground block mt-0.5">DEC 31, 2025</span>
+                  <span className="text-[9px] font-mono tracking-wider text-muted-foreground/80 block">VALID UNTIL</span>
+                  <span className="text-xs font-bold text-foreground block mt-1">DEC 31, 2025</span>
                 </div>
               </div>
             </div>
 
             {/* Right Column: Staggered Headline + Action Button */}
-            <div className="flex flex-col justify-between py-1">
-              {/* Staggered Typography Layout */}
-              <div className="flex flex-col gap-4 md:gap-3">
+            <div className="flex flex-col justify-between h-full py-2">
+              
+              {/* Controlled Staggered Typography Layout */}
+              <div className="flex flex-col gap-5 md:gap-7">
+                
                 {/* Row 1: COMPASSIONATE + Paragraph */}
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <h2 className="font-sans text-4xl lg:text-5xl font-black tracking-tight text-foreground leading-none uppercase">Compassionate</h2>
-                  <p className="text-[11px] text-muted-foreground max-w-[240px] md:text-right leading-relaxed pt-1 font-medium">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/40 pb-5 md:pb-6">
+                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase">
+                    Compassionate
+                  </h2>
+                  <p className="text-[11px] text-muted-foreground max-w-[230px] md:text-right leading-relaxed font-medium shrink-0 pt-1">
                     Our dedicated professionals guide you through every step, ensuring comfort and dignity during difficult times.
                   </p>
                 </div>
-                {/* Row 2: CARE FOR EVERY */}
-                <div>
-                  <h2 className="font-sans text-4xl lg:text-5xl font-black tracking-tight text-foreground leading-none uppercase">Care For Every</h2>
+
+                {/* Row 2: CARE FOR EVERY (Centered) */}
+                <div className="flex justify-center w-full border-b border-border/40 pb-5 md:pb-6">
+                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground/40 leading-none uppercase text-center">
+                    Care For Every
+                  </h2>
                 </div>
+
                 {/* Row 3: Paragraph + FAMILY */}
                 <div className="flex flex-col-reverse md:flex-row md:items-end justify-between gap-4">
                   <p className="text-[11px] text-muted-foreground max-w-[240px] leading-relaxed pb-1 font-medium">
                     Serving families across Quezon Province since 2004 with integrity, respect, and customized packages.
                   </p>
-                  <h2 className="font-sans text-4xl lg:text-5xl font-black tracking-tight text-foreground leading-none uppercase">Family</h2>
+                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase shrink-0">
+                    Family
+                  </h2>
                 </div>
+
               </div>
 
-              {/* Pill Button */}
-              <div className="mt-8 md:mt-0">
+              {/* Theme-Integrated Pill Button */}
+              <div className="mt-8 md:mt-12">
                 <Link href="/services"
-                  className="w-full h-14 rounded-full bg-gradient-to-r from-[#DDEBF7] via-[#E7F3FC] to-[#DDEBF7] border border-[#CDE1F2] hover:opacity-95 transition-opacity flex items-center justify-center gap-2 group shadow-sm">
-                  <span className="text-xs font-bold text-sky-900 tracking-wider uppercase">Book A Service Now</span>
-                  <ArrowRight className="h-4 w-4 text-sky-900 transition-transform group-hover:translate-x-1" />
+                  className="w-full h-14 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2.5 group shadow-sm">
+                  <span className="text-xs font-bold tracking-wider uppercase">
+                    Book A Service Now
+                  </span>
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </div>
             </div>

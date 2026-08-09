@@ -35,9 +35,9 @@
   --sidebar-accent-foreground: rgb(55, 65, 81);
   --sidebar-border: rgb(229, 231, 235);
   --sidebar-ring: rgb(34, 197, 94);
-  --font-sans: DM Sans, sans-serif;
-  --font-serif: Lora, serif;
-  --font-mono: IBM Plex Mono, monospace;
+  --font-sans: Inter, sans-serif;
+  --font-serif: Inter, sans-serif;
+  --font-mono: Inter, sans-serif;
   --radius: 0.5rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
@@ -90,9 +90,9 @@
   --sidebar-accent-foreground: rgb(161, 161, 170);
   --sidebar-border: rgb(75, 85, 99);
   --sidebar-ring: rgb(52, 211, 153);
-  --font-sans: DM Sans, sans-serif;
-  --font-serif: Lora, serif;
-  --font-mono: IBM Plex Mono, monospace;
+  --font-sans: Inter, sans-serif;
+  --font-serif: Inter, sans-serif;
+  --font-mono: Inter, sans-serif;
   --radius: 0.5rem;
   --shadow-x: 0px;
   --shadow-y: 4px;
