@@ -7,6 +7,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
 import { Badge, SectionHeader, EmptyState, Spinner, inputCls } from './admin-primitives'
 import { ScrollText, UploadCloud, X, Check, Plus } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
 import type { Obituary } from '@/lib/supabase/types'
 
@@ -153,7 +154,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                   </div>
                   <div>
                     <label className={lbl}>Contact Number <span className="text-primary">*</span></label>
-                    <input type="tel" placeholder="e.g. 0916 797 8416" value={contactNumber} onChange={e => setContactNumber(e.target.value)} className={inp} />
+                    <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
                   </div>
                   <div className="sm:col-span-2">
                     <label className={lbl}>Venue / Wake Address <span className="text-primary">*</span></label>

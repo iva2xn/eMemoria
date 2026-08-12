@@ -267,7 +267,7 @@ export function HeroHeader() {
         <Link href="/" className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.png" alt="M. P. Gayeta Funeral Services" width={36} height={36} className="rounded-full object-cover" />
           <div className="hidden md:flex flex-col">
-            <span className="font-serif text-sm font-bold leading-tight tracking-wide text-foreground">M. P. GAYETA</span>
+            <span className="font-serif text-sm font-bold leading-tight tracking-wide text-foreground">eMemoria</span>
             <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans">Funeral Services</span>
           </div>
         </Link>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import type React from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SectionHeader, EmptyState, Spinner } from './admin-primitives'
 import { X } from 'lucide-react'
@@ -10,6 +11,144 @@ import type { ColumbariumSlot, SlotStatus } from '@/lib/supabase/types'
 const ROW_LABELS: Record<number, string> = {
   1: 'Top Level', 2: 'Eye Level (Upper)', 3: 'Eye Level (Lower)',
   4: 'Upper Bottom', 5: 'Lower Bottom', 6: 'Ground Level',
+}
+
+/* ── Niche slot visuals ──────────────────────────────────── */
+function NicheSlot({ slot, isSelected, onClick }: {
+  slot: ColumbariumSlot; isSelected: boolean; onClick: () => void
+}) {
+  const isSelected_ = isSelected
+
+  const base: React.CSSProperties = {
+    width: 45,
+    height: 45,
+    borderRadius: 2,
+    position: 'relative',
+    flexShrink: 0,
+    cursor: 'pointer',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    boxSizing: 'border-box',
+    outline: isSelected_ ? '3px solid #fff' : 'none',
+    outlineOffset: 1,
+    zIndex: isSelected_ ? 10 : undefined,
+  }
+
+  if (slot.status === 'available') {
+    return (
+      <button
+        onClick={onClick}
+        title={`${slot.slot_code} · Available`}
+        style={{
+          ...base,
+          backgroundColor: '#2a2a2a',
+          border: '3px solid #8e9091',
+          boxShadow: 'inset 0 8px 15px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.5)',
+        }}
+        onMouseEnter={e => {
+          const el = e.currentTarget
+          el.style.transform = 'scale(1.08)'
+          el.style.borderColor = '#4CAF50'
+          el.style.boxShadow = '0 4px 10px rgba(76,175,80,0.4)'
+          el.style.zIndex = '10'
+        }}
+        onMouseLeave={e => {
+          const el = e.currentTarget
+          el.style.transform = ''
+          el.style.borderColor = '#8e9091'
+          el.style.boxShadow = 'inset 0 8px 15px rgba(0,0,0,0.8), inset 0 2px 4px rgba(0,0,0,0.5)'
+          el.style.zIndex = ''
+        }}
+      />
+    )
+  }
+
+  // Occupied — cross drawn entirely with background-image gradients, exactly like the HTML
+  if (slot.status === 'occupied') {
+    return (
+      <button
+        onClick={onClick}
+        title={`${slot.slot_code} · Occupied${slot.occupant_name ? ` · ${slot.occupant_name}` : ''}`}
+        style={{
+          ...base,
+          cursor: 'default',
+          backgroundColor: '#5a5c5d',
+          backgroundImage: [
+            'linear-gradient(#d4af37, #d4af37)',  // vertical bar
+            'linear-gradient(#d4af37, #d4af37)',  // horizontal bar
+            'linear-gradient(145deg, #7a7c7e, #5a5c5d)', // stone base
+          ].join(', '),
+          backgroundSize: '4px 24px, 18px 4px, 100% 100%',
+          backgroundPosition: 'center 9px, center 15px, center center',
+          backgroundRepeat: 'no-repeat',
+          border: '1px solid #4a4a4a',
+          boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
+        }}
+      >
+        {/* top-left + top-right dots via one element */}
+        <span style={{
+          position: 'absolute', top: 4, left: 4,
+          width: 4, height: 4, borderRadius: '50%',
+          background: '#a98844',
+          boxShadow: '31px 0 0 #a98844',
+        }} />
+        {/* bottom-left + bottom-right dots */}
+        <span style={{
+          position: 'absolute', bottom: 4, left: 4,
+          width: 4, height: 4, borderRadius: '50%',
+          background: '#a98844',
+          boxShadow: '31px 0 0 #a98844',
+        }} />
+      </button>
+    )
+  }
+
+  // Reserved — granite slab + RSV plaque
+  return (
+    <button
+      onClick={onClick}
+      title={`${slot.slot_code} · Reserved`}
+      style={{
+        ...base,
+        cursor: 'default',
+        background: 'linear-gradient(145deg, #7a7c7e, #5a5c5d)',
+        border: '1px solid #4a4a4a',
+        boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {/* top-left + top-right dots */}
+      <span style={{
+        position: 'absolute', top: 4, left: 4,
+        width: 4, height: 4, borderRadius: '50%',
+        background: '#a98844',
+        boxShadow: '31px 0 0 #a98844',
+      }} />
+      {/* bottom-left + bottom-right dots */}
+      <span style={{
+        position: 'absolute', bottom: 4, left: 4,
+        width: 4, height: 4, borderRadius: '50%',
+        background: '#a98844',
+        boxShadow: '31px 0 0 #a98844',
+      }} />
+      {/* RSV plaque */}
+      <span style={{
+        background: 'linear-gradient(145deg, #d4af37, #aa8222)',
+        color: '#333',
+        fontSize: 8,
+        fontWeight: 700,
+        padding: '2px 4px',
+        borderRadius: 1,
+        border: '1px solid #7a6015',
+        textTransform: 'uppercase',
+        zIndex: 2,
+        lineHeight: 1.2,
+        letterSpacing: 0.3,
+        position: 'relative',
+      }}>RSV</span>
+    </button>
+  )
 }
 
 export function ColumbariumTab() {
@@ -45,15 +184,6 @@ export function ColumbariumTab() {
     occupied:  rows.filter(s => s.status === 'occupied').length,
   }
 
-  const slotCls = (s: string, isSelected: boolean) => {
-    const base = 'w-9 h-9 rounded-lg text-[9px] font-bold text-white border transition-all'
-    const color = s === 'available' ? 'bg-primary hover:bg-primary/80 border-primary/20'
-      : s === 'reserved' ? 'bg-amber-500 hover:bg-amber-400 border-amber-400/20'
-      : 'bg-red-500 hover:bg-red-400 border-red-400/20'
-    const ring = isSelected ? 'ring-2 ring-offset-1 ring-foreground' : ''
-    return `${base} ${color} ${ring}`
-  }
-
   const rowGroups = Array.from({ length: 6 }, (_, i) => ({ row: i + 1, slots: rows.filter(s => s.row_number === i + 1) }))
 
   if (loading) return <Spinner />
@@ -62,10 +192,19 @@ export function ColumbariumTab() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <SectionHeader title="Columbarium" sub={`${rows.length} total · ${counts.available} available · ${counts.reserved} reserved · ${counts.occupied} occupied`} />
-        <div className="flex items-center gap-4 text-[11px] font-semibold text-muted-foreground shrink-0">
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-md bg-primary inline-block" /> Available</span>
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-md bg-amber-500 inline-block" /> Reserved</span>
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-md bg-red-500 inline-block" /> Occupied</span>
+        <div className="flex items-center gap-5 text-[11px] font-semibold text-muted-foreground shrink-0">
+          <span className="flex items-center gap-2">
+            <span className="h-4 w-4 rounded-sm inline-block border border-[#6b6e70]" style={{ background: '#1e1e1e', boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.8)' }} />
+            Available
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-4 w-4 rounded-sm inline-block border border-[#4a4a4a]" style={{ background: 'linear-gradient(145deg, #7a7c7e, #5a5c5d)' }} />
+            Reserved
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-4 w-4 rounded-sm inline-block border border-[#3a3a3a]" style={{ background: 'linear-gradient(145deg, #6a6c6e, #4a4c4d)' }} />
+            Occupied
+          </span>
         </div>
       </div>
 
@@ -86,26 +225,29 @@ export function ColumbariumTab() {
       {rows.length === 0 ? <EmptyState message="No slots found. Run migration to seed the grid." /> : (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="border-separate border-spacing-0" style={{ minWidth: 160 + 12 * 44 }}>
+            <table className="border-separate border-spacing-0" style={{ minWidth: 160 + 12 * 53 }}>
               <tbody>
                 {rowGroups.map(({ row, slots }) => (
                   <tr key={row}>
                     <td style={{ position: 'sticky', left: 0, zIndex: 10, width: 148, minWidth: 148, background: 'var(--color-card)' }}
-                      className={`px-4 py-3 align-middle border-r border-border ${row < 6 ? 'border-b border-border' : ''}`}>
+                      className={`px-4 py-2 align-middle border-r border-border ${row < 6 ? 'border-b border-border/30' : ''}`}>
                       <p className="text-[11px] font-bold text-foreground whitespace-nowrap">{ROW_LABELS[row]}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">₱{slots[0] ? Number(slots[0].price).toLocaleString() : '—'}</p>
                     </td>
-                    {slots.map(slot => (
-                      <td key={slot.id} className={`p-1 ${row < 6 ? 'border-b border-border' : ''}`}>
-                        <button
-                          onClick={() => setSelected(s => s?.id === slot.id ? null : slot)}
-                          title={`${slot.slot_code} · ${slot.status}${slot.occupant_name ? ` · ${slot.occupant_name}` : ''}`}
-                          className={slotCls(slot.status, selected?.id === slot.id)}
-                        >
-                          {slot.col_number}
-                        </button>
-                      </td>
-                    ))}
+                    {/* Cement wall area */}
+                    <td colSpan={12} className="p-0">
+                      <div className="flex gap-[6px] px-[10px] py-[8px]"
+                        style={{ background: '#c8c8c8', boxShadow: 'inset 0 0 8px rgba(0,0,0,0.15)' }}>
+                        {slots.map(slot => (
+                          <NicheSlot
+                            key={slot.id}
+                            slot={slot}
+                            isSelected={selected?.id === slot.id}
+                            onClick={() => setSelected(s => s?.id === slot.id ? null : slot)}
+                          />
+                        ))}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

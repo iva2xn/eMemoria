@@ -24,9 +24,17 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
     const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
     const target = rows.find(p => p.id === userId)
     const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
-    if (!error) {
+    if (error) {
+      console.error('Role change error:', error.message)
+      alert(`Failed to update role: ${error.message}`)
+    } else {
       setRows(r => r.map(p => p.id === userId ? { ...p, role: newRole } : p))
-      await logActivity({ category: 'log', event_type: 'role_changed', entity_table: 'profiles', entity_id: userId, actor_id: user?.id, actor_name: actorName, message: `${actorName} changed ${target?.name ?? 'a user'}'s role to ${newRole}`, metadata: { target_name: target?.name, old_role: target?.role, new_role: newRole } })
+      await logActivity({
+        category: 'log', event_type: 'role_changed', entity_table: 'profiles', entity_id: userId,
+        actor_id: user?.id, actor_name: actorName,
+        message: `${actorName} changed ${target?.name ?? 'a user'}'s role to ${newRole}`,
+        metadata: { target_name: target?.name, old_role: target?.role, new_role: newRole },
+      })
     }
     setChangingRole(null)
   }

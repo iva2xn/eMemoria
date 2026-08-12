@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { ScrollText, X, CheckCircle2, UploadCloud } from 'lucide-react'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
@@ -163,7 +164,7 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                     <input type="number" placeholder="e.g. 72" min="0" max="150" value={age} onChange={e => setAge(e.target.value)} className={inp} />
                   </Field>
                   <Field label="Contact Number" required>
-                    <input type="tel" placeholder="e.g. 0916 797 8416" value={contactNumber} onChange={e => setContactNumber(e.target.value)} className={inp} />
+                    <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} />
                   </Field>
                   <div className="sm:col-span-2">
                     <Field label="Venue / Wake Address" required>

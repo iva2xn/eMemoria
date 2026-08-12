@@ -9,6 +9,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { FormField } from '@/components/ui/form-field'
 import { EmailVerifyModal } from '@/components/auth/email-verify-modal'
 import { Mail, KeyRound, User, Phone } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 
 export default function RegisterPage() {
@@ -81,8 +82,13 @@ export default function RegisterPage() {
               value={name} onChange={e => setName(e.target.value)} icon={<User className="h-4.5 w-4.5" />} />
             <FormField id="email" label="Email Address" type="email" placeholder="you@example.com"
               value={email} onChange={e => setEmail(e.target.value)} icon={<Mail className="h-4.5 w-4.5" />} />
-            <FormField id="phone" label="Contact Number" type="tel" placeholder="+63 9XX XXX XXXX"
-              value={phone} onChange={e => setPhone(e.target.value)} icon={<Phone className="h-4.5 w-4.5" />} />
+            <div className="space-y-1.5">
+              <label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground/60" /> Contact Number
+              </label>
+              <PhoneInput id="phone" value={phone} onChange={setPhone} required
+                className="w-full h-11 pl-4 pr-4 rounded-lg bg-background border border-border/80 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-hidden transition-all text-sm" />
+            </div>
             <FormField id="password" label="Password" type="password" placeholder="••••••••"
               value={password} onChange={e => setPassword(e.target.value)} icon={<KeyRound className="h-4.5 w-4.5" />} />
             <FormField id="confirm" label="Confirm Password" type="password" placeholder="••••••••"

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from './alert-banner'
+import { PhoneInput } from './phone-input'
 import { Button } from './button'
 import { TarpPreview } from './tarp-preview'
 import { UploadCloud, CheckCircle2 } from 'lucide-react'
@@ -191,8 +192,7 @@ export function ObituaryForm() {
                 onChange={e => setVenueAddress(e.target.value)} className={inp} />
             </Field>
             <Field label="Contact Number" required>
-              <input type="tel" placeholder="e.g. 0916 797 8416" value={contactNumber}
-                onChange={e => setContactNumber(e.target.value)} className={inp} />
+              <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
             </Field>
           </div>
         </div>

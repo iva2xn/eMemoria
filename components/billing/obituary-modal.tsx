@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
 import { UploadCloud, ScrollText, X, CheckCircle2 } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
@@ -162,7 +163,7 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                     <input type="number" placeholder="e.g. 72" min="0" max="150" value={age} onChange={e => setAge(e.target.value)} className={inp} required />
                   </Field>
                   <Field label="Contact Number" required>
-                    <input type="tel" placeholder="e.g. 0916 797 8416" value={contactNumber} onChange={e => setContactNumber(e.target.value)} className={inp} required />
+                    <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
                   </Field>
                   <div className="sm:col-span-2">
                     <Field label="Venue / Wake Address" required>

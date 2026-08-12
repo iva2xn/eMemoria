@@ -9,6 +9,7 @@ import { AuthGateModal } from './auth-gate-modal'
 import { PaymentSidebar } from './payment-sidebar'
 import { UploadCloud, Info, User, FileText, ShieldCheck } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
+import { PhoneInput } from '@/components/ui/phone-input'
 
 const METHODS = [
   { id: 'gcash',    label: 'GCash' },
@@ -217,7 +218,7 @@ export function BillingForm({
                       <input type="text" placeholder="Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} className={inp} />
                     </Field>
                     <Field label="Contact Number" required>
-                      <input type="tel" placeholder="+63 9XX XXX XXXX" value={phone} onChange={e => setPhone(e.target.value)} className={inp} />
+                      <PhoneInput value={phone} onChange={setPhone} className={inp} required />
                     </Field>
                   </div>
                   <Field label="Email Address" required>

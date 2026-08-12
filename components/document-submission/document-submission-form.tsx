@@ -7,6 +7,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { UploadCloud, User, FileText, Info, ShieldCheck } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
+import { PhoneInput } from '@/components/ui/phone-input'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
@@ -223,8 +224,10 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
                 value={name} onChange={e => setName(e.target.value)} className={inp} />
             </Field>
             <Field label="Contact Number" required>
-              <input type="tel" placeholder="+63 9XX XXX XXXX"
-                value={phone} onChange={e => setPhone(e.target.value)} className={inp} />
+              <PhoneInput
+                value={phone} onChange={setPhone}
+                className={inp} required
+              />
             </Field>
           </div>
           <Field label="Email Address" required hint="Approval/rejection notification will be sent here.">
