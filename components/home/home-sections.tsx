@@ -96,15 +96,15 @@ export function HomeSections() {
                   className="object-cover object-center" 
                 />
               </div>
-              {/* Promo Badge Box */}
+              {/* Info badge */}
               <div className="bg-muted/30 border border-border/60 rounded-2xl p-4 flex items-center justify-between shadow-sm">
                 <div>
-                  <span className="text-xl font-black text-primary block leading-none">20% OFF</span>
-                  <span className="text-[10px] text-muted-foreground mt-2 block font-medium">Pre-planning arrangements</span>
+                  <span className="text-xl font-black text-primary block leading-none">Est. 2004</span>
+                  <span className="text-[10px] text-muted-foreground mt-2 block font-medium">Sariaya, Quezon Province</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] font-mono tracking-wider text-muted-foreground/80 block">VALID UNTIL</span>
-                  <span className="text-xs font-bold text-foreground block mt-1">DEC 31, 2025</span>
+                  <span className="text-[9px] font-mono tracking-wider text-muted-foreground/80 block">BRANCHES</span>
+                  <span className="text-xs font-bold text-foreground block mt-1">3 Locations</span>
                 </div>
               </div>
             </div>
