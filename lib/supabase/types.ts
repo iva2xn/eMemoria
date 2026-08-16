@@ -1,7 +1,7 @@
 export type UserRole = 'client' | 'admin' | 'staff'
 export type SlotStatus = 'available' | 'reserved' | 'occupied'
 export type BookingStatus = 'pending' | 'active' | 'completed' | 'cancelled'
-export type PaymentStatus = 'pending' | 'approved' | 'rejected'
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'voided'
 export type PaymentMethod = 'gcash' | 'bdo_bank' | 'bpi_bank' | 'cash'
 export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected'
 
@@ -79,6 +79,10 @@ export interface Payment {
   notes: string | null
   approved_by: string | null
   approved_at: string | null
+  void_reason: string | null
+  void_comment: string | null
+  voided_by: string | null
+  voided_at: string | null
   created_at: string
   updated_at: string
 }

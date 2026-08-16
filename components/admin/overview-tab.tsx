@@ -73,9 +73,9 @@ function timeAgo(iso: string) {
 
 /* ── Metrics Stat Card ─────────────────────────── */
 function MetricCard({
-  label, value, trend, trendType = 'up', icon: Icon, onClick
+  label, value, subtitle, trend, trendType = 'up', icon: Icon, onClick
 }: {
-  label: string; value: string | number; trend?: string; trendType?: 'up' | 'down'
+  label: string; value: string | number; subtitle?: string; trend?: string; trendType?: 'up' | 'down'
   icon: React.ElementType; onClick?: () => void
 }) {
   return (
@@ -86,8 +86,11 @@ function MetricCard({
       }`}
     >
       <div className="flex items-center justify-between mb-3">
-        <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">{label}</p>
-        <div className="h-8 w-8 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center text-muted-foreground">
+        <div>
+          <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">{label}</p>
+          {subtitle && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{subtitle}</p>}
+        </div>
+        <div className="h-8 w-8 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center text-muted-foreground shrink-0">
           <Icon className="h-4 w-4" />
         </div>
       </div>
@@ -113,7 +116,7 @@ function MetricCard({
 }
 
 /* ═══════════════════════════════════════════════════════ */
-export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole; onNavigate: (tab: string) => void }) {
+export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole; onNavigate: (tab: string, paymentId?: string) => void }) {
   const supabase = createClient()
 
   const [stats,            setStats]            = useState({ pending: 0, inquiries: 0, profiles: 0, thisMonthRevenue: 0, totalRevenue: 0, approvedCount: 0 })
@@ -206,11 +209,13 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             onClick={() => onNavigate('payments')} 
           />
           <MetricCard 
-            label="Month Total" 
+            label="Monthly Total" 
+            subtitle={`Approved payments — ${new Date().toLocaleString('en-PH', { month: 'long', year: 'numeric' })}`}
             value={`₱${stats.thisMonthRevenue.toLocaleString('en-PH')}`} 
             trend="0.2%" 
             trendType="up"
             icon={DollarSign} 
+            onClick={() => setShowReport(true)}
           />
         </div>
 
@@ -225,10 +230,12 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
           />
           <MetricCard 
             label="Total Revenue" 
+            subtitle="All-time approved payments"
             value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`} 
             trend="1.2%" 
             trendType="up"
             icon={Wallet} 
+            onClick={() => setShowReport(true)}
           />
         </div>
 
@@ -316,7 +323,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                 <p className="text-[10px] text-muted-foreground mt-0.5">Last 14 days · Daily Approved Revenue</p>
               </div>
               <span className="text-xs font-semibold text-muted-foreground bg-muted/50 border border-border/30 px-2.5 py-1 rounded-lg">
-                2024
+                {new Date().getFullYear()}
               </span>
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
@@ -341,7 +348,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                 <p className="text-[10px] text-muted-foreground mt-0.5">Active customer submissions & updates</p>
               </div>
               <span className="text-xs font-semibold text-muted-foreground bg-muted/50 border border-border/30 px-2.5 py-1 rounded-lg">
-                2024
+                {new Date().getFullYear()}
               </span>
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
@@ -371,7 +378,10 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
           {/* Dynamic Progress Micro Cards */}
           <div className="grid grid-cols-2 gap-4">
             
-            <div className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm">
+            <div
+              onClick={() => setShowReport(true)}
+              className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/40 hover:shadow-md transition-all duration-200"
+            >
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-muted-foreground/80 truncate uppercase tracking-wider">Paid Invoices</p>
                 <p className="text-lg font-bold text-foreground mt-1 truncate">₱{stats.totalRevenue.toLocaleString('en-PH')}</p>
@@ -387,7 +397,10 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               </div>
             </div>
 
-            <div className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm">
+            <div
+              onClick={() => onNavigate('payments')}
+              className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/40 hover:shadow-md transition-all duration-200"
+            >
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-muted-foreground/80 truncate uppercase tracking-wider">Funds Received</p>
                 <p className="text-lg font-bold text-foreground mt-1 truncate">₱{stats.totalRevenue.toLocaleString('en-PH')}</p>
@@ -422,7 +435,11 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             ) : (
               <div className="divide-y divide-border/40">
                 {pendingPayments.map(p => (
-                  <div key={p.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/10 transition-colors">
+                  <button
+                    key={p.id}
+                    onClick={() => onNavigate('payments', p.id)}
+                    className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-muted/20 transition-colors text-left"
+                  >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                         <span className="text-[10px] font-bold text-primary">
@@ -441,7 +458,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                         ● Pending
                       </span>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

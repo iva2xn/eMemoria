@@ -4,6 +4,7 @@
 
 export type BadgeVariant = 'green' | 'amber' | 'red' | 'muted' | 'blue'
 
+// Pill badge — used in non-table contexts (doc submissions, columbarium, etc.)
 const BADGE_CLS: Record<BadgeVariant, string> = {
   green: 'bg-primary/10 text-primary border-primary/20',
   amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
@@ -12,7 +13,32 @@ const BADGE_CLS: Record<BadgeVariant, string> = {
   blue:  'bg-blue-500/10 text-blue-600 border-blue-500/20',
 }
 
-export function Badge({ label, variant }: { label: string; variant: BadgeVariant }) {
+// Plain text color — used in table cells (payments, transactions, sales report)
+const PLAIN_CLS: Record<BadgeVariant, string> = {
+  green: 'text-primary',
+  amber: 'text-amber-500',
+  red:   'text-red-500',
+  muted: 'text-muted-foreground',
+  blue:  'text-muted-foreground',
+}
+
+const DOT_CLS: Record<BadgeVariant, string> = {
+  green: 'bg-primary',
+  amber: 'bg-amber-500',
+  red:   'bg-red-500',
+  muted: 'bg-muted-foreground/40',
+  blue:  'bg-muted-foreground/40',
+}
+
+export function Badge({ label, variant, plain }: { label: string; variant: BadgeVariant; plain?: boolean }) {
+  if (plain) {
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${PLAIN_CLS[variant]}`}>
+        <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${DOT_CLS[variant]}`} />
+        {label}
+      </span>
+    )
+  }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-semibold text-[10px] border ${BADGE_CLS[variant]}`}>
       {label}

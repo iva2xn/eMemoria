@@ -1,15 +1,22 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Badge, type BadgeVariant } from './admin-primitives'
-import { BarChart3, Download, Filter, ChevronDown, X } from 'lucide-react'
+import { BarChart3, Download, ChevronDown, X, Ban } from 'lucide-react'
+import { logActivity } from '@/lib/activity-log'
 
 const PRODUCT_TYPES = ['all', 'columbarium', 'package', 'urn', 'cremation', 'general'] as const
 type ProductFilter = typeof PRODUCT_TYPES[number]
 const PAYMENT_METHODS = ['all', 'gcash', 'bdo_bank', 'bpi_bank', 'cash'] as const
 type MethodFilter = typeof PAYMENT_METHODS[number]
+
+const VOID_REASONS = [
+  'Duplicate entry', 'Client cancellation', 'Data entry error',
+  'Refund issued', 'Test/demo record', 'Other',
+] as const
 
 interface ReportPayment {
   id: string
@@ -24,6 +31,92 @@ interface ReportPayment {
   amount: number
   status: string
   notes: string | null
+  void_reason: string | null
+  void_comment: string | null
+}
+
+// ── Void modal for sales report ──────────────────────────────
+function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
+  row: ReportPayment
+  onClose: () => void
+  onVoided: (row: ReportPayment, reason: string, comment: string) => Promise<void>
+  inputCls: string
+}) {
+  const [reason,  setReason]  = useState('')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const isOther   = reason === 'Other'
+  const canSubmit = reason && (!isOther || comment.trim().length > 0)
+
+  const handle = async () => {
+    if (!canSubmit) { setError('Please select a reason.'); return }
+    setLoading(true); setError('')
+    try {
+      await onVoided(row, reason, isOther ? comment.trim() : comment.trim())
+      onClose()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to void')
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Ban className="h-4 w-4 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Void Transaction</h3>
+              <p className="text-[10px] text-muted-foreground">Auditable and reversible from Transaction Register.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-3 space-y-1.5">
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Client</span><span className="font-semibold">{row.guest_name ?? '—'}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Amount</span><span className="font-bold text-primary">₱{Number(row.amount).toLocaleString('en-PH')}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Method</span><span className="capitalize">{row.method.replace('_', ' ')}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Date</span><span>{new Date(row.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</span></div>
+          </div>
+          {error && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</div>}
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Void Reason <span className="text-red-500">*</span></label>
+            <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
+              <option value="">— Select a reason —</option>
+              {VOID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          {isOther && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
+              <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" className={`${inputCls} h-auto resize-none py-2.5`} />
+            </div>
+          )}
+          {!isOther && reason && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comment (optional)</label>
+              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} />
+            </div>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              {loading ? 'Voiding…' : 'Void Transaction'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 export function SalesReportModal({ onClose }: { onClose: () => void }) {
@@ -49,7 +142,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
 
     let q = supabase
       .from('payments')
-      .select('id,created_at,approved_at,guest_name,guest_email,product_type,product_ref,method,reference_number,amount,status,notes')
+      .select('id,created_at,approved_at,guest_name,guest_email,product_type,product_ref,method,reference_number,amount,status,notes,void_reason,void_comment')
       .gte('created_at', `${dateFrom}T00:00:00`)
       .lte('created_at', `${dateTo}T23:59:59`)
       .order('created_at', { ascending: false })
@@ -230,7 +323,30 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
   }
 
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [voidRow, setVoidRow] = useState<ReportPayment | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
+
+  const handleVoid = async (row: ReportPayment, reason: string, comment: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+    await supabase.from('payments').update({
+      status: 'voided',
+      void_reason:  reason,
+      void_comment: comment || null,
+      voided_by:    user?.id ?? null,
+      voided_at:    new Date().toISOString(),
+    }).eq('id', row.id)
+    await logActivity({
+      category: 'log', event_type: 'payment_voided',
+      entity_table: 'payments', entity_id: row.id,
+      actor_id: user?.id, actor_name: actorName,
+      message: `${actorName} voided payment from ${row.guest_name ?? 'client'} — ${reason}${comment ? `: ${comment}` : ''}`,
+      metadata: { amount: row.amount, reason, comment },
+    })
+    setRows(prev => prev.map(r => r.id === row.id ? { ...r, status: 'voided', void_reason: reason, void_comment: comment || null } : r))
+  }
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false)
@@ -239,68 +355,55 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1'
-  const inp = 'h-9 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
-
+  const inp = 'h-9 px-3 rounded-lg bg-background border border-border/70 text-xs focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
   const statusVariant = (s: string): BadgeVariant =>
-    s === 'approved' ? 'green' : s === 'pending' ? 'amber' : 'red'
+    s === 'approved' ? 'green' : s === 'pending' ? 'amber' : s === 'voided' ? 'muted' : 'red'
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
+      {/* Void modal */}
+      {voidRow && (
+        <SalesReportVoidModal
+          row={voidRow}
+          onClose={() => setVoidRow(null)}
+          onVoided={handleVoid}
+          inputCls={inp}
+        />
+      )}
       <div className="flex min-h-full items-start justify-center p-4 pt-8">
         <div className="relative w-full max-w-5xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
 
-          {/* Header */}
+          {/* ── Header ── */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center">
-                <BarChart3 className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-foreground">Sales Report</h2>
-                <p className="text-[10px] text-muted-foreground">Live data from payments table</p>
-              </div>
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-bold text-foreground">Sales Report</h2>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">· live data</span>
             </div>
             <div className="flex items-center gap-2">
               <div ref={exportRef} className="relative">
                 <div className="flex items-stretch rounded-xl overflow-hidden border border-primary">
-                  <button
-                    onClick={exportCSV}
-                    disabled={rows.length === 0}
-                    className="inline-flex items-center gap-1.5 h-8 px-3.5 bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-40"
-                  >
+                  <button onClick={exportCSV} disabled={rows.length === 0}
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors disabled:opacity-40">
                     <Download className="h-3.5 w-3.5" /> Export
                   </button>
-                  <button
-                    onClick={() => setShowExportMenu(v => !v)}
-                    disabled={rows.length === 0}
+                  <button onClick={() => setShowExportMenu(v => !v)} disabled={rows.length === 0}
                     className="h-8 px-2 bg-primary/90 text-primary-foreground hover:bg-primary/80 transition-colors border-l border-primary-foreground/20 disabled:opacity-40"
-                    aria-label="Export options"
-                  >
+                    aria-label="Export options">
                     <ChevronDown className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 {showExportMenu && (
-                  <div className="absolute right-0 top-full mt-1.5 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-10">
-                    <button
-                      onClick={() => { exportCSV(); setShowExportMenu(false) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors"
-                    >
-                      <span className="h-6 w-6 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                      </span>
-                      Export as CSV
+                  <div className="absolute right-0 top-full mt-1.5 w-40 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-10">
+                    <button onClick={() => { exportCSV(); setShowExportMenu(false) }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors">
+                      <Download className="h-3.5 w-3.5 text-muted-foreground" /> Export as CSV
                     </button>
                     <div className="border-t border-border/50" />
-                    <button
-                      onClick={() => { exportPDF(); setShowExportMenu(false) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors"
-                    >
-                      <span className="h-6 w-6 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Download className="h-3.5 w-3.5 text-primary" />
-                      </span>
-                      Export as PDF
+                    <button onClick={() => { exportPDF(); setShowExportMenu(false) }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors">
+                      <Download className="h-3.5 w-3.5 text-primary" /> Export as PDF
                     </button>
                   </div>
                 )}
@@ -311,179 +414,159 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          <div className="px-6 py-5 space-y-5">
-
-            {/* Filters */}
-            <div className="bg-muted/30 border border-border/60 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Filters</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <div>
-                  <label className={lbl}>From</label>
-                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={`${inp} w-full`} />
-                </div>
-                <div>
-                  <label className={lbl}>To</label>
-                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className={`${inp} w-full`} />
-                </div>
-                <div>
-                  <label className={lbl}>Status</label>
-                  <select value={statusFilt} onChange={e => setStatusFilt(e.target.value as typeof statusFilt)} className={`${inp} w-full`}>
-                    <option value="all">All Statuses</option>
-                    <option value="approved">Approved</option>
-                    <option value="pending">Pending</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Product</label>
-                  <select value={product} onChange={e => setProduct(e.target.value as ProductFilter)} className={`${inp} w-full`}>
-                    {PRODUCT_TYPES.map(p => (
-                      <option key={p} value={p}>{p === 'all' ? 'All Products' : p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Method</label>
-                  <select value={method} onChange={e => setMethod(e.target.value as MethodFilter)} className={`${inp} w-full`}>
-                    {PAYMENT_METHODS.map(m => (
-                      <option key={m} value={m}>{m === 'all' ? 'All Methods' : m.replace('_', ' ').toUpperCase()}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              {/* Quick date presets */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {[
-                  { label: 'Today',      from: fmt(today),                                    to: fmt(today) },
-                  { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
-                  { label: 'This Month', from: fmt(firstOfMonth),                             to: fmt(today) },
-                  { label: 'Last Month', from: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: fmt(new Date(today.getFullYear(), today.getMonth(), 0)) },
-                  { label: 'This Year',  from: fmt(new Date(today.getFullYear(), 0, 1)),      to: fmt(today) },
-                ].map(preset => (
-                  <button
-                    key={preset.label}
-                    onClick={() => { setDateFrom(preset.from); setDateTo(preset.to) }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                      dateFrom === preset.from && dateTo === preset.to
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-background border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
+          {/* ── Filters — flat, no nested card ── */}
+          <div className="px-6 pt-4 pb-3 border-b border-border/60 space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
+              <input type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   className={inp} />
+              <select value={statusFilt} onChange={e => setStatusFilt(e.target.value as typeof statusFilt)} className={inp}>
+                <option value="all">All Statuses</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select value={product} onChange={e => setProduct(e.target.value as ProductFilter)} className={inp}>
+                {PRODUCT_TYPES.map(p => <option key={p} value={p}>{p === 'all' ? 'All Products' : p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+              <select value={method} onChange={e => setMethod(e.target.value as MethodFilter)} className={inp}>
+                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m === 'all' ? 'All Methods' : m.replace('_', ' ').toUpperCase()}</option>)}
+              </select>
             </div>
+            {/* Date presets */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: 'Today',      from: fmt(today), to: fmt(today) },
+                { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
+                { label: 'This Month', from: fmt(firstOfMonth), to: fmt(today) },
+                { label: 'Last Month', from: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: fmt(new Date(today.getFullYear(), today.getMonth(), 0)) },
+                { label: 'This Year',  from: fmt(new Date(today.getFullYear(), 0, 1)), to: fmt(today) },
+              ].map(p => (
+                <button key={p.label} onClick={() => { setDateFrom(p.from); setDateTo(p.to) }}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                    dateFrom === p.from && dateTo === p.to
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                  }`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          <div className="px-6 py-4 space-y-4">
             {error && <AlertBanner variant="error" message={error} />}
 
             {loading ? (
               <div className="py-12 flex justify-center">
-                <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
             ) : (
               <>
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Revenue</p>
-                    <p className="font-serif text-xl font-bold text-primary">₱{totalRevenue.toLocaleString('en-PH')}</p>
-                    <p className="text-[10px] text-muted-foreground">{approvedCount} approved</p>
+                {/* ── Summary strip — no individual cards ── */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 py-2 border-b border-border/60">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Revenue</p>
+                    <p className="text-base font-bold text-primary">₱{totalRevenue.toLocaleString('en-PH')}</p>
+                    <p className="text-[9px] text-muted-foreground">{approvedCount} approved</p>
                   </div>
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pending</p>
-                    <p className="font-serif text-xl font-bold text-amber-500">₱{totalPending.toLocaleString('en-PH')}</p>
-                    <p className="text-[10px] text-muted-foreground">{pendingCount} awaiting</p>
+                  <div className="w-px h-8 bg-border/60" />
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Pending</p>
+                    <p className="text-base font-bold text-amber-500">₱{totalPending.toLocaleString('en-PH')}</p>
+                    <p className="text-[9px] text-muted-foreground">{pendingCount} awaiting</p>
                   </div>
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Transactions</p>
-                    <p className="font-serif text-xl font-bold text-foreground">{rows.length}</p>
-                    <p className="text-[10px] text-muted-foreground">{rejectedCount} rejected</p>
+                  <div className="w-px h-8 bg-border/60" />
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Transactions</p>
+                    <p className="text-base font-bold text-foreground">{rows.length}</p>
+                    <p className="text-[9px] text-muted-foreground">{rejectedCount} rejected</p>
                   </div>
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-1.5 col-span-2 sm:col-span-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">By Product</p>
-                    {Object.keys(byProduct).length === 0
-                      ? <p className="text-[10px] text-muted-foreground italic">No data</p>
-                      : Object.entries(byProduct).map(([k, v]) => (
-                        <div key={k} className="flex justify-between items-center gap-1">
-                          <span className="text-[10px] text-muted-foreground capitalize truncate">{k}</span>
-                          <span className="text-[10px] font-bold text-foreground shrink-0">₱{Number(v).toLocaleString('en-PH')}</span>
+                  {Object.keys(byProduct).length > 0 && (
+                    <>
+                      <div className="w-px h-8 bg-border/60 hidden sm:block" />
+                      <div className="hidden sm:block">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">By Product</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                          {Object.entries(byProduct).map(([k, v]) => (
+                            <span key={k} className="text-[10px] text-muted-foreground capitalize">
+                              {k} <span className="font-bold text-foreground">₱{Number(v).toLocaleString('en-PH')}</span>
+                            </span>
+                          ))}
                         </div>
-                      ))
-                    }
-                  </div>
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-1.5 col-span-2 sm:col-span-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">By Method</p>
-                    {Object.keys(byMethod).length === 0
-                      ? <p className="text-[10px] text-muted-foreground italic">No data</p>
-                      : Object.entries(byMethod).map(([k, v]) => (
-                        <div key={k} className="flex justify-between items-center gap-1">
-                          <span className="text-[10px] text-muted-foreground uppercase">{k.replace('_', ' ')}</span>
-                          <span className="text-[10px] font-bold text-foreground shrink-0">₱{Number(v).toLocaleString('en-PH')}</span>
+                      </div>
+                    </>
+                  )}
+                  {Object.keys(byMethod).length > 0 && (
+                    <>
+                      <div className="w-px h-8 bg-border/60 hidden sm:block" />
+                      <div className="hidden sm:block">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">By Method</p>
+                        <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                          {Object.entries(byMethod).map(([k, v]) => (
+                            <span key={k} className="text-[10px] text-muted-foreground uppercase">
+                              {k.replace('_', ' ')} <span className="font-bold text-foreground">₱{Number(v).toLocaleString('en-PH')}</span>
+                            </span>
+                          ))}
                         </div>
-                      ))
-                    }
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Transactions Table */}
+                {/* ── Table ── */}
                 {rows.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-muted-foreground italic border border-dashed border-border/60 rounded-2xl bg-muted/10">
-                    No transactions found for the selected filters.
-                  </div>
+                  <p className="py-10 text-center text-xs text-muted-foreground italic">No transactions found for the selected filters.</p>
                 ) : (
-                  <div className="overflow-x-auto border border-border rounded-2xl bg-card">
+                  <div className="overflow-x-auto rounded-xl border border-border">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-muted/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                          <th className="px-4 py-3">Date</th>
-                          <th className="px-4 py-3">Client</th>
-                          <th className="px-4 py-3">Product</th>
-                          <th className="px-4 py-3">Method</th>
-                          <th className="px-4 py-3">Reference</th>
-                          <th className="px-4 py-3">Amount</th>
-                          <th className="px-4 py-3">Status</th>
+                        <tr className="bg-muted/30 border-b border-border">
+                          {['Date','Client','Product','Method','Reference','Amount','Status',''].map((h, i) => (
+                            <th key={i} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap border-r border-border/30 last:border-r-0">{h}</th>
+                          ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-border">
-                        {rows.map(r => (
-                          <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground whitespace-nowrap">
+                      <tbody>
+                        {rows.map((r, i) => (
+                          <tr key={r.id} className={`border-b border-border/40 transition-colors hover:bg-muted/10 ${r.status === 'voided' ? 'opacity-50' : ''} ${i % 2 !== 0 ? 'bg-muted/[0.03]' : ''}`}>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground whitespace-nowrap border-r border-border/20">
                               {new Date(r.created_at).toLocaleDateString('en-PH')}
                             </td>
-                            <td className="px-4 py-3">
-                              <p className="font-semibold text-foreground">{r.guest_name ?? '—'}</p>
-                              {r.guest_email && <p className="text-[10px] text-muted-foreground font-mono">{r.guest_email}</p>}
+                            <td className="px-4 py-2.5 border-r border-border/20">
+                              <p className="font-semibold text-foreground leading-tight">{r.guest_name ?? '—'}</p>
+                              {r.guest_email && <p className="text-[9px] text-muted-foreground font-mono">{r.guest_email}</p>}
                             </td>
-                            <td className="px-4 py-3">
-                              <p className="capitalize text-foreground">{r.product_type}</p>
-                              {r.product_ref && <p className="text-[10px] text-muted-foreground font-mono">{r.product_ref}</p>}
+                            <td className="px-4 py-2.5 border-r border-border/20">
+                              <p className="capitalize text-foreground leading-tight">{r.product_type}</p>
+                              {r.product_ref && <p className="text-[9px] text-muted-foreground font-mono">{r.product_ref}</p>}
                             </td>
-                            <td className="px-4 py-3">
-                              <Badge label={r.method.replace('_', ' ')} variant="blue" />
+                            <td className="px-4 py-2.5 border-r border-border/20"><Badge label={r.method.replace('_', ' ')} variant="blue" plain /></td>
+                            <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground border-r border-border/20">{r.reference_number ?? '—'}</td>
+                            <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap border-r border-border/20">₱{Number(r.amount).toLocaleString('en-PH')}</td>
+                            <td className="px-4 py-2.5 border-r border-border/20">
+                              <div className="flex flex-col gap-0.5">
+                                <Badge label={r.status} variant={statusVariant(r.status)} plain />
+                                {r.status === 'voided' && r.void_reason && (
+                                  <span className="text-[9px] text-muted-foreground italic truncate max-w-[100px]" title={r.void_reason}>{r.void_reason}</span>
+                                )}
+                              </div>
                             </td>
-                            <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground">{r.reference_number ?? '—'}</td>
-                            <td className="px-4 py-3 font-serif font-bold text-primary whitespace-nowrap">
-                              ₱{Number(r.amount).toLocaleString('en-PH')}
-                            </td>
-                            <td className="px-4 py-3">
-                              <Badge label={r.status} variant={statusVariant(r.status)} />
+                            <td className="px-4 py-2.5">
+                              {r.status !== 'voided' && (
+                                <button onClick={() => setVoidRow(r)}
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                  <Ban className="h-2.5 w-2.5" /> Void
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="border-t-2 border-border bg-muted/20">
-                          <td colSpan={5} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                            Total (approved)
-                          </td>
-                          <td className="px-4 py-3 font-serif font-bold text-primary text-sm whitespace-nowrap">
-                            ₱{totalRevenue.toLocaleString('en-PH')}
-                          </td>
-                          <td />
+                        <tr className="border-t-2 border-primary/20 bg-primary/[0.04]">
+                          <td colSpan={5} className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-primary/70">Total Approved</td>
+                          <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">₱{totalRevenue.toLocaleString('en-PH')}</td>
+                          <td colSpan={2} />
                         </tr>
                       </tfoot>
                     </table>

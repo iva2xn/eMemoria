@@ -6,7 +6,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { Badge, SectionHeader, EmptyState, Spinner, TableShell, Th, FilterPills, SearchInput, inputCls, type BadgeVariant } from './admin-primitives'
 import { PaymentInfoCard } from './payment-info-card'
-import { Check, Banknote, ChevronDown, X } from 'lucide-react'
+import { Check, Banknote, ChevronDown, X, Ban } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
@@ -61,6 +61,107 @@ function ProductsPopover({ payment }: { payment: PaymentRow }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+const VOID_REASONS = [
+  'Duplicate entry', 'Client cancellation', 'Data entry error',
+  'Refund issued', 'Test/demo record', 'Other',
+] as const
+
+function VoidPaymentModal({ row, onClose, onVoided }: {
+  row: PaymentRow
+  onClose: () => void
+  onVoided: (id: string) => void
+}) {
+  const supabase = createClient()
+  const [reason,  setReason]  = useState('')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const isOther   = reason === 'Other'
+  const canSubmit = reason && (!isOther || comment.trim().length > 0)
+
+  const handle = async () => {
+    if (!canSubmit) { setError('Please select a reason.'); return }
+    setLoading(true); setError('')
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+    const clientName = row.profileName ?? row.guest_name ?? 'a client'
+    const { error: err } = await supabase.from('payments').update({
+      status: 'voided',
+      void_reason:  reason,
+      void_comment: isOther ? comment.trim() : (comment.trim() || null),
+      voided_by:    user?.id ?? null,
+      voided_at:    new Date().toISOString(),
+    }).eq('id', row.id)
+    if (err) { setError(err.message); setLoading(false); return }
+    await logActivity({
+      category: 'log', event_type: 'payment_voided',
+      entity_table: 'payments', entity_id: row.id,
+      actor_id: user?.id, actor_name: actorName,
+      message: `${actorName} voided payment from ${clientName} — ${reason}${comment ? `: ${comment}` : ''}`,
+      metadata: { amount: row.amount, reason, comment },
+    })
+    setLoading(false); onVoided(row.id); onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
+              <Ban className="h-4 w-4 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Void Transaction</h3>
+              <p className="text-[10px] text-muted-foreground">Auditable and reversible from the Transaction Register.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="bg-muted/30 border border-border/60 rounded-xl p-3 space-y-1.5">
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Client</span><span className="font-semibold">{row.profileName ?? row.guest_name ?? '—'}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Amount</span><span className="font-bold text-primary">₱{Number(row.amount).toLocaleString()}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Method</span><span className="capitalize">{row.method.replace('_', ' ')}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Date</span><span>{new Date(row.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</span></div>
+          </div>
+          {error && <AlertBanner variant="error" message={error} />}
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Void Reason <span className="text-red-500">*</span></label>
+            <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
+              <option value="">— Select a reason —</option>
+              {VOID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          {isOther && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
+              <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why this is being voided…" className={`${inputCls} h-auto resize-none py-2.5`} />
+            </div>
+          )}
+          {!isOther && reason && (
+            <div className="space-y-1.5">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Additional Comment (optional)</label>
+              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} />
+            </div>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              {loading ? 'Voiding…' : 'Void Transaction'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -134,7 +235,11 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   )
 }
 
-export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
+export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear }: { 
+  currentRole: UserRole
+  highlightPaymentId?: string | null
+  onHighlightClear?: () => void
+}) {
   const supabase = createClient()
   const [rows, setRows] = useState<PaymentRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -142,6 +247,8 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all')
   const [showCashModal, setShowCashModal] = useState(false)
+  const [voidRow, setVoidRow] = useState<PaymentRow | null>(null)
+  const highlightRef = useRef<HTMLTableRowElement | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setLoadError('')
@@ -159,6 +266,19 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  // Scroll to and highlight the target payment row when navigated from overview
+  useEffect(() => {
+    if (!highlightPaymentId || loading) return
+    // Force filter to show the payment regardless of current filter
+    setStatusFilter('all')
+    const timer = setTimeout(() => {
+      if (highlightRef.current) {
+        highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [highlightPaymentId, loading])
 
   const approve = async (id: string) => {
     const payment = rows.find(r => r.id === id)
@@ -183,7 +303,7 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
     setRows(r => r.map(x => x.id === id ? { ...x, status: 'rejected' as PaymentStatus } : x))
   }
 
-  const statusVariant = (s: string): BadgeVariant => s === 'approved' ? 'green' : s === 'pending' ? 'amber' : 'red'
+  const statusVariant = (s: string): BadgeVariant => s === 'approved' ? 'green' : s === 'pending' ? 'amber' : s === 'voided' ? 'muted' : 'red'
   const q = search.toLowerCase()
   const filtered = rows.filter(p => {
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
@@ -202,6 +322,7 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
 
   return (
     <div className="space-y-5">
+      {voidRow && <VoidPaymentModal row={voidRow} onClose={() => setVoidRow(null)} onVoided={id => { setRows(prev => prev.map(r => r.id === id ? { ...r, status: 'voided' as PaymentStatus } : r)); setVoidRow(null) }} />}
       <PaymentInfoCard canEdit={currentRole === 'admin'} />
       <SectionHeader title="Payments" sub={`${rows.length} total transactions`}
         action={
@@ -234,7 +355,7 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
                   <div><p className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">Amount</p>
                     <p className="font-bold text-primary">₱{Number(p.amount).toLocaleString()}</p></div>
                   <div><p className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">Method</p>
-                    <Badge label={p.method} variant="blue" /></div>
+                    <Badge label={p.method} variant="blue" plain /></div>
                 </div>
                 <div className="flex items-center justify-between pt-1 border-t border-border/40">
                   <ProductsPopover payment={p} />
@@ -254,43 +375,103 @@ export function PaymentsTab({ currentRole }: { currentRole: UserRole }) {
           </div>
 
           {/* Desktop */}
-          <TableShell>
-            <thead><tr>
-              <Th>Client</Th><Th>Method</Th><Th>Reference</Th>
-              <Th>Amount</Th><Th>Date</Th><Th>Status</Th>
-              <Th>Details</Th>{currentRole === 'admin' && <Th>Actions</Th>}
-            </tr></thead>
-            <tbody className="divide-y divide-border/50 hidden md:table-row-group">
-              {filtered.map(p => (
-                <tr key={p.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <p className="font-semibold text-foreground">{p.profileName ?? p.guest_name ?? '—'}</p>
-                    <p className="text-[10px] text-muted-foreground">{p.profileEmail ?? p.guest_email ?? ''}</p>
-                  </td>
-                  <td className="px-5 py-3.5"><Badge label={p.method} variant="blue" /></td>
-                  <td className="px-5 py-3.5 text-[10px] text-muted-foreground font-mono">{p.reference_number ?? '—'}</td>
-                  <td className="px-5 py-3.5 font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
-                  <td className="px-5 py-3.5 text-[10px] text-muted-foreground">{new Date(p.created_at).toLocaleDateString()}</td>
-                  <td className="px-5 py-3.5"><Badge label={p.status} variant={statusVariant(p.status)} /></td>
-                  <td className="px-5 py-3.5"><ProductsPopover payment={p} /></td>
-                  {currentRole === 'admin' && (
-                    <td className="px-5 py-3.5">
-                      {p.status === 'pending' ? (
-                        <div className="flex gap-1.5">
-                          <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90">
-                            <Check className="h-3 w-3" /> Approve
-                          </button>
-                          <button onClick={() => reject(p.id)} className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600">
-                            Reject
-                          </button>
-                        </div>
-                      ) : <span className="text-[10px] text-muted-foreground">—</span>}
+          <div className="rounded-2xl overflow-hidden border border-border shadow-sm hidden md:block">
+            {/* Summary strip */}
+            <div className="bg-primary/5 border-b border-primary/20 px-5 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">Total</span>
+                <span className="text-xs font-bold text-foreground">{rows.length}</span>
+              </div>
+              <div className="w-px h-3.5 bg-border/60" />
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">Approved</span>
+                <span className="text-xs font-bold text-primary">{rows.filter(r => r.status === 'approved').length}</span>
+              </div>
+              <div className="w-px h-3.5 bg-border/60" />
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-amber-600/70">Pending</span>
+                <span className="text-xs font-bold text-amber-500">{rows.filter(r => r.status === 'pending').length}</span>
+              </div>
+              <div className="w-px h-3.5 bg-border/60" />
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Rejected</span>
+                <span className="text-xs font-bold text-muted-foreground">{rows.filter(r => r.status === 'rejected').length}</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto bg-card">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr>
+                    {['Client','Method','Reference','Amount','Date','Status','Details', ...(currentRole === 'admin' ? ['Actions'] : [])].map((h) => (
+                      <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b-2 border-border border-r border-border/30 last:border-r-0">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((p, i) => {
+                    const isHighlighted = highlightPaymentId === p.id
+                    const rowBg = isHighlighted
+                      ? 'bg-amber-500/10'
+                      : i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'
+                    return (
+                      <tr
+                        key={p.id}
+                        ref={isHighlighted ? highlightRef : null}
+                        className={`border-b border-border/40 transition-colors hover:bg-primary/[0.03] ${rowBg}`}
+                      >
+                        <td className="px-5 py-3 border-r border-border/30">
+                          <p className="font-semibold text-foreground leading-tight">{p.profileName ?? p.guest_name ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">{p.profileEmail ?? p.guest_email ?? ''}</p>
+                        </td>
+                        <td className="px-5 py-3 border-r border-border/30"><Badge label={p.method} variant="blue" plain /></td>
+                        <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground font-mono">{p.reference_number ?? '—'}</td>
+                        <td className="px-5 py-3 border-r border-border/30 font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
+                        <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">{new Date(p.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</td>
+                        <td className="px-5 py-3 border-r border-border/30"><Badge label={p.status} variant={statusVariant(p.status)} plain /></td>
+                        <td className="px-5 py-3 border-r border-border/30"><ProductsPopover payment={p} /></td>
+                        {currentRole === 'admin' && (
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {p.status === 'pending' && (
+                                <>
+                                  <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90">
+                                    <Check className="h-3 w-3" /> Approve
+                                  </button>
+                                  <button onClick={() => reject(p.id)} className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600">
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {p.status !== 'voided' && (
+                                <button onClick={() => setVoidRow(p)}
+                                  className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                  <Ban className="h-2.5 w-2.5" /> Void
+                                </button>
+                              )}
+                              {p.status === 'voided' && <span className="text-[10px] text-muted-foreground">Voided</span>}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-primary/20 bg-primary/[0.06]">
+                    <td colSpan={3} className="px-5 py-2.5 border-r border-border/30">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">Total Approved Revenue</span>
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </TableShell>
+                    <td className="px-5 py-2.5 font-bold text-primary border-r border-border/30">
+                      ₱{rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
+                    </td>
+                    <td colSpan={currentRole === 'admin' ? 4 : 3} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         </>
       )}
       {showCashModal && <CashModal onClose={() => setShowCashModal(false)} onSuccess={load} />}

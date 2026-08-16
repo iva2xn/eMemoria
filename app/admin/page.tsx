@@ -15,23 +15,25 @@ import { ColumbariumTab } from '@/components/admin/columbarium-tab'
 import { ObituariesTab }  from '@/components/admin/obituaries-tab'
 import { ProfilesTab }    from '@/components/admin/profiles-tab'
 import { DocumentSubmissionsTab } from '@/components/admin/document-submissions-tab'
+import { TransactionRegisterTab } from '@/components/admin/transaction-register-tab'
 import {
   LayoutDashboard, Mail, CreditCard,
   Grid3X3, ScrollText, UserCircle2, ShieldAlert,
-  ClipboardList, LogOut, Menu, X,
+  ClipboardList, LogOut, Menu, X, Receipt,
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
-type Tab = 'overview' | 'inquiries' | 'payments' | 'columbarium' | 'obituaries' | 'profiles' | 'availments'
+type Tab = 'overview' | 'inquiries' | 'payments' | 'columbarium' | 'obituaries' | 'profiles' | 'availments' | 'transactions'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',    label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
-  { id: 'inquiries',   label: 'Inquiries',         icon: <Mail className="h-4 w-4" /> },
-  { id: 'availments',  label: 'Doc Submissions',   icon: <ClipboardList className="h-4 w-4" /> },
-  { id: 'payments',    label: 'Payments',          icon: <CreditCard className="h-4 w-4" /> },
-  { id: 'columbarium', label: 'Columbarium',       icon: <Grid3X3 className="h-4 w-4" /> },
-  { id: 'obituaries',  label: 'Obituaries',        icon: <ScrollText className="h-4 w-4" /> },
-  { id: 'profiles',    label: 'Profiles',          icon: <UserCircle2 className="h-4 w-4" /> },
+  { id: 'overview',      label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: 'inquiries',     label: 'Inquiries',         icon: <Mail className="h-4 w-4" /> },
+  { id: 'availments',    label: 'Doc Submissions',   icon: <ClipboardList className="h-4 w-4" /> },
+  { id: 'payments',      label: 'Payments',          icon: <CreditCard className="h-4 w-4" /> },
+  { id: 'transactions',  label: 'Transactions',      icon: <Receipt className="h-4 w-4" /> },
+  { id: 'columbarium',   label: 'Columbarium',       icon: <Grid3X3 className="h-4 w-4" /> },
+  { id: 'obituaries',    label: 'Obituaries',        icon: <ScrollText className="h-4 w-4" /> },
+  { id: 'profiles',      label: 'Profiles',          icon: <UserCircle2 className="h-4 w-4" /> },
 ]
 
 export default function AdminPage() {
@@ -41,6 +43,7 @@ export default function AdminPage() {
   const [profile,    setProfile]    = useState<Profile | null | undefined>(undefined)
   const [activeTab,  setActiveTab]  = useState<Tab>('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -92,10 +95,14 @@ export default function AdminPage() {
   const currentRole = profile.role as UserRole
 
   const tabContent: Record<Tab, React.ReactNode> = {
-    overview:    <OverviewTab currentRole={currentRole} onNavigate={(tab) => setActiveTab(tab as Tab)} />,
+    overview:    <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
+      if (paymentId) setHighlightPaymentId(paymentId)
+      setActiveTab(tab as Tab)
+    }} />,
     inquiries:   <InquiriesTab />,
     availments:  <DocumentSubmissionsTab />,
-    payments:    <PaymentsTab currentRole={currentRole} />,
+    payments:      <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
+    transactions:  <TransactionRegisterTab currentRole={currentRole} />,
     columbarium: <ColumbariumTab />,
     obituaries:  <ObituariesTab />,
     profiles:    <ProfilesTab currentRole={currentRole} />,
