@@ -15,8 +15,6 @@
 
 ---
 
-DONE
-
 ### Report Tab *(New)*
 
 1. **Transaction list** — list all transactions (online and cash) in a modern, formal, invoice-register format. Reference: https://www.spreadsheet123.com/ExcelTemplates/invoice-register.html. Use the same accent/color system as the admin UI.
@@ -32,6 +30,8 @@ DONE
 8. **Void records in export** — voided transactions (with comments/reasons) are included when exporting reports.
 
 ---
+
+DONE
 
 ### Inquiries Tab
 
