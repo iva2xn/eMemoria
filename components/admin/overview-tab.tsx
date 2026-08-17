@@ -56,9 +56,21 @@ function buildDailyTrend(payments: { amount: number; approved_at: string | null 
   })
 }
 
+// Human-readable labels for product_type values used in the breakdown chart
+const PRODUCT_LABELS: Record<string, string> = {
+  package:      'Burial',
+  cremation:    'Cremation',
+  columbarium:  'Columbarium',
+  urn:          'Urn',
+  general:      'General',
+}
+
 function buildProductBreakdown(payments: { amount: number; product_type: string }[]) {
   const map: Record<string, number> = {}
-  payments.forEach(p => { map[p.product_type] = (map[p.product_type] ?? 0) + Number(p.amount) })
+  payments.forEach(p => {
+    const label = PRODUCT_LABELS[p.product_type] ?? p.product_type
+    map[label] = (map[label] ?? 0) + Number(p.amount)
+  })
   return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 4)
 }
 

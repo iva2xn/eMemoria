@@ -1,8 +1,9 @@
-// Slot detail modal — shown when a user clicks a slot.
-// Receives the slot + close handler from the page.
+// Slot detail modal — shown when a user clicks a slot on the public page.
+// Price is fixed per level and non-editable — it is displayed for information
+// only, and the billing page enforces it server-side.
 
-import { X, ArrowRight, Phone } from 'lucide-react'
-import { ROW_LABELS, formatPrice } from './slot-grid'
+import { X, ArrowRight, Phone, Lock } from 'lucide-react'
+import { ROW_LABELS, ROW_PRICES, formatPrice } from './slot-grid'
 import type { ColumbariumSlot } from '@/lib/supabase/types'
 
 interface SlotModalProps {
@@ -11,6 +12,11 @@ interface SlotModalProps {
 }
 
 export function SlotModal({ slot, onClose }: SlotModalProps) {
+  // Always use the canonical row price — ignore any value from the DB row
+  // to prevent a stale/manual price from being shown to the client.
+  const fixedPrice = ROW_PRICES[slot.row_number] ?? Number(slot.price)
+  const reservationFee = Math.round(fixedPrice * 0.1)
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
@@ -38,9 +44,11 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
         <div className="px-5 py-5 space-y-4">
           {/* Status badge */}
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-            slot.status === 'available' ? 'bg-primary/10 border-primary/25 text-primary'
-            : slot.status === 'reserved' ? 'bg-amber-400/10 border-amber-400/30 text-amber-700'
-            : 'bg-rose-400/10 border-rose-400/25 text-rose-600'
+            slot.status === 'available'
+              ? 'bg-primary/10 border-primary/25 text-primary'
+              : slot.status === 'reserved'
+              ? 'bg-amber-400/10 border-amber-400/30 text-amber-700'
+              : 'bg-rose-400/10 border-rose-400/25 text-rose-600'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${
               slot.status === 'available' ? 'bg-primary'
@@ -60,10 +68,21 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
               <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Column</span>
               <span className="font-mono font-medium text-foreground">{slot.col_number} of 12</span>
             </div>
+
+            {/* Fixed price — marked with a lock icon to signal non-editable */}
             <div className="flex justify-between py-2.5 items-center">
-              <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Price</span>
-              <span className="font-serif font-bold text-base text-foreground">{formatPrice(Number(slot.price))}</span>
+              <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1">
+                Full Price <Lock className="h-2.5 w-2.5 opacity-50" />
+              </span>
+              <span className="font-serif font-bold text-base text-foreground">{formatPrice(fixedPrice)}</span>
             </div>
+            <div className="flex justify-between py-2.5 items-center">
+              <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px] flex items-center gap-1">
+                Reservation Fee <Lock className="h-2.5 w-2.5 opacity-50" />
+              </span>
+              <span className="font-bold text-primary">{formatPrice(reservationFee)}</span>
+            </div>
+
             {slot.occupant_name && (
               <div className="flex justify-between py-2.5">
                 <span className="text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">Occupant</span>
@@ -71,6 +90,13 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
               </div>
             )}
           </div>
+
+          {/* Fixed-price note */}
+          {slot.status === 'available' && (
+            <p className="text-[10px] text-muted-foreground bg-muted/40 border border-border/60 rounded-xl px-3 py-2 leading-relaxed">
+              Prices are fixed per level and cannot be changed. A <span className="font-semibold text-foreground">10% reservation fee</span> is collected upfront.
+            </p>
+          )}
 
           {/* Status messages + CTAs */}
           {slot.status === 'occupied' && (
@@ -86,10 +112,10 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
           {slot.status === 'available' && (
             <div className="space-y-2 pt-1">
               <a
-                href={`/billing?product=columbarium&slot=${slot.slot_code}&level=${encodeURIComponent(ROW_LABELS[slot.row_number])}&price=${slot.price}`}
+                href={`/billing?product=columbarium&slot=${slot.slot_code}&level=${encodeURIComponent(ROW_LABELS[slot.row_number])}&price=${fixedPrice}`}
                 className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold transition-colors"
               >
-                Reserve <ArrowRight className="h-4 w-4" />
+                Reserve — {formatPrice(reservationFee)} <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href={`/contact?slot=${slot.slot_code}&action=inquire`}

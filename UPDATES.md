@@ -81,7 +81,7 @@
 3. **Print Receipts function** — save/export/print individual receipts or filtered sets as PDF or DOCX. Preset formal receipt template required.
 4. **Individual record view** — each record is clickable and opens its own form. Status and date visible from the list.
 
---- DONE
+--- 
 
 ### Obituaries Tab
 
@@ -95,7 +95,7 @@
 1. **Delete Account button** — admin can delete or accept/decline a client's deletion request. 2-step confirmation required.
 2. **Role change** — 2-step confirmation popup before applying a role change.
 
----
+--- DONE
 
 ### Columbarium Tab
 
