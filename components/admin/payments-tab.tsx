@@ -1,86 +1,86 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { Button } from '@/components/ui/button'
-import { Badge, SectionHeader, EmptyState, Spinner, TableShell, Th, FilterPills, SearchInput, inputCls, type BadgeVariant } from './admin-primitives'
+import {
+  Badge, SectionHeader, EmptyState, Spinner,
+  FilterPills, SearchInput, inputCls, type BadgeVariant,
+} from './admin-primitives'
 import { PaymentInfoCard } from './payment-info-card'
-import { Check, Banknote, ChevronDown, X, Ban } from 'lucide-react'
+import {
+  Check, Banknote, X, Ban, Eye, Download,
+  Printer, ChevronLeft, AlertTriangle, ChevronDown,
+  Receipt,
+} from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
+import { generateReceipt } from '@/lib/generate-receipt'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
-type RawPayment = Payment & { guest_name?: string | null; guest_email?: string | null; guest_phone?: string | null }
+// ── Types ─────────────────────────────────────────────────────
+type RawPayment = Payment & {
+  void_reason?: string | null
+  void_comment?: string | null
+  voided_by?: string | null
+  voided_at?: string | null
+}
 type PaymentRow = RawPayment & { profileName?: string; profileEmail?: string }
 
-function ProductsPopover({ payment }: { payment: PaymentRow }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
-  const [style, setStyle] = useState<React.CSSProperties>({})
-
-  useEffect(() => {
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
-
-  const openPopover = () => {
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect()
-      const below = window.innerHeight - r.bottom >= 180
-      setStyle(below
-        ? { position: 'fixed', top: r.bottom + 6, left: Math.min(r.left, window.innerWidth - 272) }
-        : { position: 'fixed', bottom: window.innerHeight - r.top + 6, left: Math.min(r.left, window.innerWidth - 272) })
-    }
-    setOpen(o => !o)
-  }
-
-  const items = [
-    { label: 'Type', value: payment.product_type },
-    { label: 'Ref', value: payment.product_ref ?? '—' },
-    { label: 'Notes', value: payment.notes ?? '—' },
-    { label: 'Receipt', value: payment.receipt_file_path ?? '—' },
-  ]
-
-  return (
-    <div ref={ref} className="relative inline-block">
-      <button ref={btnRef} onMouseEnter={openPopover} onMouseLeave={() => setOpen(false)} onClick={openPopover}
-        className="text-[11px] font-semibold text-primary hover:underline underline-offset-2">
-        Details
-      </button>
-      {open && (
-        <div onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
-          style={style} className="z-[200] w-60 bg-card border border-border rounded-xl shadow-xl p-3 space-y-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border/50 pb-2">Payment Info</p>
-          {items.map(item => (
-            <div key={item.label} className="flex justify-between gap-2 text-[11px]">
-              <span className="text-muted-foreground shrink-0">{item.label}</span>
-              <span className="text-foreground font-mono text-right truncate max-w-[140px]">{item.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+// ── Service catalog ───────────────────────────────────────────
+const SERVICES = [
+  // Traditional packages
+  { label: 'OMB Package',           type: 'package',    price: 25000 },
+  { label: 'Half Glass Package',    type: 'package',    price: 35000 },
+  { label: 'JR Full Glass Package', type: 'package',    price: 47000 },
+  { label: 'SR Full Glass Package', type: 'package',    price: 57000 },
+  { label: 'Premium Package',       type: 'package',    price: 75000 },
+  // Cremation
+  { label: 'Cremation Service',     type: 'cremation',  price: 25000 },
+  // Urns
+  { label: 'Wooden Urn',            type: 'urn',        price: 3500  },
+  { label: 'Black Metal Urn',       type: 'urn',        price: 3500  },
+  { label: 'Gray Metal Urn',        type: 'urn',        price: 5500  },
+  { label: 'Brown Metal Urn',       type: 'urn',        price: 15000 },
+  { label: 'Blue Metal Urn',        type: 'urn',        price: 15000 },
+  { label: 'White Marble Urn',      type: 'urn',        price: 5500  },
+  // Columbarium
+  { label: 'Columbarium Slot',      type: 'columbarium', price: 0    },
+  // General
+  { label: 'General Service',       type: 'general',    price: 0     },
+] as const
 
 const VOID_REASONS = [
   'Duplicate entry', 'Client cancellation', 'Data entry error',
   'Refund issued', 'Test/demo record', 'Other',
 ] as const
 
-function VoidPaymentModal({ row, onClose, onVoided }: {
-  row: PaymentRow
-  onClose: () => void
-  onVoided: (id: string) => void
+// ── Helpers ───────────────────────────────────────────────────
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })
+}
+function fmtAmt(n: number) {
+  return `₱${Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+}
+function clientName(p: PaymentRow) { return p.profileName ?? p.guest_name ?? '—' }
+function clientEmail(p: PaymentRow) { return p.profileEmail ?? p.guest_email ?? '' }
+
+function statusVariant(s: string): BadgeVariant {
+  if (s === 'approved') return 'green'
+  if (s === 'pending')  return 'amber'
+  if (s === 'voided')   return 'muted'
+  return 'red'
+}
+
+// ── Void Modal ─────────────────────────────────────────────────
+function VoidModal({ row, onClose, onVoided }: {
+  row: PaymentRow; onClose: () => void; onVoided: (id: string) => void
 }) {
   const supabase = createClient()
   const [reason,  setReason]  = useState('')
   const [comment, setComment] = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
-
   const isOther   = reason === 'Other'
   const canSubmit = reason && (!isOther || comment.trim().length > 0)
 
@@ -88,166 +88,657 @@ function VoidPaymentModal({ row, onClose, onVoided }: {
     if (!canSubmit) { setError('Please select a reason.'); return }
     setLoading(true); setError('')
     const { data: { user } } = await supabase.auth.getUser()
-    const actorName = user
-      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
-      : 'Staff'
-    const clientName = row.profileName ?? row.guest_name ?? 'a client'
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
     const { error: err } = await supabase.from('payments').update({
-      status: 'voided',
-      void_reason:  reason,
+      status: 'voided', void_reason: reason,
       void_comment: isOther ? comment.trim() : (comment.trim() || null),
-      voided_by:    user?.id ?? null,
-      voided_at:    new Date().toISOString(),
+      voided_by: user?.id ?? null, voided_at: new Date().toISOString(),
     }).eq('id', row.id)
     if (err) { setError(err.message); setLoading(false); return }
-    await logActivity({
-      category: 'log', event_type: 'payment_voided',
-      entity_table: 'payments', entity_id: row.id,
-      actor_id: user?.id, actor_name: actorName,
-      message: `${actorName} voided payment from ${clientName} — ${reason}${comment ? `: ${comment}` : ''}`,
-      metadata: { amount: row.amount, reason, comment },
-    })
+    await logActivity({ category: 'log', event_type: 'payment_voided', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} voided payment from ${clientName(row)} — ${reason}`, metadata: { amount: row.amount, reason } })
     setLoading(false); onVoided(row.id); onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <Ban className="h-4 w-4 text-red-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-foreground">Void Transaction</h3>
-              <p className="text-[10px] text-muted-foreground">Auditable and reversible from the Transaction Register.</p>
-            </div>
+            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center"><Ban className="h-4 w-4 text-red-500" /></div>
+            <div><h3 className="text-sm font-bold text-foreground">Void Transaction</h3><p className="text-[10px] text-muted-foreground">Auditable and reversible.</p></div>
           </div>
-          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="bg-muted/30 border border-border/60 rounded-xl p-3 space-y-1.5">
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Client</span><span className="font-semibold">{row.profileName ?? row.guest_name ?? '—'}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Amount</span><span className="font-bold text-primary">₱{Number(row.amount).toLocaleString()}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Client</span><span className="font-semibold">{clientName(row)}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Amount</span><span className="font-bold text-primary">{fmtAmt(row.amount)}</span></div>
             <div className="flex justify-between text-xs"><span className="text-muted-foreground">Method</span><span className="capitalize">{row.method.replace('_', ' ')}</span></div>
-            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Date</span><span>{new Date(row.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Date</span><span>{fmtDate(row.created_at)}</span></div>
           </div>
           {error && <AlertBanner variant="error" message={error} />}
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Void Reason <span className="text-red-500">*</span></label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Reason <span className="text-red-500">*</span></label>
             <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
               <option value="">— Select a reason —</option>
               {VOID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          {isOther && (
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
-              <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why this is being voided…" className={`${inputCls} h-auto resize-none py-2.5`} />
-            </div>
-          )}
-          {!isOther && reason && (
-            <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Additional Comment (optional)</label>
-              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} />
-            </div>
-          )}
+          {isOther && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label><textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
+          {!isOther && reason && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comment (optional)</label><textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
-            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
-              {loading ? 'Voiding…' : 'Void Transaction'}
-            </button>
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">{loading ? 'Voiding…' : 'Void Transaction'}</button>
           </div>
         </div>
       </div>
-    </div>
+    </div>, document.body
   )
 }
 
+// ── Review Approve Modal ──────────────────────────────────────
+function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
+  row: PaymentRow; onClose: () => void
+  onApproved: (id: string) => void; onRejected: (id: string) => void
+}) {
+  const supabase = createClient()
+  const [rejectMode,   setRejectMode]   = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState('')
+
+  const receiptRef = useRef<HTMLImageElement>(null)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [lightbox,   setLightbox]   = useState(false)
+
+  useEffect(() => {
+    if (!row.receipt_file_path) return
+    supabase.storage.from('payments').createSignedUrl(row.receipt_file_path, 3600)
+      .then(({ data }) => setReceiptUrl(data?.signedUrl ?? null))
+  }, [row.receipt_file_path, supabase])
+
+  const handleApprove = async () => {
+    setLoading(true); setError('')
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+    await supabase.from('payments').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', row.id)
+    if (row.product_type === 'columbarium' && row.product_ref) {
+      await supabase.from('columbarium_slots').update({ status: 'reserved', reserved_by_user_id: row.user_id ?? null, reserved_at: new Date().toISOString() }).eq('slot_code', row.product_ref).eq('status', 'available')
+    }
+    await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ${fmtAmt(row.amount)} from ${clientName(row)}`, metadata: { amount: row.amount } })
+    setLoading(false); onApproved(row.id)
+    // Auto-download official receipt on approval
+    try {
+      await generateReceipt({
+        ...row,
+        status: 'approved',
+        approved_at: new Date().toISOString(),
+        profileName:  row.profileName,
+        profileEmail: row.profileEmail,
+      })
+    } catch { /* receipt download is best-effort */ }
+    onClose()
+  }
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) { setError('Reason required.'); return }
+    setLoading(true); setError('')
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+    await supabase.from('payments').update({ status: 'rejected' }).eq('id', row.id)
+    await logActivity({ category: 'log', event_type: 'payment_rejected', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} rejected payment from ${clientName(row)}: ${rejectReason}`, metadata: { reason: rejectReason } })
+    setLoading(false); onRejected(row.id); onClose()
+  }
+
+  return createPortal(
+    <>
+      {lightbox && receiptUrl && (
+        <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col" onClick={() => setLightbox(false)}>
+          <div className="flex items-center justify-between px-6 py-4 shrink-0" onClick={e => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-white">Payment Receipt</p>
+            <button onClick={() => setLightbox(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={receiptUrl} alt="Receipt" className="max-h-full max-w-full object-contain rounded-lg shadow-2xl" />
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 z-[200] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="flex min-h-full items-start justify-center p-4 pt-8">
+          <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <Eye className="h-4 w-4 text-primary" />
+                <div><h3 className="text-sm font-bold text-foreground">Review Payment</h3><p className="text-[10px] text-muted-foreground">{clientName(row)} · {fmtAmt(row.amount)}</p></div>
+              </div>
+              <button onClick={onClose} className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {/* Payment details grid */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { label: 'Client',    value: clientName(row) },
+                  { label: 'Email',     value: clientEmail(row) || '—' },
+                  { label: 'Phone',     value: row.guest_phone ?? '—' },
+                  { label: 'Method',    value: row.method.replace('_', ' ').toUpperCase() },
+                  { label: 'Reference', value: row.reference_number ?? '—' },
+                  { label: 'Amount',    value: fmtAmt(row.amount) },
+                  { label: 'Product',   value: row.product_type },
+                  { label: 'Date',      value: fmtDate(row.created_at) },
+                ].map(f => (
+                  <div key={f.label} className="bg-muted/30 rounded-xl px-3 py-2">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">{f.label}</p>
+                    <p className="font-semibold text-foreground truncate">{f.value}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Receipt */}
+              {receiptUrl && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment Receipt</p>
+                  <button className="w-full relative group rounded-xl overflow-hidden border border-border" onClick={() => setLightbox(true)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img ref={receiptRef} src={receiptUrl} alt="Receipt" className="w-full h-40 object-cover" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </button>
+                </div>
+              )}
+              {/* Notes */}
+              {row.notes && (
+                <div className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Notes</p>
+                  <p className="text-xs text-foreground">{row.notes}</p>
+                </div>
+              )}
+              {rejectMode && (
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></label>
+                  <textarea rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Reason for rejection…" className={`${inputCls} h-auto resize-none py-2.5`} />
+                </div>
+              )}
+              {error && <AlertBanner variant="error" message={error} />}
+              <div className="flex gap-2 pt-1">
+                {!rejectMode ? (
+                  <>
+                    <button onClick={() => setRejectMode(true)} className="flex-1 h-10 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-all">Reject</button>
+                    <button onClick={handleApprove} disabled={loading} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5">
+                      <Check className="h-3.5 w-3.5" />{loading ? 'Approving…' : 'Approve Payment'}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { setRejectMode(false); setError('') }} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Back</button>
+                    <button onClick={handleReject} disabled={loading || !rejectReason.trim()} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">{loading ? 'Rejecting…' : 'Reject Payment'}</button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>, document.body
+  )
+}
+
+// ── Cash Modal — improved 2-step ──────────────────────────────
 function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const supabase = createClient()
-  const [name, setName] = useState(''); const [email, setEmail] = useState('')
-  const [amount, setAmount] = useState(''); const [notes, setNotes] = useState('')
-  const [productType, setProductType] = useState(''); const [productRef, setProductRef] = useState('')
-  const [error, setError] = useState(''); const [loading, setLoading] = useState(false)
+  const [step,       setStep]       = useState<'form' | 'review'>('form')
+  const [name,       setName]       = useState('')
+  const [phone,      setPhone]      = useState('')
+  const [email,      setEmail]      = useState('')
+  const [serviceIdx, setServiceIdx] = useState<number | ''>('')
+  const [customPrice, setCustomPrice] = useState('')
+  const [seniorPwd,  setSeniorPwd]  = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [error,      setError]      = useState('')
 
-  const handle = async (e: React.FormEvent) => {
-    e.preventDefault(); setError('')
-    if (!name || !email) { setError('Name and email are required.'); return }
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid amount.'); return }
-    if (!productType) { setError('Product type is required.'); return }
-    setLoading(true)
+  const selectedService = typeof serviceIdx === 'number' ? SERVICES[serviceIdx] : null
+  const basePrice = selectedService
+    ? (selectedService.price > 0 ? selectedService.price : Number(customPrice) || 0)
+    : 0
+  const discount       = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
+  const finalAmount    = basePrice - discount
+  const needsCustom    = selectedService?.price === 0
+
+  const handleNext = () => {
+    setError('')
+    if (!name.trim())       { setError('Client name is required.'); return }
+    if (!phone.trim())      { setError('Phone number is required.'); return }
+    if (serviceIdx === '')  { setError('Please select a service.'); return }
+    if (needsCustom && (!customPrice || Number(customPrice) <= 0)) { setError('Please enter the amount.'); return }
+    setStep('review')
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true); setError('')
     const { data: profile } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
+    const notes = seniorPwd ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}` : null
     const { error: err } = await supabase.from('payments').insert({
-      user_id: profile?.id ?? null, guest_name: profile ? null : name,
-      guest_email: profile ? null : email, product_type: productType,
-      product_ref: productRef || null, method: 'cash',
-      amount: Number(amount), status: 'approved', notes: notes || null,
-      approved_at: new Date().toISOString(),
+      user_id:      profile?.id ?? null,
+      guest_name:   profile ? null : name.trim(),
+      guest_email:  profile ? null : (email.trim() || null),
+      guest_phone:  phone.trim(),
+      product_type: selectedService?.type ?? 'general',
+      product_ref:  selectedService?.label ?? null,
+      method:       'cash',
+      amount:       finalAmount,
+      status:       'approved',
+      notes,
+      approved_at:  new Date().toISOString(),
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (err) { setError(err.message); setStep('form'); return }
     onSuccess(); onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            {step === 'review' && (
+              <button onClick={() => setStep('form')} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground mr-0.5">
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            )}
             <Banknote className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">Record Cash Payment</h3>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">{step === 'form' ? 'Record Cash Payment' : 'Review Before Recording'}</h3>
+              <p className="text-[10px] text-muted-foreground">{step === 'form' ? 'Step 1 of 2 — Client & Service' : 'Step 2 of 2 — Confirm details'}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {error && <AlertBanner variant="error" message={error} />}
-          <form onSubmit={handle} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Name</label>
-                <input type="text" placeholder="Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} className={inputCls} /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Email</label>
-                <input type="email" placeholder="juan@example.com" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} /></div>
+
+          {step === 'form' ? (
+            <>
+              {/* Client info */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Name <span className="text-red-500">*</span></label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Juan Dela Cruz" className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number <span className="text-red-500">*</span></label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+63 912 345 6789" className={inputCls} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email Address <span className="text-muted-foreground/50 font-normal">(optional)</span></label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="juan@example.com" className={inputCls} />
+              </div>
+
+              {/* Service */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Funeral Service <span className="text-red-500">*</span></label>
+                <select value={serviceIdx} onChange={e => { setServiceIdx(e.target.value === '' ? '' : Number(e.target.value)); setCustomPrice(''); setSeniorPwd(false) }} className={inputCls}>
+                  <option value="">— Select a service —</option>
+                  <optgroup label="Traditional Packages">
+                    {SERVICES.slice(0, 5).map((s, i) => <option key={i} value={i}>{s.label} — {s.price > 0 ? fmtAmt(s.price) : 'Custom'}</option>)}
+                  </optgroup>
+                  <optgroup label="Cremation">
+                    {SERVICES.slice(5, 6).map((s, i) => <option key={i + 5} value={i + 5}>{s.label} — {fmtAmt(s.price)}</option>)}
+                  </optgroup>
+                  <optgroup label="Urns">
+                    {SERVICES.slice(6, 12).map((s, i) => <option key={i + 6} value={i + 6}>{s.label} — {fmtAmt(s.price)}</option>)}
+                  </optgroup>
+                  <optgroup label="Other">
+                    {SERVICES.slice(12).map((s, i) => <option key={i + 12} value={i + 12}>{s.label}</option>)}
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* Custom price for columbarium/general */}
+              {needsCustom && (
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Amount (₱) <span className="text-red-500">*</span></label>
+                  <input type="number" value={customPrice} onChange={e => setCustomPrice(e.target.value)} placeholder="Enter amount" min="1" className={inputCls} />
+                </div>
+              )}
+
+              {/* Auto-filled price display */}
+              {selectedService && basePrice > 0 && (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Price</p>
+                  <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
+                </div>
+              )}
+
+              {/* Senior/PWD discount */}
+              {selectedService && basePrice > 0 && (
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div className="relative">
+                      <input type="checkbox" checked={seniorPwd} onChange={e => setSeniorPwd(e.target.checked)} className="sr-only peer" />
+                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
+                        {seniorPwd && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Senior Citizen / PWD — 20% Discount</p>
+                      <p className="text-[10px] text-muted-foreground">Check if client has valid Senior ID or PWD card</p>
+                    </div>
+                  </label>
+                  {seniorPwd && basePrice > 0 && (
+                    <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1 text-xs">
+                      <div className="flex justify-between"><span className="text-muted-foreground">Original</span><span className="font-mono">{fmtAmt(basePrice)}</span></div>
+                      <div className="flex justify-between text-amber-600"><span>20% Discount</span><span className="font-mono">− {fmtAmt(discount)}</span></div>
+                      <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1"><span>Amount Payable</span><span className="font-mono">{fmtAmt(finalAmount)}</span></div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            /* Review step */
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="bg-muted/30 border-b border-border px-4 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Payment Summary</p>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {[
+                    { label: 'Client',  value: name },
+                    { label: 'Phone',   value: phone },
+                    ...(email ? [{ label: 'Email', value: email }] : []),
+                    { label: 'Service', value: selectedService?.label ?? '—' },
+                    { label: 'Method',  value: 'Cash' },
+                  ].map(f => (
+                    <div key={f.label} className="flex justify-between px-4 py-2.5 text-xs">
+                      <span className="text-muted-foreground">{f.label}</span>
+                      <span className="font-semibold text-foreground">{f.value}</span>
+                    </div>
+                  ))}
+                  {seniorPwd && (
+                    <>
+                      <div className="flex justify-between px-4 py-2.5 text-xs">
+                        <span className="text-muted-foreground">Original Price</span>
+                        <span className="font-mono text-muted-foreground line-through">{fmtAmt(basePrice)}</span>
+                      </div>
+                      <div className="flex justify-between px-4 py-2.5 text-xs text-amber-600">
+                        <span>Senior/PWD Discount (20%)</span>
+                        <span className="font-mono">− {fmtAmt(discount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between px-4 py-3 text-sm font-bold bg-primary/[0.04]">
+                    <span className="text-primary/70 uppercase tracking-wider text-[10px] font-black">Total Amount</span>
+                    <span className="text-primary">{fmtAmt(finalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground">This will be recorded as an approved cash payment immediately. Please verify all details before confirming.</p>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Type</label>
-                <input type="text" placeholder="e.g. columbarium" value={productType} onChange={e => setProductType(e.target.value)} className={inputCls} /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Ref</label>
-                <input type="text" placeholder="e.g. R2C05" value={productRef} onChange={e => setProductRef(e.target.value)} className={inputCls} /></div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-border/60 flex gap-2 shrink-0">
+          {step === 'form' ? (
+            <>
+              <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
+              <button onClick={handleNext} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all">Review →</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setStep('form')} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Edit</button>
+              <button onClick={handleSubmit} disabled={loading} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5">
+                <Check className="h-3.5 w-3.5" />{loading ? 'Recording…' : 'Confirm & Record'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>, document.body
+  )
+}
+
+// ── Export / Print Receipt ────────────────────────────────────
+async function exportReceiptPDF(rows: PaymentRow[], title = 'Payment Receipt') {
+  const { default: jsPDF }     = await import('jspdf')
+  const { default: autoTable } = await import('jspdf-autotable')
+
+  const PRIMARY: [number, number, number] = [34, 107, 66]
+  const LIGHT:   [number, number, number] = [240, 247, 243]
+  const DARK:    [number, number, number] = [30,  40,  35]
+  const isSingle = rows.length === 1
+  const doc = new jsPDF({ orientation: isSingle ? 'portrait' : 'landscape', unit: 'mm', format: isSingle ? 'a5' : 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+
+  doc.setFillColor(...PRIMARY); doc.rect(0, 0, pageW, 28, 'F')
+  try {
+    const res = await fetch('/logo.png'); const blob = await res.blob()
+    const b64 = await new Promise<string>(res2 => { const r = new FileReader(); r.onloadend = () => res2(r.result as string); r.readAsDataURL(blob) })
+    doc.addImage(b64, 'PNG', 8, 4, 20, 20)
+  } catch { /* logo optional */ }
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12)
+  doc.text('M. P. GAYETA', 32, 11)
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(200,230,210)
+  doc.text('Funeral Services', 32, 17)
+  doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255)
+  doc.text(title, pageW / 2, 16, { align: 'center' })
+  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(200,230,210)
+  doc.text(`${new Date().toLocaleString('en-PH')}`, pageW - 8, 10, { align: 'right' })
+
+  if (isSingle) {
+    const r = rows[0]
+    const startY = 34
+    const fields = [
+      ['Receipt For',       clientName(r)],
+      ['Email',             clientEmail(r) || '—'],
+      ['Phone',             r.guest_phone ?? '—'],
+      ['Service / Product', r.product_type + (r.product_ref ? ` — ${r.product_ref}` : '')],
+      ['Payment Method',    r.method.replace('_',' ').toUpperCase()],
+      ['Reference #',       r.reference_number ?? '—'],
+      ['Date',              fmtDate(r.created_at)],
+      ['Status',            r.status.toUpperCase()],
+    ]
+    doc.setFillColor(...LIGHT); doc.rect(8, startY, pageW - 16, fields.length * 8.5 + 6, 'F')
+    doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3)
+    doc.rect(8, startY, pageW - 16, fields.length * 8.5 + 6)
+    let y = startY + 7
+    fields.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(100,120,110)
+      doc.text(label, 14, y)
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...DARK)
+      doc.text(String(value), pageW - 14, y, { align: 'right' })
+      y += 8.5
+    })
+    // Amount box
+    const amtY = y + 6
+    doc.setFillColor(...PRIMARY); doc.rect(8, amtY, pageW - 16, 14, 'F')
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(200,230,210)
+    doc.text('AMOUNT PAID', 14, amtY + 6)
+    doc.setFontSize(14); doc.setTextColor(255,255,255)
+    doc.text(`PHP ${Number(r.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, pageW - 14, amtY + 8, { align: 'right' })
+    // Footer
+    doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,160,155)
+    doc.text('M. P. Gayeta Funeral Services · Sariaya, Quezon · +63 918 901 9978', pageW / 2, pageH - 8, { align: 'center' })
+    doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3); doc.line(8, pageH - 10, pageW - 8, pageH - 10)
+  } else {
+    const approved = rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0)
+    doc.setFillColor(...LIGHT); doc.rect(0, 28, pageW, 10, 'F')
+    doc.setFontSize(7.5); doc.setTextColor(...DARK)
+    doc.text(`Records: ${rows.length}   |   Total Approved: PHP ${approved.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, pageW / 2, 34.5, { align: 'center' })
+    autoTable(doc, {
+      startY: 42,
+      head: [['#','Date','Client','Service','Method','Ref #','Amount','Status']],
+      body: rows.map((r, i) => [i+1, fmtDate(r.created_at), clientName(r), r.product_type, r.method.replace('_',' ').toUpperCase(), r.reference_number ?? '—', Number(r.amount).toLocaleString('en-PH',{minimumFractionDigits:2}), r.status.toUpperCase()]),
+      styles: { fontSize: 7.5, cellPadding: 2.5, textColor: DARK, lineColor: [220,230,225], lineWidth: 0.2 },
+      headStyles: { fillColor: PRIMARY, textColor: [255,255,255], fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [250,253,251] },
+      margin: { left: 8, right: 8 },
+      didDrawPage: (data: { pageNumber: number }) => {
+        const pg = doc.getNumberOfPages()
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,160,155)
+        doc.text(`M. P. Gayeta Funeral Services · Receipt Register · Page ${data.pageNumber} of ${pg}`, pageW/2, pageH-5, {align:'center'})
+        doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3); doc.line(8, pageH-8, pageW-8, pageH-8)
+      },
+    })
+  }
+  doc.save(`receipt-${isSingle ? clientName(rows[0]).replace(/\s+/g,'_') : 'batch'}-${new Date().toISOString().slice(0,10)}.pdf`)
+}
+
+// ── Record Detail View ────────────────────────────────────────
+function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
+  row: PaymentRow; currentRole: UserRole
+  onBack: () => void; onUpdated: (r: Partial<PaymentRow> & { id: string }) => void
+}) {
+  const supabase = createClient()
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [voidOpen,   setVoidOpen]   = useState(false)
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null)
+  const [lightbox,   setLightbox]   = useState(false)
+  const [exporting,  setExporting]  = useState(false)
+
+  useEffect(() => {
+    if (!row.receipt_file_path) return
+    supabase.storage.from('payments').createSignedUrl(row.receipt_file_path, 3600).then(({ data }) => setReceiptUrl(data?.signedUrl ?? null))
+  }, [row.receipt_file_path, supabase])
+
+  return (
+    <div className="space-y-5">
+      {lightbox && receiptUrl && (
+        <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col" onClick={() => setLightbox(false)}>
+          <div className="flex items-center justify-between px-6 py-4 shrink-0">
+            <p className="text-sm font-semibold text-white">Payment Receipt</p>
+            <button onClick={() => setLightbox(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={receiptUrl} alt="Receipt" className="max-h-full max-w-full object-contain rounded-lg shadow-2xl" />
+          </div>
+        </div>
+      )}
+      {reviewOpen && <ReviewApproveModal row={row} onClose={() => setReviewOpen(false)} onApproved={id => { onUpdated({ id, status: 'approved' }); setReviewOpen(false) }} onRejected={id => { onUpdated({ id, status: 'rejected' }); setReviewOpen(false) }} />}
+      {voidOpen   && <VoidModal row={row} onClose={() => setVoidOpen(false)} onVoided={id => { onUpdated({ id, status: 'voided' }); setVoidOpen(false) }} />}
+
+      {/* Top bar */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="h-4 w-4" /> Back to payments
+        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={async () => {
+              setExporting(true)
+              await generateReceipt({
+                ...row,
+                profileName:  row.profileName,
+                profileEmail: row.profileEmail,
+              })
+              setExporting(false)
+            }}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 disabled:opacity-50 shadow-sm transition-all"
+          >
+            {exporting
+              ? <><div className="h-3 w-3 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" /> Generating…</>
+              : <><Receipt className="h-3.5 w-3.5" /> Download Receipt</>
+            }
+          </button>
+          {row.status === 'pending' && currentRole === 'admin' && (
+            <button onClick={() => setReviewOpen(true)}
+              className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-all">
+              <Eye className="h-3.5 w-3.5" /> Review & Approve
+            </button>
+          )}
+          {row.status !== 'voided' && currentRole === 'admin' && (
+            <button onClick={() => setVoidOpen(true)}
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+              <Ban className="h-3 w-3" /> Void
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="bg-primary/5 border-b border-primary/20 px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-primary/70 mb-0.5">Payment Record</p>
+            <h2 className="text-lg font-bold text-foreground">{clientName(row)}</h2>
+            <p className="text-xs text-muted-foreground">{clientEmail(row)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-black text-primary">{fmtAmt(row.amount)}</p>
+            <Badge label={row.status} variant={statusVariant(row.status)} plain />
+          </div>
+        </div>
+        <div className="px-6 py-5 space-y-5 bg-card">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+            {[
+              { label: 'Phone',     value: row.guest_phone ?? '—' },
+              { label: 'Method',    value: row.method.replace('_',' ').toUpperCase() },
+              { label: 'Reference', value: row.reference_number ?? '—' },
+              { label: 'Product',   value: row.product_type },
+              { label: 'Date',      value: fmtDate(row.created_at) },
+              { label: 'Approved',  value: row.approved_at ? fmtDate(row.approved_at) : '—' },
+            ].map(f => (
+              <div key={f.label} className="bg-muted/30 rounded-xl px-3 py-2.5">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">{f.label}</p>
+                <p className="font-semibold text-foreground">{f.value}</p>
+              </div>
+            ))}
+          </div>
+          {row.notes && (
+            <div className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
+              <p className="text-xs text-foreground">{row.notes}</p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Amount (₱)</label>
-                <input type="number" placeholder="5000" value={amount} onChange={e => setAmount(e.target.value)} className={inputCls} /></div>
-              <div className="space-y-1.5"><label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">OR / Notes</label>
-                <input type="text" placeholder="GFS-OR-00123" value={notes} onChange={e => setNotes(e.target.value)} className={inputCls} /></div>
+          )}
+          {receiptUrl && (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment Receipt</p>
+              <button className="relative group rounded-xl overflow-hidden border border-border max-w-xs" onClick={() => setLightbox(true)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={receiptUrl} alt="Receipt" className="w-full h-40 object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </button>
             </div>
-            <Button type="submit" disabled={loading} className="w-full h-10 font-bold rounded-xl mt-1">
-              {loading ? 'Recording…' : 'Log Cash Payment'}
-            </Button>
-          </form>
+          )}
+          {row.status === 'voided' && (row.void_reason || row.void_comment) && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-red-500/70 mb-1">Void Reason</p>
+              <p className="text-xs text-foreground">{row.void_reason}{row.void_comment ? ` — ${row.void_comment}` : ''}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear }: { 
+// ── Main Tab ──────────────────────────────────────────────────
+export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear }: {
   currentRole: UserRole
   highlightPaymentId?: string | null
   onHighlightClear?: () => void
 }) {
   const supabase = createClient()
-  const [rows, setRows] = useState<PaymentRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
-  const [search, setSearch] = useState('')
+  const [rows,        setRows]        = useState<PaymentRow[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState('')
+  const [search,      setSearch]      = useState('')
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all')
   const [showCashModal, setShowCashModal] = useState(false)
-  const [voidRow, setVoidRow] = useState<PaymentRow | null>(null)
+  const [reviewRow,   setReviewRow]   = useState<PaymentRow | null>(null)
+  const [voidRow,     setVoidRow]     = useState<PaymentRow | null>(null)
+  const [detailRow,   setDetailRow]   = useState<PaymentRow | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exporting,   setExporting]   = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
   const highlightRef = useRef<HTMLTableRowElement | null>(null)
 
   const load = useCallback(async () => {
@@ -267,214 +758,223 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear 
 
   useEffect(() => { load() }, [load])
 
-  // Scroll to and highlight the target payment row when navigated from overview
   useEffect(() => {
     if (!highlightPaymentId || loading) return
-    // Force filter to show the payment regardless of current filter
     setStatusFilter('all')
-    const timer = setTimeout(() => {
-      if (highlightRef.current) {
-        highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }, 150)
+    const timer = setTimeout(() => { highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 150)
     return () => clearTimeout(timer)
   }, [highlightPaymentId, loading])
 
-  const approve = async (id: string) => {
-    const payment = rows.find(r => r.id === id)
-    const { data: { user } } = await supabase.auth.getUser()
-    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
-    await supabase.from('payments').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', id)
-    if (payment?.product_type === 'columbarium' && payment?.product_ref) {
-      await supabase.from('columbarium_slots').update({ status: 'reserved', reserved_by_user_id: payment.user_id ?? null, reserved_at: new Date().toISOString() }).eq('slot_code', payment.product_ref).eq('status', 'available')
-    }
-    const clientName = payment?.profileName ?? payment?.guest_name ?? 'a client'
-    await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ₱${Number(payment?.amount ?? 0).toLocaleString()} from ${clientName}`, metadata: { amount: payment?.amount, client: clientName } })
-    setRows(r => r.map(x => x.id === id ? { ...x, status: 'approved' as PaymentStatus } : x))
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportMenu(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const updateRow = (updated: Partial<PaymentRow> & { id: string }) => {
+    setRows(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+    if (detailRow?.id === updated.id) setDetailRow(prev => prev ? { ...prev, ...updated } : null)
   }
 
-  const reject = async (id: string) => {
-    const payment = rows.find(r => r.id === id)
-    const { data: { user } } = await supabase.auth.getUser()
-    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
-    await supabase.from('payments').update({ status: 'rejected' }).eq('id', id)
-    const clientName = payment?.profileName ?? payment?.guest_name ?? 'a client'
-    await logActivity({ category: 'log', event_type: 'payment_rejected', entity_table: 'payments', entity_id: id, actor_id: user?.id, actor_name: actorName, message: `${actorName} rejected payment from ${clientName}`, metadata: { amount: payment?.amount, client: clientName } })
-    setRows(r => r.map(x => x.id === id ? { ...x, status: 'rejected' as PaymentStatus } : x))
-  }
-
-  const statusVariant = (s: string): BadgeVariant => s === 'approved' ? 'green' : s === 'pending' ? 'amber' : s === 'voided' ? 'muted' : 'red'
+  const statusVariant2 = (s: string): BadgeVariant => statusVariant(s)
   const q = search.toLowerCase()
   const filtered = rows.filter(p => {
     const matchStatus = statusFilter === 'all' || p.status === statusFilter
-    const matchSearch = !q || [p.profileName, p.profileEmail, p.guest_name, p.guest_email, p.reference_number, p.product_type].some(v => v?.toLowerCase().includes(q))
+    const matchSearch = !q || [clientName(p), clientEmail(p), p.reference_number, p.product_type].some(v => v?.toLowerCase().includes(q))
     return matchStatus && matchSearch
   })
 
+  const allSelected  = filtered.length > 0 && filtered.every(r => selectedIds.has(r.id))
+  const someSelected = filtered.some(r => selectedIds.has(r.id))
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  const selectAll    = (checked: boolean) => setSelectedIds(checked ? new Set(filtered.map(r => r.id)) : new Set())
+
+  const exportRows = selectedIds.size > 0 ? rows.filter(r => selectedIds.has(r.id)) : filtered
+
   if (loading) return <Spinner />
 
+  // ── Detail view ─────────────────────────────────────────────
+  if (detailRow) {
+    return (
+      <PaymentDetail
+        row={detailRow}
+        currentRole={currentRole}
+        onBack={() => setDetailRow(null)}
+        onUpdated={updateRow}
+      />
+    )
+  }
+
   const filterOptions = [
-    { value: 'all' as const,      label: `All (${rows.length})` },
-    { value: 'pending' as const,  label: `Pending (${rows.filter(r => r.status === 'pending').length})` },
+    { value: 'all'      as const, label: `All (${rows.length})` },
+    { value: 'pending'  as const, label: `Pending (${rows.filter(r => r.status === 'pending').length})` },
     { value: 'approved' as const, label: `Approved (${rows.filter(r => r.status === 'approved').length})` },
     { value: 'rejected' as const, label: `Rejected (${rows.filter(r => r.status === 'rejected').length})` },
   ]
 
   return (
     <div className="space-y-5">
-      {voidRow && <VoidPaymentModal row={voidRow} onClose={() => setVoidRow(null)} onVoided={id => { setRows(prev => prev.map(r => r.id === id ? { ...r, status: 'voided' as PaymentStatus } : r)); setVoidRow(null) }} />}
+      {/* Modals */}
+      {reviewRow && <ReviewApproveModal row={reviewRow} onClose={() => setReviewRow(null)} onApproved={id => updateRow({ id, status: 'approved' })} onRejected={id => updateRow({ id, status: 'rejected' })} />}
+      {voidRow   && <VoidModal          row={voidRow}   onClose={() => setVoidRow(null)}   onVoided={id  => updateRow({ id, status: 'voided' })} />}
+      {showCashModal && <CashModal onClose={() => setShowCashModal(false)} onSuccess={load} />}
+
       <PaymentInfoCard canEdit={currentRole === 'admin'} />
-      <SectionHeader title="Payments" sub={`${rows.length} total transactions`}
-        action={
+
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-bold text-foreground tracking-tight">Payments</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{rows.length} total transactions</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Record Cash — prominent */}
           <button onClick={() => setShowCashModal(true)}
-            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border bg-card text-[11px] font-bold text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
-            <Banknote className="h-3.5 w-3.5 text-primary" /> Record Cash
+            className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 shadow-sm transition-all">
+            <Banknote className="h-4 w-4" /> Record Cash Payment
           </button>
-        }
-      />
+          {/* Export */}
+          <div ref={exportRef} className="relative">
+            <div className="flex items-stretch rounded-xl overflow-hidden border border-border">
+              <button onClick={async () => { setExporting(true); await exportReceiptPDF(exportRows); setExporting(false) }}
+                disabled={exporting || exportRows.length === 0}
+                className="inline-flex items-center gap-1.5 h-9 px-3.5 bg-card text-foreground text-[11px] font-bold hover:bg-muted/40 transition-colors disabled:opacity-40">
+                <Printer className="h-3.5 w-3.5" /> Print{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+              </button>
+              <button onClick={() => setShowExportMenu(v => !v)}
+                className="h-9 px-2 bg-card text-muted-foreground hover:bg-muted/40 transition-colors border-l border-border">
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-44 bg-card border border-border rounded-xl shadow-xl overflow-hidden z-20">
+                <button onClick={async () => { setShowExportMenu(false); setExporting(true); await exportReceiptPDF(exportRows, exportRows.length === 1 ? 'Payment Receipt' : 'Receipt Register'); setExporting(false) }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted/60 transition-colors">
+                  <Download className="h-3.5 w-3.5 text-muted-foreground" /> Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {loadError && <AlertBanner variant="error" message={`Failed to load: ${loadError}`} />}
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Search by name, email, reference…" /></div>
         <FilterPills options={filterOptions} active={statusFilter} onChange={setStatusFilter} />
       </div>
 
       {filtered.length === 0 ? <EmptyState message="No payments match your search." /> : (
-        <>
-          {/* Mobile */}
-          <div className="md:hidden space-y-3">
-            {filtered.map(p => (
-              <div key={p.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-foreground text-sm truncate">{p.profileName ?? p.guest_name ?? '—'}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{p.profileEmail ?? p.guest_email ?? ''}</p>
-                  </div>
-                  <Badge label={p.status} variant={statusVariant(p.status)} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <div><p className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">Amount</p>
-                    <p className="font-bold text-primary">₱{Number(p.amount).toLocaleString()}</p></div>
-                  <div><p className="text-[9px] font-bold uppercase text-muted-foreground mb-0.5">Method</p>
-                    <Badge label={p.method} variant="blue" plain /></div>
-                </div>
-                <div className="flex items-center justify-between pt-1 border-t border-border/40">
-                  <ProductsPopover payment={p} />
-                  {p.status === 'pending' && currentRole === 'admin' && (
-                    <div className="flex gap-1.5">
-                      <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90">
-                        <Check className="h-3 w-3" /> Approve
-                      </button>
-                      <button onClick={() => reject(p.id)} className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600">
-                        Reject
-                      </button>
-                    </div>
-                  )}
+        <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+          {/* Summary strip */}
+          <div className="bg-primary/5 border-b border-primary/20 px-5 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1">
+            {[
+              { label: 'Total',    value: rows.length,                                              color: 'text-foreground' },
+              { label: 'Approved', value: rows.filter(r => r.status === 'approved').length,          color: 'text-primary' },
+              { label: 'Pending',  value: rows.filter(r => r.status === 'pending').length,           color: 'text-amber-500' },
+              { label: 'Rejected', value: rows.filter(r => r.status === 'rejected').length,          color: 'text-red-500' },
+            ].map((s, i) => (
+              <div key={s.label} className="flex items-center gap-4">
+                {i > 0 && <div className="w-px h-3.5 bg-border/60" />}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">{s.label}</span>
+                  <span className={`text-xs font-bold ${s.color}`}>{s.value}</span>
                 </div>
               </div>
             ))}
+            {selectedIds.size > 0 && (
+              <><div className="w-px h-3.5 bg-border/60" /><div className="flex items-center gap-2"><span className="text-[9px] font-black uppercase tracking-widest text-blue-500/70">Selected</span><span className="text-xs font-bold text-blue-500">{selectedIds.size}</span></div></>
+            )}
           </div>
 
-          {/* Desktop */}
-          <div className="rounded-2xl overflow-hidden border border-border shadow-sm hidden md:block">
-            {/* Summary strip */}
-            <div className="bg-primary/5 border-b border-primary/20 px-5 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">Total</span>
-                <span className="text-xs font-bold text-foreground">{rows.length}</span>
-              </div>
-              <div className="w-px h-3.5 bg-border/60" />
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">Approved</span>
-                <span className="text-xs font-bold text-primary">{rows.filter(r => r.status === 'approved').length}</span>
-              </div>
-              <div className="w-px h-3.5 bg-border/60" />
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-amber-600/70">Pending</span>
-                <span className="text-xs font-bold text-amber-500">{rows.filter(r => r.status === 'pending').length}</span>
-              </div>
-              <div className="w-px h-3.5 bg-border/60" />
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Rejected</span>
-                <span className="text-xs font-bold text-muted-foreground">{rows.filter(r => r.status === 'rejected').length}</span>
-              </div>
-            </div>
-            <div className="overflow-x-auto bg-card">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr>
-                    {['Client','Method','Reference','Amount','Date','Status','Details', ...(currentRole === 'admin' ? ['Actions'] : [])].map((h) => (
-                      <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b-2 border-border border-r border-border/30 last:border-r-0">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((p, i) => {
-                    const isHighlighted = highlightPaymentId === p.id
-                    const rowBg = isHighlighted
-                      ? 'bg-amber-500/10'
-                      : i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'
-                    return (
-                      <tr
-                        key={p.id}
-                        ref={isHighlighted ? highlightRef : null}
-                        className={`border-b border-border/40 transition-colors hover:bg-primary/[0.03] ${rowBg}`}
-                      >
-                        <td className="px-5 py-3 border-r border-border/30">
-                          <p className="font-semibold text-foreground leading-tight">{p.profileName ?? p.guest_name ?? '—'}</p>
-                          <p className="text-[9px] text-muted-foreground mt-0.5">{p.profileEmail ?? p.guest_email ?? ''}</p>
+          {/* Table */}
+          <div className="overflow-x-auto bg-card">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className="px-4 py-3 bg-muted/40 border-b-2 border-border border-r border-border/30 w-9">
+                    <input type="checkbox" checked={allSelected}
+                      ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+                      onChange={e => selectAll(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                  </th>
+                  {['Client','Method','Reference','Amount','Date','Status', ...(currentRole === 'admin' ? ['Actions'] : [])].map(h => (
+                    <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b-2 border-border border-r border-border/30 last:border-r-0">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p, i) => {
+                  const isHighlighted = highlightPaymentId === p.id
+                  const rowBg = isHighlighted ? 'bg-amber-500/10' : selectedIds.has(p.id) ? 'bg-primary/5' : i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'
+                  return (
+                    <tr key={p.id} ref={isHighlighted ? highlightRef : null}
+                      className={`border-b border-border/40 transition-colors hover:bg-primary/[0.03] cursor-pointer ${rowBg}`}
+                      onClick={() => setDetailRow(p)}>
+                      <td className="px-4 py-3 border-r border-border/30" onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleSelect(p.id)}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                      </td>
+                      <td className="px-5 py-3 border-r border-border/30">
+                        <p className="font-semibold text-foreground leading-tight">{clientName(p)}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">{clientEmail(p)}</p>
+                      </td>
+                      <td className="px-5 py-3 border-r border-border/30"><Badge label={p.method} variant="blue" plain /></td>
+                      <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground font-mono">{p.reference_number ?? '—'}</td>
+                      <td className="px-5 py-3 border-r border-border/30 font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
+                      <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">{fmtDate(p.created_at)}</td>
+                      <td className="px-5 py-3 border-r border-border/30"><Badge label={p.status} variant={statusVariant2(p.status)} plain /></td>
+                      {currentRole === 'admin' && (
+                        <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {p.status === 'pending' && (
+                              <button onClick={() => setReviewRow(p)}
+                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90">
+                                <Eye className="h-3 w-3" /> Review
+                              </button>
+                            )}
+                            {p.status === 'approved' && (
+                              <button
+                                onClick={async () => {
+                                  setExporting(true)
+                                  await generateReceipt({ ...p, profileName: p.profileName, profileEmail: p.profileEmail })
+                                  setExporting(false)
+                                }}
+                                disabled={exporting}
+                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-primary/30 text-primary text-[10px] font-bold hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                              >
+                                <Receipt className="h-3 w-3" /> Receipt
+                              </button>
+                            )}
+                            {p.status !== 'voided' && (
+                              <button onClick={() => setVoidRow(p)}
+                                className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                <Ban className="h-2.5 w-2.5" /> Void
+                              </button>
+                            )}
+                            {p.status === 'voided' && <span className="text-[10px] text-muted-foreground">Voided</span>}
+                          </div>
                         </td>
-                        <td className="px-5 py-3 border-r border-border/30"><Badge label={p.method} variant="blue" plain /></td>
-                        <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground font-mono">{p.reference_number ?? '—'}</td>
-                        <td className="px-5 py-3 border-r border-border/30 font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
-                        <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">{new Date(p.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</td>
-                        <td className="px-5 py-3 border-r border-border/30"><Badge label={p.status} variant={statusVariant(p.status)} plain /></td>
-                        <td className="px-5 py-3 border-r border-border/30"><ProductsPopover payment={p} /></td>
-                        {currentRole === 'admin' && (
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {p.status === 'pending' && (
-                                <>
-                                  <button onClick={() => approve(p.id)} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90">
-                                    <Check className="h-3 w-3" /> Approve
-                                  </button>
-                                  <button onClick={() => reject(p.id)} className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600">
-                                    Reject
-                                  </button>
-                                </>
-                              )}
-                              {p.status !== 'voided' && (
-                                <button onClick={() => setVoidRow(p)}
-                                  className="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
-                                  <Ban className="h-2.5 w-2.5" /> Void
-                                </button>
-                              )}
-                              {p.status === 'voided' && <span className="text-[10px] text-muted-foreground">Voided</span>}
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-primary/20 bg-primary/[0.06]">
-                    <td colSpan={3} className="px-5 py-2.5 border-r border-border/30">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">Total Approved Revenue</span>
-                    </td>
-                    <td className="px-5 py-2.5 font-bold text-primary border-r border-border/30">
-                      ₱{rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
-                    </td>
-                    <td colSpan={currentRole === 'admin' ? 4 : 3} />
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-primary/20 bg-primary/[0.06]">
+                  <td colSpan={4} className="px-5 py-2.5 border-r border-border/30">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-primary/70">Total Approved Revenue</span>
+                  </td>
+                  <td className="px-5 py-2.5 font-bold text-primary border-r border-border/30">
+                    ₱{rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
+                  </td>
+                  <td colSpan={currentRole === 'admin' ? 3 : 2} />
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        </>
+        </div>
       )}
-      {showCashModal && <CashModal onClose={() => setShowCashModal(false)} onSuccess={load} />}
     </div>
   )
 }

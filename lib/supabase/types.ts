@@ -3,7 +3,7 @@ export type SlotStatus = 'available' | 'reserved' | 'occupied'
 export type BookingStatus = 'pending' | 'active' | 'completed' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'voided'
 export type PaymentMethod = 'gcash' | 'bdo_bank' | 'bpi_bank' | 'cash'
-export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected'
+export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected' | 'deleted'
 
 export interface Profile {
   id: string
@@ -100,6 +100,11 @@ export interface Obituary {
   submitter_name: string | null
   submitter_email: string | null
   created_by: string | null
+  // soft-delete (migration 018)
+  delete_reason: string | null
+  delete_comment: string | null
+  deleted_by: string | null
+  deleted_at: string | null
   created_at: string
   updated_at: string
 }
@@ -123,6 +128,14 @@ export interface DocumentSubmission {
   reviewed_by: string | null
   reviewed_at: string | null
   notified_at: string | null
+  // soft-delete (migration 017)
+  delete_reason: string | null
+  delete_comment: string | null
+  deleted_by: string | null
+  deleted_at: string | null
+  // senior/PWD discount (migration 017)
+  senior_pwd_discount: boolean
+  discounted_price: number | null
   created_at: string
   updated_at: string
 }
@@ -159,6 +172,14 @@ export interface Database {
       obituaries: { Row: Obituary; Insert: Omit<Obituary, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Obituary> }
       document_submissions: { Row: DocumentSubmission; Insert: Omit<DocumentSubmission, 'id' | 'created_at' | 'updated_at'>; Update: Partial<DocumentSubmission> }
       payment_info: { Row: PaymentInfo; Insert: never; Update: Partial<Omit<PaymentInfo, 'id' | 'updated_at'>> }
+    }
+    Functions: {
+      admin_delete_user: {
+        Args: { target_user_id: string }
+        Returns: void
+      }
+      is_admin: { Args: Record<never, never>; Returns: boolean }
+      is_staff_or_admin: { Args: Record<never, never>; Returns: boolean }
     }
     Enums: {
       user_role: UserRole

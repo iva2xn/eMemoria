@@ -27,7 +27,7 @@ type Tab = 'overview' | 'inquiries' | 'payments' | 'columbarium' | 'obituaries' 
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',      label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
-  { id: 'availments',    label: 'Doc Submissions',   icon: <ClipboardList className="h-4 w-4" /> },
+  { id: 'availments',    label: 'Funeral Services',  icon: <ClipboardList className="h-4 w-4" /> },
   { id: 'payments',      label: 'Payments',          icon: <CreditCard className="h-4 w-4" /> },
   { id: 'transactions',  label: 'Transactions',      icon: <Receipt className="h-4 w-4" /> },
   { id: 'columbarium',   label: 'Columbarium',       icon: <Grid3X3 className="h-4 w-4" /> },
@@ -100,7 +100,7 @@ export default function AdminPage() {
       setActiveTab(tab as Tab)
     }} />,
     inquiries:   <InquiriesTab staffName={profile.name} />,
-    availments:  <DocumentSubmissionsTab />,
+    availments:  <DocumentSubmissionsTab currentRole={currentRole} />,
     payments:      <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
     transactions:  <TransactionRegisterTab currentRole={currentRole} />,
     columbarium: <ColumbariumTab />,

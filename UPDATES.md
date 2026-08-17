@@ -31,8 +31,6 @@
 
 ---
 
-DONE
-
 ### Inquiries Tab
 
 1. **Move to end** of the navigation tab list.
@@ -43,7 +41,8 @@ DONE
    - Formal email format design.
 4. **Review before sending** — a review/confirm popup appears before the email is actually sent to prevent accidental sends.
 
----
+--- 
+
 
 ### Doc Submissions Tab → Rename: "Funeral Services"
 
@@ -64,7 +63,7 @@ DONE
    - Review button required before approval.
 6. **Print/Export function** — save/export/print individual records or filtered sets as PDF or DOCX. Preset formal template required.
 
----
+--- 
 
 ### Payments Tab
 
@@ -82,7 +81,7 @@ DONE
 3. **Print Receipts function** — save/export/print individual receipts or filtered sets as PDF or DOCX. Preset formal receipt template required.
 4. **Individual record view** — each record is clickable and opens its own form. Status and date visible from the list.
 
----
+--- DONE
 
 ### Obituaries Tab
 

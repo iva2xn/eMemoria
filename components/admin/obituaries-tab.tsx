@@ -5,13 +5,231 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
-import { Badge, SectionHeader, EmptyState, Spinner, inputCls } from './admin-primitives'
-import { ScrollText, UploadCloud, X, Check, Plus } from 'lucide-react'
+import { Badge, SectionHeader, EmptyState, Spinner, FilterPills, inputCls } from './admin-primitives'
+import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
 import type { Obituary } from '@/lib/supabase/types'
 
-// ── Create Tarp Modal ────────────────────────────────────────
+// ── Shared helpers ────────────────────────────────────────────
+const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
+const inp = 'w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
+
+const DELETE_REASONS = [
+  'Duplicate entry',
+  'Posted by mistake',
+  'Requested by family',
+  'Incorrect information',
+  'Test / placeholder record',
+  'Other',
+]
+
+// ── Delete Confirm Modal ──────────────────────────────────────
+function DeleteConfirmModal({
+  obituary,
+  onClose,
+  onConfirm,
+}: {
+  obituary: Obituary
+  onClose: () => void
+  onConfirm: (reason: string, comment: string) => Promise<void>
+}) {
+  const [step, setStep] = useState<1 | 2>(1)
+  const [reason, setReason] = useState('')
+  const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleNext = () => {
+    if (!reason) { setError('Please select a reason.'); return }
+    if (reason === 'Other' && !comment.trim()) { setError('Please describe the reason.'); return }
+    setError('')
+    setStep(2)
+  }
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    await onConfirm(reason, comment)
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-red-500" />
+              <h2 className="text-sm font-bold text-foreground">Delete Obituary</h2>
+            </div>
+            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="px-6 py-5 space-y-4">
+            {step === 1 ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Moving <span className="font-semibold text-foreground">"{obituary.full_name}"</span> to Recently Deleted.
+                  It will be permanently removed after 30 days.
+                </p>
+                {error && <AlertBanner variant="error" message={error} />}
+                <div className="space-y-1.5">
+                  <label className={lbl}>Reason for deletion <span className="text-primary">*</span></label>
+                  <select
+                    value={reason}
+                    onChange={e => { setReason(e.target.value); setError('') }}
+                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="">Select a reason…</option>
+                    {DELETE_REASONS.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+                {reason === 'Other' && (
+                  <div className="space-y-1.5">
+                    <label className={lbl}>Describe the reason <span className="text-primary">*</span></label>
+                    <textarea
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      rows={3}
+                      placeholder="Enter details…"
+                      className="w-full px-3 py-2 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all resize-none"
+                    />
+                  </div>
+                )}
+                <div className="flex gap-3 pt-1">
+                  <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+                  <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                    Next →
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Confirm Deletion</p>
+                  <p className="text-sm text-foreground font-semibold">{obituary.full_name}</p>
+                  <p className="text-xs text-muted-foreground">Reason: {reason}{reason === 'Other' && comment ? ` — ${comment}` : ''}</p>
+                  <p className="text-[11px] text-amber-600 font-medium">This will move the record to Recently Deleted for 30 days.</p>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
+                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                    {loading ? 'Deleting…' : 'Confirm Delete'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Permanent Delete Confirm ──────────────────────────────────
+function PermanentDeleteModal({
+  obituary,
+  onClose,
+  onConfirm,
+}: {
+  obituary: Obituary
+  onClose: () => void
+  onConfirm: () => Promise<void>
+}) {
+  const [loading, setLoading] = useState(false)
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    await onConfirm()
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-red-500" />
+              <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
+            </div>
+            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
+            </p>
+            <div className="flex gap-3">
+              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+              <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                {loading ? 'Deleting…' : 'Delete Forever'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Recover Confirm ───────────────────────────────────────────
+function RecoverConfirmModal({
+  obituary,
+  onClose,
+  onConfirm,
+}: {
+  obituary: Obituary
+  onClose: () => void
+  onConfirm: () => Promise<void>
+}) {
+  const [loading, setLoading] = useState(false)
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    await onConfirm()
+    setLoading(false)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-bold text-foreground">Recover Obituary?</h2>
+            </div>
+            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Restore <span className="font-semibold text-foreground">"{obituary.full_name}"</span> back to the active obituaries list?
+            </p>
+            <div className="flex gap-3">
+              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+              <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl">
+                {loading ? 'Recovering…' : 'Yes, Recover'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Create Tarp Modal ─────────────────────────────────────────
 function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
@@ -31,9 +249,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
   const [done,          setDone]          = useState(false)
-
-  const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
-  const inp = 'w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -202,14 +417,157 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   )
 }
 
-// ── Obituaries Tab ───────────────────────────────────────────
+// ── Days remaining helper ─────────────────────────────────────
+function daysUntilPermanentDelete(deletedAt: string): number {
+  const deletedMs = new Date(deletedAt).getTime()
+  const expiresMs = deletedMs + 30 * 24 * 60 * 60 * 1000
+  const remaining = Math.ceil((expiresMs - Date.now()) / (24 * 60 * 60 * 1000))
+  return Math.max(0, remaining)
+}
+
+// ── Recently Deleted Tab ──────────────────────────────────────
+function RecentlyDeletedPane() {
+  const supabase = createClient()
+  const [rows, setRows] = useState<Obituary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [permanentTarget, setPermanentTarget] = useState<Obituary | null>(null)
+  const [recoverTarget, setRecoverTarget] = useState<Obituary | null>(null)
+
+  const fetchDeleted = async () => {
+    const { data } = await supabase
+      .from('obituaries')
+      .select('*')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+    setRows(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchDeleted() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handlePermanentDelete = async () => {
+    if (!permanentTarget) return
+    await supabase.from('obituaries').delete().eq('id', permanentTarget.id)
+    setRows(r => r.filter(x => x.id !== permanentTarget.id))
+    setPermanentTarget(null)
+  }
+
+  const handleRecover = async () => {
+    if (!recoverTarget) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+
+    await supabase.from('obituaries').update({
+      deleted_at: null,
+      deleted_by: null,
+      delete_reason: null,
+      delete_comment: null,
+    }).eq('id', recoverTarget.id)
+
+    await logActivity({
+      category: 'log',
+      event_type: 'obituary_recovered',
+      entity_table: 'obituaries',
+      entity_id: recoverTarget.id,
+      actor_id: user?.id,
+      actor_name: actorName,
+      message: `${actorName} recovered obituary for ${recoverTarget.full_name}`,
+      metadata: { full_name: recoverTarget.full_name },
+    })
+
+    setRows(r => r.filter(x => x.id !== recoverTarget.id))
+    setRecoverTarget(null)
+  }
+
+  if (loading) return (
+    <div className="py-16 flex justify-center">
+      <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
+        <Trash2 className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+          Records here are permanently removed after 30 days. You can recover them or delete them immediately.
+        </p>
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState message="No recently deleted obituaries." />
+      ) : (
+        <div className="space-y-3">
+          {rows.map(o => {
+            const daysLeft = o.deleted_at ? daysUntilPermanentDelete(o.deleted_at) : 0
+            return (
+              <div key={o.id} className="bg-card border border-border rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="font-semibold text-sm text-foreground truncate">{o.full_name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Deleted: {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString() : '—'}
+                    {' · '}Reason: {o.delete_reason ?? '—'}
+                    {o.delete_comment ? ` (${o.delete_comment})` : ''}
+                  </p>
+                  <p className={`text-[11px] font-semibold ${daysLeft <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
+                    {daysLeft} day{daysLeft !== 1 ? 's' : ''} until permanent deletion
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setRecoverTarget(o)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Recover
+                  </button>
+                  <button
+                    onClick={() => setPermanentTarget(o)}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-bold hover:bg-red-500/20 transition-colors"
+                  >
+                    <Trash2 className="h-3 w-3" /> Delete Forever
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {permanentTarget && (
+        <PermanentDeleteModal
+          obituary={permanentTarget}
+          onClose={() => setPermanentTarget(null)}
+          onConfirm={handlePermanentDelete}
+        />
+      )}
+      {recoverTarget && (
+        <RecoverConfirmModal
+          obituary={recoverTarget}
+          onClose={() => setRecoverTarget(null)}
+          onConfirm={handleRecover}
+        />
+      )}
+    </div>
+  )
+}
+
+// ── Obituaries Tab ────────────────────────────────────────────
+type ObituaryView = 'active' | 'deleted'
+
 export function ObituariesTab() {
   const supabase = createClient()
-  const [rows, setRows]       = useState<Obituary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<Obituary | null>(null)
+  const [rows, setRows]             = useState<Obituary[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [selected, setSelected]     = useState<Obituary | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [view, setView]             = useState<ObituaryView>('active')
 
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<Obituary | null>(null)
+
+  // Edit fields
   const [editFirst,   setEditFirst]   = useState('')
   const [editMiddle,  setEditMiddle]  = useState('')
   const [editLast,    setEditLast]    = useState('')
@@ -220,10 +578,17 @@ export function ObituariesTab() {
   const [editContact, setEditContact] = useState('')
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    supabase.from('obituaries').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => { setRows(data ?? []); setLoading(false) })
-  }, [supabase])
+  const fetchActive = async () => {
+    const { data } = await supabase
+      .from('obituaries')
+      .select('*')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+    setRows(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchActive() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const openEdit = (o: Obituary) => {
     setSelected(o)
@@ -258,7 +623,9 @@ export function ObituariesTab() {
 
   const togglePublish = async (id: string, current: boolean) => {
     const { data: { user } } = supabase.auth.getUser ? await supabase.auth.getUser() : { data: { user: null } }
-    const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
     const obit = rows.find(r => r.id === id)
 
     await supabase.from('obituaries').update({ is_published: !current }).eq('id', id)
@@ -277,6 +644,37 @@ export function ObituariesTab() {
     })
   }
 
+  const handleSoftDelete = async (reason: string, comment: string) => {
+    if (!deleteTarget) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+
+    await supabase.from('obituaries').update({
+      deleted_at:     new Date().toISOString(),
+      deleted_by:     user?.id ?? null,
+      delete_reason:  reason,
+      delete_comment: comment || null,
+      is_published:   false,
+    }).eq('id', deleteTarget.id)
+
+    await logActivity({
+      category:     'log',
+      event_type:   'obituary_deleted',
+      entity_table: 'obituaries',
+      entity_id:    deleteTarget.id,
+      actor_id:     user?.id,
+      actor_name:   actorName,
+      message:      `${actorName} deleted obituary for ${deleteTarget.full_name} (Reason: ${reason})`,
+      metadata:     { full_name: deleteTarget.full_name, reason, comment: comment || null },
+    })
+
+    if (selected?.id === deleteTarget.id) setSelected(null)
+    setRows(r => r.filter(x => x.id !== deleteTarget.id))
+    setDeleteTarget(null)
+  }
+
   const getPhotoUrl = (path: string) => {
     if (!path || path === 'obituaries/placeholder.png') return null
     return supabase.storage.from('obituaries').getPublicUrl(path).data.publicUrl
@@ -286,134 +684,200 @@ export function ObituariesTab() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <SectionHeader title="Obituaries" sub={`${rows.length} records · ${rows.filter(r => r.is_published).length} published`} />
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all"
-        >
-          <Plus className="h-3.5 w-3.5" /> Create Tarp
-        </button>
+        <SectionHeader
+          title="Obituaries"
+          sub={`${rows.length} active · ${rows.filter(r => r.is_published).length} published`}
+        />
+        {view === 'active' && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all"
+          >
+            <Plus className="h-3.5 w-3.5" /> Create Tarp
+          </button>
+        )}
       </div>
 
+      {/* Sub-tab toggle */}
+      <FilterPills<ObituaryView>
+        options={[
+          { value: 'active',  label: 'Active' },
+          { value: 'deleted', label: 'Recently Deleted' },
+        ]}
+        active={view}
+        onChange={v => { setView(v); setSelected(null) }}
+      />
+
+      {/* Create modal */}
       {showCreateModal && (
         <CreateTarpModal
           onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            supabase.from('obituaries').select('*').order('created_at', { ascending: false })
-              .then(({ data }) => setRows(data ?? []))
-          }}
+          onSuccess={() => { fetchActive() }}
         />
       )}
 
-      {rows.length === 0 ? <EmptyState message="No obituary records yet." /> : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {rows.map(o => {
-            const parts = o.full_name.trim().split(' ')
-            const first  = parts[0] ?? ''
-            const last   = parts.slice(-1)[0] ?? ''
-            const middle = parts.length > 2 ? parts.slice(1, -1).join(' ') : ''
-            return (
-              <div key={o.id} className={`bg-card border rounded-2xl overflow-hidden transition-all ${selected?.id === o.id ? 'border-primary shadow-md' : 'border-border hover:border-primary/40'}`}>
-                <div className="p-3 bg-muted/20 border-b border-border">
-                  <TarpPreview
-                    firstName={first} middleName={middle} lastName={last}
-                    birthDate={o.birth_date ?? ''} deathDate={o.death_date ?? ''}
-                    age={o.age ?? ''} photoUrl={getPhotoUrl(o.image_path)}
-                    venueAddress={o.venue_address ?? ''} contactNumber={o.contact_number ?? ''}
-                    showDownload
-                  />
-                </div>
-                <div className="px-4 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-sm text-foreground truncate">{o.full_name}</p>
-                    <p className="text-[10px] text-muted-foreground">{o.submitter_name ?? ''} · {o.submitter_email ?? ''}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge label={o.is_published ? 'Published' : 'Draft'} variant={o.is_published ? 'green' : 'muted'} />
-                    <button onClick={() => openEdit(o)}
-                      className="h-7 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors">
-                      Edit
-                    </button>
-                    <button onClick={() => togglePublish(o.id, o.is_published)}
-                      className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${o.is_published ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500' : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'}`}>
-                      {o.is_published ? 'Unpublish' : 'Publish'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* Delete modal */}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          obituary={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={handleSoftDelete}
+        />
       )}
 
-      {selected && (
-        <div className="bg-card border border-primary/30 rounded-2xl overflow-hidden shadow-lg">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h3 className="text-sm font-bold text-foreground">Edit Obituary — Live Preview</h3>
-            <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">✕ Close</button>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
-            <div className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { label: 'First Name',   value: editFirst,   set: setEditFirst,   placeholder: 'e.g. Juan' },
-                  { label: 'Middle Name',  value: editMiddle,  set: setEditMiddle,  placeholder: 'optional' },
-                  { label: 'Last Name',    value: editLast,    set: setEditLast,    placeholder: 'e.g. Dela Cruz' },
-                ].map(f => (
-                  <div key={f.label} className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</label>
-                    <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} className={inputCls} />
+      {/* ── Active view ── */}
+      {view === 'active' && (
+        <>
+          {rows.length === 0 ? (
+            <EmptyState message="No obituary records yet." />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {rows.map(o => {
+                const parts  = o.full_name.trim().split(' ')
+                const first  = parts[0] ?? ''
+                const last   = parts.slice(-1)[0] ?? ''
+                const middle = parts.length > 2 ? parts.slice(1, -1).join(' ') : ''
+                return (
+                  <div
+                    key={o.id}
+                    className={`bg-card border rounded-2xl overflow-hidden transition-all ${
+                      selected?.id === o.id ? 'border-primary shadow-md' : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="p-3 bg-muted/20 border-b border-border">
+                      <TarpPreview
+                        firstName={first} middleName={middle} lastName={last}
+                        birthDate={o.birth_date ?? ''} deathDate={o.death_date ?? ''}
+                        age={o.age ?? ''} photoUrl={getPhotoUrl(o.image_path)}
+                        venueAddress={o.venue_address ?? ''} contactNumber={o.contact_number ?? ''}
+                        showDownload
+                      />
+                    </div>
+                    <div className="px-4 py-3 flex items-center justify-between gap-2 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-foreground truncate">{o.full_name}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {o.submitter_name ?? ''}{o.submitter_email ? ` · ${o.submitter_email}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                        <Badge label={o.is_published ? 'Published' : 'Draft'} variant={o.is_published ? 'green' : 'muted'} />
+                        <button
+                          onClick={() => openEdit(o)}
+                          className="h-7 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => togglePublish(o.id, o.is_published)}
+                          className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${
+                            o.is_published
+                              ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
+                              : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                          }`}
+                        >
+                          {o.is_published ? 'Unpublish' : 'Publish'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(o)}
+                          className="h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-[10px] font-bold hover:bg-red-500/20 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                ))}
+                )
+              })}
+            </div>
+          )}
+
+          {/* Edit panel */}
+          {selected && (
+            <div className="bg-card border border-primary/30 rounded-2xl overflow-hidden shadow-lg">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 className="text-sm font-bold text-foreground">Edit Obituary — Live Preview</h3>
+                <button onClick={() => setSelected(null)} className="text-xs text-muted-foreground hover:text-foreground">✕ Close</button>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Birth Date', value: editBirth, set: setEditBirth, type: 'date' },
-                  { label: 'Death Date', value: editDeath, set: setEditDeath, type: 'date' },
-                  { label: 'Age',        value: editAge,   set: setEditAge,   type: 'number' },
-                ].map(f => (
-                  <div key={f.label} className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</label>
-                    <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} className={inputCls} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border">
+                <div className="px-6 py-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: 'First Name',  value: editFirst,  set: setEditFirst,  placeholder: 'e.g. Juan' },
+                      { label: 'Middle Name', value: editMiddle, set: setEditMiddle, placeholder: 'optional' },
+                      { label: 'Last Name',   value: editLast,   set: setEditLast,   placeholder: 'e.g. Dela Cruz' },
+                    ].map(f => (
+                      <div key={f.label} className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</label>
+                        <input value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder} className={inputCls} />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Venue / Address</label>
-                <input value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contact Number</label>
-                <input value={editContact} onChange={e => setEditContact(e.target.value)} className={inputCls} />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
-                  {saving ? 'Saving…' : 'Save Changes'}
-                </Button>
-                <button
-                  onClick={() => togglePublish(selected.id, selected.is_published)}
-                  className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${selected.is_published ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500' : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'}`}
-                >
-                  {selected.is_published ? 'Unpublish' : 'Publish'}
-                </button>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { label: 'Birth Date', value: editBirth, set: setEditBirth, type: 'date' },
+                      { label: 'Death Date', value: editDeath, set: setEditDeath, type: 'date' },
+                      { label: 'Age',        value: editAge,   set: setEditAge,   type: 'number' },
+                    ].map(f => (
+                      <div key={f.label} className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</label>
+                        <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} className={inputCls} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Venue / Address</label>
+                    <input value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contact Number</label>
+                    <input value={editContact} onChange={e => setEditContact(e.target.value)} className={inputCls} />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
+                      {saving ? 'Saving…' : 'Save Changes'}
+                    </Button>
+                    <button
+                      onClick={() => togglePublish(selected.id, selected.is_published)}
+                      className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${
+                        selected.is_published
+                          ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
+                          : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
+                      }`}
+                    >
+                      {selected.is_published ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(selected)}
+                      className="h-10 px-3 rounded-xl text-sm font-bold border border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-all"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="px-6 py-5 bg-muted/10 flex flex-col gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live Tarp Preview</p>
+                  <TarpPreview
+                    firstName={editFirst || 'FIRST'} middleName={editMiddle}
+                    lastName={editLast || 'LAST'} birthDate={editBirth}
+                    deathDate={editDeath} age={editAge}
+                    photoUrl={getPhotoUrl(selected.image_path)}
+                    venueAddress={editVenue} contactNumber={editContact}
+                    showDownload
+                  />
+                  <p className="text-[10px] text-muted-foreground">Updates as you type. Save to persist changes.</p>
+                </div>
               </div>
             </div>
-            <div className="px-6 py-5 bg-muted/10 flex flex-col gap-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Live Tarp Preview</p>
-              <TarpPreview
-                firstName={editFirst || 'FIRST'} middleName={editMiddle}
-                lastName={editLast || 'LAST'} birthDate={editBirth}
-                deathDate={editDeath} age={editAge}
-                photoUrl={getPhotoUrl(selected.image_path)}
-                venueAddress={editVenue} contactNumber={editContact}
-                showDownload
-              />
-              <p className="text-[10px] text-muted-foreground">Updates as you type. Save to persist changes.</p>
-            </div>
-          </div>
-        </div>
+          )}
+        </>
       )}
+
+      {/* ── Recently Deleted view ── */}
+      {view === 'deleted' && <RecentlyDeletedPane />}
     </div>
   )
 }
