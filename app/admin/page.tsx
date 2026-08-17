@@ -20,21 +20,57 @@ import {
   LayoutDashboard, Mail, CreditCard,
   Grid3X3, ScrollText, UserCircle2, ShieldAlert,
   ClipboardList, LogOut, Menu, X, Receipt,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
-type Tab = 'overview' | 'inquiries' | 'payments' | 'columbarium' | 'obituaries' | 'profiles' | 'availments' | 'transactions'
+type Tab = 'overview' | 'availments' | 'columbarium' | 'payments' | 'transactions' | 'obituaries' | 'profiles' | 'inquiries'
 
+// ── Logical workflow order ────────────────────────────────────
+// 1. Overview         — dashboard at a glance
+// 2. Funeral Services — core operations: document submissions
+// 3. Columbarium      — core operations: slot management
+// 4. Payments         — financial: payment approvals
+// 5. Transactions     — financial: full transaction register
+// 6. Obituaries       — content: publish/manage tarps
+// 7. Profiles         — settings-type: user management (admin only)
+// 8. Inquiries        — always last per spec
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',      label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
-  { id: 'availments',    label: 'Funeral Services',  icon: <ClipboardList className="h-4 w-4" /> },
-  { id: 'payments',      label: 'Payments',          icon: <CreditCard className="h-4 w-4" /> },
-  { id: 'transactions',  label: 'Transactions',      icon: <Receipt className="h-4 w-4" /> },
-  { id: 'columbarium',   label: 'Columbarium',       icon: <Grid3X3 className="h-4 w-4" /> },
-  { id: 'obituaries',    label: 'Obituaries',        icon: <ScrollText className="h-4 w-4" /> },
-  { id: 'profiles',      label: 'Profiles',          icon: <UserCircle2 className="h-4 w-4" /> },
-  { id: 'inquiries',     label: 'Inquiries',         icon: <Mail className="h-4 w-4" /> },
+  { id: 'overview',     label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: 'availments',   label: 'Funeral Services', icon: <ClipboardList   className="h-4 w-4" /> },
+  { id: 'columbarium',  label: 'Columbarium',      icon: <Grid3X3         className="h-4 w-4" /> },
+  { id: 'payments',     label: 'Payments',         icon: <CreditCard      className="h-4 w-4" /> },
+  { id: 'transactions', label: 'Transactions',     icon: <Receipt         className="h-4 w-4" /> },
+  { id: 'obituaries',   label: 'Obituaries',       icon: <ScrollText      className="h-4 w-4" /> },
+  { id: 'profiles',     label: 'Profiles',         icon: <UserCircle2     className="h-4 w-4" /> },
+  { id: 'inquiries',    label: 'Inquiries',        icon: <Mail            className="h-4 w-4" /> },
 ]
+
+// ── Nav item — works for both expanded and collapsed state ────
+function NavItem({
+  tab, isActive, collapsed, onClick,
+}: {
+  tab: typeof TABS[number]
+  isActive: boolean
+  collapsed: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={collapsed ? tab.label : undefined}
+      className={`w-full flex items-center gap-3 rounded-lg font-medium transition-all text-left
+        ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}
+        ${isActive
+          ? 'bg-primary text-primary-foreground shadow-sm'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        }`}
+    >
+      <span className="shrink-0">{tab.icon}</span>
+      {!collapsed && <span className="text-sm truncate">{tab.label}</span>}
+    </button>
+  )
+}
 
 export default function AdminPage() {
   const supabase = createClient()
@@ -42,7 +78,8 @@ export default function AdminPage() {
 
   const [profile,    setProfile]    = useState<Profile | null | undefined>(undefined)
   const [activeTab,  setActiveTab]  = useState<Tab>('overview')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen,   setSidebarOpen]   = useState(false)   // mobile overlay
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop collapse
   const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -95,74 +132,102 @@ export default function AdminPage() {
   const currentRole = profile.role as UserRole
 
   const tabContent: Record<Tab, React.ReactNode> = {
-    overview:    <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
-      if (paymentId) setHighlightPaymentId(paymentId)
-      setActiveTab(tab as Tab)
-    }} />,
-    inquiries:   <InquiriesTab staffName={profile.name} />,
-    availments:  <DocumentSubmissionsTab currentRole={currentRole} />,
-    payments:      <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
-    transactions:  <TransactionRegisterTab currentRole={currentRole} />,
-    columbarium: <ColumbariumTab />,
-    obituaries:  <ObituariesTab />,
-    profiles:    <ProfilesTab currentRole={currentRole} />,
+    overview:     <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
+                    if (paymentId) setHighlightPaymentId(paymentId)
+                    setActiveTab(tab as Tab)
+                  }} />,
+    availments:   <DocumentSubmissionsTab currentRole={currentRole} />,
+    columbarium:  <ColumbariumTab />,
+    payments:     <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
+    transactions: <TransactionRegisterTab currentRole={currentRole} />,
+    obituaries:   <ObituariesTab />,
+    profiles:     <ProfilesTab currentRole={currentRole} />,
+    inquiries:    <InquiriesTab staffName={profile.name} />,
   }
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)
 
   return (
-    // Full-screen admin shell — does NOT use the app's root <Footer>
-    // because admin has its own sidebar-based layout.
     <div className="flex h-screen overflow-hidden bg-background">
 
       {/* ════════════════════════════════════════
           DESKTOP LEFT SIDEBAR
           ════════════════════════════════════════ */}
-      <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border bg-card">
-
+      <aside
+        className={`hidden md:flex flex-col shrink-0 border-r border-border bg-card transition-all duration-200 relative
+          ${sidebarCollapsed ? 'w-[60px]' : 'w-[280px]'}`}
+      >
+        {/* Inner wrapper clips content during animation without hiding the toggle button */}
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Brand */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border/60">
-          <Image src="/logo.png" alt="M. P. Gayeta" width={34} height={34} className="rounded-full object-cover shrink-0" />
-          <div className="flex flex-col min-w-0">
-            <span className="font-serif text-sm font-bold leading-tight text-foreground truncate">M. P. GAYETA</span>
-            <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans truncate">
-              {profile.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
-            </span>
-          </div>
+        <div className={`flex items-center border-b border-border/60 transition-all duration-200
+          ${sidebarCollapsed ? 'justify-center px-0 py-4' : 'gap-2.5 px-4 py-5'}`}
+        >
+          <Image src="/logo.png" alt="M. P. Gayeta" width={sidebarCollapsed ? 30 : 34} height={sidebarCollapsed ? 30 : 34} className="rounded-full object-cover shrink-0" />
+          {!sidebarCollapsed && (
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="font-serif text-sm font-bold leading-tight text-foreground truncate">M. P. GAYETA</span>
+              <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans truncate">
+                {profile.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        <nav className={`flex-1 overflow-y-auto py-3 space-y-0.5 ${sidebarCollapsed ? 'px-1.5' : 'px-2'}`}>
           {TABS.map(tab => (
-            <button
+            <NavItem
               key={tab.id}
+              tab={tab}
+              isActive={activeTab === tab.id}
+              collapsed={sidebarCollapsed}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
-                activeTab === tab.id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
+            />
           ))}
         </nav>
 
         {/* Bottom: theme toggle + logout */}
-        <div className="px-4 py-4 border-t border-border/60 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Appearance</span>
-            <ThemeToggle />
-          </div>
+        <div className={`border-t border-border/60 space-y-2 py-3 ${sidebarCollapsed ? 'px-1.5' : 'px-3'}`}>
+          {sidebarCollapsed ? (
+            <div className="flex justify-center py-1">
+              <ThemeToggle />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between px-3 py-1">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Appearance</span>
+              <ThemeToggle />
+            </div>
+          )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+            title={sidebarCollapsed ? 'Sign Out' : undefined}
+            className={`w-full flex items-center rounded-lg py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all
+              ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}
           >
-            <LogOut className="h-4 w-4" />
-            Sign Out
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && 'Sign Out'}
           </button>
         </div>
+
+        </div>{/* end inner overflow-hidden wrapper */}
+
+        {/* ── Collapse toggle — vertical pill on the right edge, vertically centered ── */}
+        <button
+          onClick={() => setSidebarCollapsed(v => !v)}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className="absolute top-1/2 -translate-y-1/2 -right-[20px] z-20
+            h-16 w-5 rounded-r-lg
+            bg-card border-y border-r border-border/60
+            flex items-center justify-center
+            text-muted-foreground hover:text-foreground
+            transition-all duration-150"
+        >
+          {sidebarCollapsed
+            ? <ChevronRight className="h-4 w-4" />
+            : <ChevronLeft  className="h-4 w-4" />
+          }
+        </button>
       </aside>
 
       {/* ════════════════════════════════════════
@@ -170,9 +235,8 @@ export default function AdminPage() {
           ════════════════════════════════════════ */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Top bar — desktop shows page title + notifications / mobile shows hamburger */}
+        {/* Top bar */}
         <header className="flex items-center justify-between h-14 px-5 border-b border-border bg-card shrink-0">
-          {/* Left: hamburger (mobile) or page title (desktop) */}
           <div className="flex items-center gap-3">
             {/* Mobile hamburger */}
             <button
@@ -200,10 +264,8 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Right: notifications + theme toggle (mobile) */}
           <div className="flex items-center gap-2">
             <NotificationPanel />
-            {/* Theme toggle visible on mobile in header */}
             <div className="md:hidden">
               <ThemeToggle />
             </div>
@@ -216,8 +278,6 @@ export default function AdminPage() {
             {tabContent[activeTab]}
           </div>
         </main>
-
-
       </div>
 
       {/* ════════════════════════════════════════
@@ -225,15 +285,11 @@ export default function AdminPage() {
           ════════════════════════════════════════ */}
       {sidebarOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
-
-          {/* Slide-in panel */}
           <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col md:hidden animate-in slide-in-from-left duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
               <div className="flex items-center gap-2.5">
                 <Image src="/logo.png" alt="logo" width={32} height={32} className="rounded-full object-cover" />
@@ -252,7 +308,6 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* Nav */}
             <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
               {TABS.map(tab => (
                 <button
@@ -270,7 +325,6 @@ export default function AdminPage() {
               ))}
             </nav>
 
-            {/* Bottom */}
             <div className="px-4 py-4 border-t border-border/60 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Appearance</span>

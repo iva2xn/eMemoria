@@ -95,7 +95,7 @@
 1. **Delete Account button** — admin can delete or accept/decline a client's deletion request. 2-step confirmation required.
 2. **Role change** — 2-step confirmation popup before applying a role change.
 
---- DONE
+--- 
 
 ### Columbarium Tab
 
@@ -112,7 +112,7 @@
 - **Logically reorder** the nav tab list (arrange by workflow: Overview → relevant operations → settings-type tabs at the end, Inquiries last).
 - **Collapsible** navigation bar.
 
----
+--- DONE
 
 ### General Admin Notes
 
