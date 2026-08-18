@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ConditionalFooter } from "@/components/conditional-footer"
 import { ThemeProvider } from "@/components/theme-provider"
+import { LastPageTracker } from "@/components/last-page-tracker"
 import "./globals.css"
 
 const font = Inter({
@@ -28,6 +29,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground transition-colors duration-300">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+          <LastPageTracker />
           <div className="flex flex-col flex-1 min-h-screen">
             {children}
             <ConditionalFooter />

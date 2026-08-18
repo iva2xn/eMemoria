@@ -24,7 +24,14 @@ import {
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
-type Tab = 'overview' | 'availments' | 'columbarium' | 'payments' | 'transactions' | 'obituaries' | 'profiles' | 'inquiries'
+const VALID_TABS = ['overview','availments','columbarium','payments','transactions','obituaries','profiles','inquiries'] as const
+type Tab = typeof VALID_TABS[number]
+
+function getTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'overview'
+  const hash = window.location.hash.replace('#', '')
+  return (VALID_TABS as readonly string[]).includes(hash) ? (hash as Tab) : 'overview'
+}
 
 // ── Logical workflow order ────────────────────────────────────
 // 1. Overview         — dashboard at a glance
@@ -77,9 +84,28 @@ export default function AdminPage() {
   const router   = useRouter()
 
   const [profile,    setProfile]    = useState<Profile | null | undefined>(undefined)
-  const [activeTab,  setActiveTab]  = useState<Tab>('overview')
-  const [sidebarOpen,   setSidebarOpen]   = useState(false)   // mobile overlay
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop collapse
+  const [activeTab,  setActiveTab]  = useState<Tab>(getTabFromHash)
+
+  const setTab = (tab: Tab) => {
+    window.location.hash = tab
+    setActiveTab(tab)
+  }
+
+  // Keep activeTab in sync if the user navigates with browser back/forward
+  useEffect(() => {
+    const onHashChange = () => setActiveTab(getTabFromHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  const [sidebarOpen, setSidebarOpen] = useState(false) // mobile overlay
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('admin:sidebarCollapsed') === 'true'
+  })
+  const setSidebarCollapsedPersist = (v: boolean) => {
+    localStorage.setItem('admin:sidebarCollapsed', String(v))
+    setSidebarCollapsed(v)
+  }
   const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -99,8 +125,9 @@ export default function AdminPage() {
   // Staff cannot access profiles tab — redirect to overview
   useEffect(() => {
     if (profile?.role === 'staff' && activeTab === 'profiles') {
-      setActiveTab('overview')
+      setTab('overview')
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, activeTab])
 
   const handleLogout = async () => {
@@ -141,7 +168,7 @@ export default function AdminPage() {
   const tabContent: Record<Tab, React.ReactNode> = {
     overview:     <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
                     if (paymentId) setHighlightPaymentId(paymentId)
-                    setActiveTab(tab as Tab)
+                    setTab(tab as Tab)
                   }} />,
     availments:   <DocumentSubmissionsTab currentRole={currentRole} />,
     columbarium:  <ColumbariumTab />,
@@ -194,7 +221,7 @@ export default function AdminPage() {
               tab={tab}
               isActive={activeTab === tab.id}
               collapsed={sidebarCollapsed}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => setTab(tab.id)}
             />
           ))}
         </nav>
@@ -226,7 +253,7 @@ export default function AdminPage() {
 
         {/* ── Collapse toggle — vertical pill on the right edge, vertically centered ── */}
         <button
-          onClick={() => setSidebarCollapsed(v => !v)}
+          onClick={() => setSidebarCollapsedPersist(!sidebarCollapsed)}
           title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           className="absolute top-1/2 -translate-y-1/2 -right-[20px] z-20
             h-16 w-5 rounded-r-lg
@@ -324,7 +351,7 @@ export default function AdminPage() {
               {visibleTabs.map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setSidebarOpen(false) }}
+                  onClick={() => { setTab(tab.id); setSidebarOpen(false) }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
                     activeTab === tab.id
                       ? 'bg-primary text-primary-foreground'
