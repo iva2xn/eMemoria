@@ -96,6 +96,13 @@ export default function AdminPage() {
     }
   }, [profile, router])
 
+  // Staff cannot access profiles tab — redirect to overview
+  useEffect(() => {
+    if (profile?.role === 'staff' && activeTab === 'profiles') {
+      setActiveTab('overview')
+    }
+  }, [profile, activeTab])
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -147,6 +154,11 @@ export default function AdminPage() {
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)
 
+  // Staff cannot access the Profiles tab — redirect to overview if they somehow land there
+  const visibleTabs = currentRole === 'admin'
+    ? TABS
+    : TABS.filter(t => t.id !== 'profiles')
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
 
@@ -176,7 +188,7 @@ export default function AdminPage() {
 
         {/* Nav */}
         <nav className={`flex-1 overflow-y-auto py-3 space-y-0.5 ${sidebarCollapsed ? 'px-1.5' : 'px-2'}`}>
-          {TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <NavItem
               key={tab.id}
               tab={tab}
@@ -309,7 +321,7 @@ export default function AdminPage() {
             </div>
 
             <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-              {TABS.map(tab => (
+              {visibleTabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setSidebarOpen(false) }}

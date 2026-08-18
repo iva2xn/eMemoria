@@ -160,6 +160,19 @@ export interface PaymentInfo {
   updated_at: string
 }
 
+export interface ClientNotification {
+  id: string
+  user_id: string
+  event_type: string
+  entity_table: string
+  entity_id: string | null
+  message: string
+  metadata: Record<string, unknown> | null
+  action_url: string | null
+  is_read: boolean
+  created_at: string
+}
+
 // Convenience type for the full DB shape (used by createClient generics)
 export interface Database {
   public: {

@@ -141,6 +141,7 @@ function PermanentDeleteModal({
   onClose: () => void
   onConfirm: () => Promise<void>
 }) {
+  const [step, setStep]       = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
@@ -157,22 +158,48 @@ function PermanentDeleteModal({
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-red-500" />
-              <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
+                <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
+              </div>
             </div>
             <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="px-6 py-5 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
-            </p>
-            <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-              <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
-                {loading ? 'Deleting…' : 'Delete Forever'}
-              </Button>
-            </div>
+            {step === 1 ? (
+              <>
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1">Warning — Permanent Deletion</p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+                  <Button type="button" onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                    Next →
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
+                  <p className="text-sm text-foreground">
+                    Permanently delete <span className="font-semibold">"{obituary.full_name}"</span>?
+                  </p>
+                  <p className="text-[11px] text-red-600 font-medium">This cannot be undone.</p>
+                </div>
+                <div className="flex gap-3">
+                  <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
+                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                    {loading ? 'Deleting…' : 'Delete Forever'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

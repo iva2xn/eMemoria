@@ -75,7 +75,11 @@ function StatusContent() {
           <h2 className="font-serif text-xl font-bold text-foreground">Under Review</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Your documents have been submitted and are currently being reviewed by our staff.
-            You will receive an email notification once a decision has been made.
+            You will be notified here and in your{' '}
+            <Link href="/notifications" className="text-primary font-semibold hover:underline">
+              notifications
+            </Link>{' '}
+            once a decision has been made.
           </p>
           <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
             <span className="relative flex h-2 w-2">

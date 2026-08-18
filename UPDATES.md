@@ -112,7 +112,7 @@
 - **Logically reorder** the nav tab list (arrange by workflow: Overview → relevant operations → settings-type tabs at the end, Inquiries last).
 - **Collapsible** navigation bar.
 
---- DONE
+--- 
 
 ### General Admin Notes
 
@@ -122,7 +122,7 @@
   - Profile tab is hidden for staff.
   - Apply logical role-based access control throughout.
 
----
+---   DONE NEXT IS FINISHED BUT NEEDS TESTING AND POLISH
 
 ## CLIENT / CUSTOMER PORTAL
 

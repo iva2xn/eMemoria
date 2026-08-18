@@ -9,14 +9,15 @@ import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
 import { NotificationPanel } from '@/components/admin/notification-panel'
+import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon } from 'lucide-react'
 
 const NAV_LINKS = [
-  { name: 'Home',             href: '/',         authRequired: false },
-  { name: 'Obituaries',       href: '/obituaries', authRequired: true },
-  { name: 'Funeral Services', href: '/services', authRequired: false },
-  { name: 'About Us',         href: '/about',    authRequired: false },
-  { name: 'Contact',          href: '/contact',  authRequired: false },
+  { name: 'Home',             href: '/',               authRequired: false },
+  { name: 'Obituaries',       href: '/obituaries',     authRequired: true },
+  { name: 'Funeral Services', href: '/services',       authRequired: false },
+  { name: 'About Us',         href: '/about',          authRequired: false },
+  { name: 'Contact',          href: '/contact',        authRequired: false },
 ]
 
 // Module-level cache — survives page navigations (component remounts)
@@ -286,11 +287,17 @@ export function HeroHeader() {
           )}
           {authReady && (
             profile ? (
-              <Button variant="ghost" size="icon" onClick={handleLogout}
-                className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                title="Logout">
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <>
+                {/* Client notification bell — only for non-admin/staff */}
+                {profile.role === 'client' && (
+                  <ClientNotificationBell userId={profile.id} />
+                )}
+                <Button variant="ghost" size="icon" onClick={handleLogout}
+                  className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  title="Logout">
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </>
             ) : (
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" className="rounded-full" asChild>
@@ -375,9 +382,21 @@ export function HeroHeader() {
               )}
               {authReady && (
                 profile ? (
-                  <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors">
-                    <LogOut className="h-4 w-4" /> Sign Out
-                  </button>
+                  <>
+                    {/* Client notification link — mobile */}
+                    {profile.role === 'client' && (
+                      <Link
+                        href="/notifications"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <UserIcon className="h-4 w-4" /> Notifications
+                      </Link>
+                    )}
+                    <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors">
+                      <LogOut className="h-4 w-4" /> Sign Out
+                    </button>
+                  </>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     <Button variant="outline" size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>

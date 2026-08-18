@@ -47,12 +47,14 @@ function LoginContent() {
         .eq('id', signInData.user.id)
         .single()
       if (profile?.role === 'admin' || profile?.role === 'staff') {
-        window.location.href = '/admin'
+        window.location.replace('/admin')
         return
       }
     }
 
-    window.location.href = nextUrl
+    // Use replace so login doesn't sit in the back-stack —
+    // clicking Back from the destination goes to wherever the user was before login
+    window.location.replace(nextUrl)
   }
 
   // Send a password-reset email
