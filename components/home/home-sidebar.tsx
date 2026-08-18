@@ -145,9 +145,12 @@ export function HomeSidebar({
             </button>
           )}
 
-          {/* User card */}
+          {/* User card — clickable, links to profile */}
           {authReady && profile && !collapsed && (
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 border border-border/50">
+            <Link
+              href="/profile"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 border border-border/50 hover:border-primary/40 hover:bg-muted/80 transition-all group"
+            >
               <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
                 <span className="text-xs font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
               </div>
@@ -155,7 +158,20 @@ export function HomeSidebar({
                 <p className="text-xs font-semibold text-foreground truncate">{profile.name}</p>
                 <p className="text-[10px] text-muted-foreground capitalize">{profile.role}</p>
               </div>
-            </div>
+            </Link>
+          )}
+
+          {/* Collapsed-state profile icon */}
+          {authReady && profile && collapsed && (
+            <Link
+              href="/profile"
+              title="Your Profile"
+              className="w-full flex items-center justify-center px-0 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+            >
+              <div className="h-6 w-6 rounded-full bg-primary/15 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
+              </div>
+            </Link>
           )}
 
           {/* Sign out */}

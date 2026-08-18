@@ -7,7 +7,23 @@ import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { KeyRound, Mail, ShieldCheck, Check, X } from 'lucide-react'
+import { checkPassword, isPasswordStrong } from '@/lib/password-strength'
+
+function PasswordChecklist({ password }: { password: string }) {
+  if (!password) return null
+  const checks = checkPassword(password)
+  return (
+    <ul className="mt-2 space-y-1">
+      {checks.map(c => (
+        <li key={c.label} className={`flex items-center gap-1.5 text-[11px] font-medium ${c.pass ? 'text-primary' : 'text-muted-foreground'}`}>
+          {c.pass ? <Check className="h-3 w-3 shrink-0" /> : <X className="h-3 w-3 shrink-0" />}
+          {c.label}
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 // Step 1 — collect email and send OTP
 // Step 2 — enter OTP to verify identity
@@ -77,7 +93,10 @@ function ResetPasswordForm() {
     setError('')
 
     if (!password)            { setError('Please enter a new password.'); return }
-    if (password.length < 6)  { setError('Password must be at least 6 characters.'); return }
+    if (!isPasswordStrong(password)) {
+      setError('Password does not meet the requirements.')
+      return
+    }
     if (password !== confirm)  { setError('Passwords do not match.'); return }
 
     setLoading(true)
@@ -186,6 +205,7 @@ function ResetPasswordForm() {
                 onChange={e => setPassword(e.target.value)}
                 icon={<KeyRound className="h-4.5 w-4.5" />}
               />
+              <PasswordChecklist password={password} />
               <FormField
                 id="confirm" label="Confirm Password" type="password"
                 placeholder="••••••••" value={confirm}

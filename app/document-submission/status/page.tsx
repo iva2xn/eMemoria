@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react'
 import type { DocumentSubmission } from '@/lib/supabase/types'
@@ -158,8 +158,8 @@ function StatusContent() {
 
 export default function DocumentSubmissionStatusPage() {
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
         <Suspense fallback={
           <div className="py-32 flex justify-center">
@@ -169,6 +169,6 @@ export default function DocumentSubmissionStatusPage() {
           <StatusContent />
         </Suspense>
       </main>
-    </>
+    </ClientLayout>
   )
 }

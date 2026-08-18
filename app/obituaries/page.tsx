@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, ScrollText } from 'lucide-react'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { TarpCard, type RichObituary } from '@/components/obituaries/tarp-card'
@@ -49,8 +49,8 @@ export default function ObituariesPage() {
   }, [supabase])
 
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
 
       <main className="flex-1 bg-background">
         <div className="border-b border-border/40 bg-muted/20 px-6 py-10 text-center">
@@ -106,6 +106,6 @@ export default function ObituariesPage() {
       )}
 
       {showModal && <ObituarySubmitModal onClose={() => setShowModal(false)} />}
-    </>
+    </ClientLayout>
   )
 }

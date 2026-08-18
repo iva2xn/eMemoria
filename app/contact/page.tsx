@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { ContactDetailsBar } from '@/components/contact/contact-details-bar'
 import { MapBlock } from '@/components/contact/map-block'
 import { InquiryFormCard } from '@/components/contact/inquiry-form-card'
@@ -59,8 +59,8 @@ export default function ContactPage() {
   }
 
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         <div className="max-w-2xl mx-auto px-6 pt-16 pb-6 text-center">
@@ -108,6 +108,6 @@ export default function ContactPage() {
         </div>
 
       </main>
-    </>
+    </ClientLayout>
   )
 }

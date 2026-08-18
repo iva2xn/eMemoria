@@ -1,7 +1,7 @@
 import React from 'react'
 import { Metadata } from 'next'
 import Image from 'next/image'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { Phone, Mail, MapPin } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         {/* ── HERO — mirrors homepage layout, text panel on the RIGHT ── */}
@@ -91,6 +91,6 @@ export default function AboutPage() {
         </section>
 
       </main>
-    </>
+    </ClientLayout>
   )
 }

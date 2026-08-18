@@ -122,7 +122,7 @@
   - Profile tab is hidden for staff.
   - Apply logical role-based access control throughout.
 
----   DONE NEXT IS FINISHED BUT NEEDS TESTING AND POLISH
+---  
 
 ## CLIENT / CUSTOMER PORTAL
 
@@ -133,7 +133,7 @@
 3. **In-site notifications** — all communication (payment status, approvals, rejections, etc.) should happen within the site via a notification system. Notifications should be clickable and redirect logically. Email is only for: (a) inquiries from landing page (non-logged-in users) and (b) OTP.
 4. **Client notification tab** — implement notifications for the client side.
 
-### Account / Profile Tab *(New)*
+### Account / Profile Tab *(New)* DDONE test features
 
 - Profile picture upload (max 10MB).
 - Edit: First name, Middle initial, Last name, Suffix (separate fields).

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { ServiceCard } from '@/components/ui/service-card'
 
 // SERVICE REGISTRY — static list of all offered services.
@@ -52,8 +52,8 @@ export default function ServicesPage() {
   }, [])
 
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
         <section className="py-16 md:py-24">
 
@@ -102,6 +102,6 @@ export default function ServicesPage() {
 
         </section>
       </main>
-    </>
+    </ClientLayout>
   )
 }

@@ -11,6 +11,15 @@ export interface Profile {
   email: string
   phone: string | null
   role: UserRole
+  // Split name fields (migration 021)
+  first_name:     string | null
+  middle_initial: string | null
+  last_name:      string | null
+  suffix:         string | null
+  avatar_path:    string | null
+  // Account deletion request (migration 021)
+  deletion_requested_at: string | null
+  deletion_reason:       string | null
   created_at: string
   updated_at: string
 }

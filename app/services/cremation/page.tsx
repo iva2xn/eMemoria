@@ -1,7 +1,7 @@
 import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { UrnCard } from '@/components/ui/urn-card'
 import { ArrowLeft } from 'lucide-react'
@@ -17,8 +17,8 @@ const URNS = [
 
 export default function CremationPage() {
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         {/* ── HERO — truly full bleed, no radius, no border ── */}
@@ -127,6 +127,6 @@ export default function CremationPage() {
         </section>
 
       </main>
-    </>
+    </ClientLayout>
   )
 }

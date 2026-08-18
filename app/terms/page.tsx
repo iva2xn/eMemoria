@@ -1,6 +1,6 @@
 import React from 'react'
 import { Metadata } from 'next'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { ProseCard } from '@/components/ui/prose-card'
 
 export const metadata: Metadata = {
@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function TermsOfServicePage() {
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <div className="container mx-auto max-w-4xl px-4 py-12 md:py-20">
         <ProseCard title="Terms of Use" subtitle="Last Updated: March 20, 2026">
           <p>
@@ -34,6 +34,6 @@ export default function TermsOfServicePage() {
           </p>
         </ProseCard>
       </div>
-    </>
+    </ClientLayout>
   )
 }

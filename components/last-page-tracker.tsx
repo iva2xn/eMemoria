@@ -3,29 +3,28 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
-// Pages that should never be saved as "last visited" —
-// auth pages, admin, and the home root itself.
-const EXCLUDED = ['/', '/auth/login', '/auth/register', '/auth/reset-password', '/admin']
+const EXCLUDED_PREFIXES = ['/auth', '/admin']
+const EXCLUDED_EXACT    = ['/']
 
-const KEY = 'site:lastPage'
+export const LAST_PAGE_KEY = 'site:lastPage'
 
 /**
- * Silently records the current pathname to localStorage on every navigation.
- * Drop this in the root layout — it has no visible output.
+ * Saves the current page to localStorage on every navigation,
+ * excluding home, auth, and admin routes.
+ * Rendered in the root layout — no visible output.
  */
 export function LastPageTracker() {
   const pathname = usePathname()
 
   useEffect(() => {
-    const shouldSave = !EXCLUDED.some(ex =>
-      pathname === ex || pathname.startsWith('/auth') || pathname.startsWith('/admin')
-    )
-    if (shouldSave) {
-      localStorage.setItem(KEY, pathname)
+    const isExcluded =
+      EXCLUDED_EXACT.includes(pathname) ||
+      EXCLUDED_PREFIXES.some(p => pathname.startsWith(p))
+
+    if (!isExcluded) {
+      localStorage.setItem(LAST_PAGE_KEY, pathname)
     }
   }, [pathname])
 
   return null
 }
-
-export const LAST_PAGE_KEY = KEY

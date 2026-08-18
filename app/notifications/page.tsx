@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import {
   Bell, Check, CheckCheck, FileText, CreditCard,
@@ -221,18 +221,18 @@ export default function NotificationsPage() {
   // ── Loading / auth pending ────────────────────────────────────
   if (!userId || loading) {
     return (
-      <>
-        <HeroHeader />
+      <ClientLayout>
+  
         <main className="flex-1 flex items-center justify-center py-32">
           <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </main>
-      </>
+      </ClientLayout>
     )
   }
 
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         {/* Hero strip */}
@@ -328,6 +328,6 @@ export default function NotificationsPage() {
 
         </div>
       </main>
-    </>
+    </ClientLayout>
   )
 }

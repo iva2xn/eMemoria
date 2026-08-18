@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { SlotGrid } from '@/components/columbarium/slot-grid'
 import { SlotModal } from '@/components/columbarium/slot-modal'
 import { InfoBlocks } from '@/components/columbarium/info-blocks'
@@ -37,8 +37,8 @@ export default function ColumbariumPage() {
   }
 
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         {/* Hero */}
@@ -120,6 +120,6 @@ export default function ColumbariumPage() {
           onClose={() => setModal(null)}
         />
       )}
-    </>
+    </ClientLayout>
   )
 }

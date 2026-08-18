@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { HeroHeader } from '@/components/header'
+import { ClientLayout } from '@/components/client-layout'
 import { BillingForm } from '@/components/billing/billing-form'
 
 function BillingContent() {
@@ -165,8 +165,8 @@ function BillingContent() {
 
 export default function BillingPage() {
   return (
-    <>
-      <HeroHeader />
+    <ClientLayout>
+
       <main className="flex-1 bg-background">
 
         <div className="border-b border-border/40 bg-muted/20 px-6 py-10 text-center">
@@ -186,6 +186,6 @@ export default function BillingPage() {
         </Suspense>
 
       </main>
-    </>
+    </ClientLayout>
   )
 }
