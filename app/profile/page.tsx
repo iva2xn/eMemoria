@@ -73,7 +73,7 @@ function DeleteAccountModal({
         </div>
         <div className="px-6 py-5 space-y-4">
           {step === 1 ? (
-            <ClientLayout>
+            <>
               <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
                 <p className="text-xs text-foreground leading-relaxed">
                   Your account will be scheduled for deletion after a <strong>30-day grace period</strong>. You can cancel the request anytime before then by signing in.
@@ -100,9 +100,9 @@ function DeleteAccountModal({
                   Next →
                 </Button>
               </div>
-            </ClientLayout>
+            </>
           ) : (
-            <ClientLayout>
+            <>
               <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3 space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
                 <p className="text-sm text-foreground">Submit your account deletion request?</p>
@@ -118,7 +118,7 @@ function DeleteAccountModal({
                   {loading ? 'Submitting…' : 'Request Deletion'}
                 </Button>
               </div>
-            </ClientLayout>
+            </>
           )}
         </div>
       </div>

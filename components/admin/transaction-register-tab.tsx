@@ -1244,7 +1244,7 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
           <p className="text-xs text-muted-foreground mt-0.5">{allRows.length} total records · {voidedRows.length} voided</p>
         </div>
         <button
-          onClick={() => setExportPreview({} as { rows: TxRow[]; format: ExportFormat; scope: ExportScope })}
+          onClick={() => setExportPreview(true)}
           className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors">
           <Download className="h-3.5 w-3.5" /> Export
         </button>
