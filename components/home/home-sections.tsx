@@ -21,10 +21,16 @@ export function HomeSections() {
       {/* ── Stats ticker bar ── */}
       <section className="px-4 sm:px-6 pt-3 pb-0 w-full">
         <div className="mx-auto max-w-6xl">
-          <div className="bg-card border border-border rounded-3xl px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-4 divide-x divide-border">
-            {STATS.map((s) => (
-              <div key={s.label} className="text-center px-4">
-                <p className="font-serif text-3xl font-bold text-primary">{s.value}</p>
+        <div className="bg-card border border-border rounded-3xl px-4 sm:px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-0">
+            {STATS.map((s, i) => (
+              <div key={s.label} className={`text-center py-2 px-3 sm:px-4 ${
+                i % 2 !== 0 ? 'border-l border-border' : ''
+              } ${
+                i >= 2 ? 'mt-4 md:mt-0 border-t border-border md:border-t-0' : ''
+              } ${
+                i > 0 ? 'md:border-l md:border-border' : ''
+              }`}>
+                <p className="font-serif text-2xl sm:text-3xl font-bold text-primary">{s.value}</p>
                 <p className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</p>
               </div>
             ))}
@@ -116,28 +122,28 @@ export function HomeSections() {
               <div className="flex flex-col gap-5 md:gap-7">
                 
                 {/* Row 1: COMPASSIONATE + Paragraph */}
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/40 pb-5 md:pb-6">
-                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-border/40 pb-5 md:pb-6">
+                  <h2 className="font-sans text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase">
                     Compassionate
                   </h2>
-                  <p className="text-[11px] text-muted-foreground max-w-[230px] md:text-right leading-relaxed font-medium shrink-0 pt-1">
+                  <p className="text-[11px] text-muted-foreground max-w-xs sm:max-w-[230px] sm:text-right leading-relaxed font-medium shrink-0 pt-1">
                     Our dedicated professionals guide you through every step, ensuring comfort and dignity during difficult times.
                   </p>
                 </div>
 
                 {/* Row 2: CARE FOR EVERY (Centered) */}
                 <div className="flex justify-center w-full border-b border-border/40 pb-5 md:pb-6">
-                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground/40 leading-none uppercase text-center">
+                  <h2 className="font-sans text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground/40 leading-none uppercase text-center">
                     Care For Every
                   </h2>
                 </div>
 
                 {/* Row 3: Paragraph + FAMILY */}
-                <div className="flex flex-col-reverse md:flex-row md:items-end justify-between gap-4">
-                  <p className="text-[11px] text-muted-foreground max-w-[240px] leading-relaxed pb-1 font-medium">
+                <div className="flex flex-col-reverse sm:flex-row sm:items-end justify-between gap-3">
+                  <p className="text-[11px] text-muted-foreground max-w-xs sm:max-w-[240px] leading-relaxed pb-1 font-medium">
                     Serving families across Quezon Province since 2004 with integrity, respect, and customized packages.
                   </p>
-                  <h2 className="font-sans text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase shrink-0">
+                  <h2 className="font-sans text-3xl sm:text-4xl lg:text-[2.75rem] font-black tracking-tight text-foreground leading-none uppercase shrink-0">
                     Family
                   </h2>
                 </div>

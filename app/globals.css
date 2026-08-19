@@ -168,8 +168,78 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    /* Slightly larger base — comfortable reading without being jarring */
+    font-size: 17px;
+  }
+
   body {
     @apply bg-background text-foreground;
+    /* Smooth colour transitions for theme toggle */
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  /* ── Global cursor & interaction hints ─────────────────────── */
+  button,
+  [role="button"],
+  label[for],
+  a,
+  select,
+  [tabindex]:not([tabindex="-1"]) {
+    cursor: pointer;
+  }
+
+  input[type="file"] {
+    cursor: pointer;
+  }
+
+  /* ── Global transition baseline ──────────────────────────────
+     Applied only to colour / border / opacity properties so
+     layout shifts stay instant. Does NOT affect transform or
+     position — those are handled per-component for precision.  */
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    transition-property: color, background-color, border-color, opacity, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+
+  /* ── Custom select styling ────────────────────────────────────
+     Hides the browser-native arrow everywhere and applies the
+     site's accent focus ring, so ALL selects look consistent
+     regardless of which component renders them.              */
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 20' fill='%236e7f75'%3E%3Cpath d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.875rem center;
+    padding-right: 2.5rem !important;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: rgb(93, 123, 111);
+    box-shadow: 0 0 0 2px rgb(93 123 111 / 0.15);
+  }
+
+  .dark select:focus {
+    border-color: rgb(130, 170, 150);
+    box-shadow: 0 0 0 2px rgb(130 170 150 / 0.15);
+  }
+
+  /* ── Page-level fade-in ───────────────────────────────────────
+     Gives a subtle entrance feel when navigating between pages. */
+  main {
+    animation: page-fade-in 180ms ease both;
+  }
+
+  @keyframes page-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0);   }
   }
 }
 

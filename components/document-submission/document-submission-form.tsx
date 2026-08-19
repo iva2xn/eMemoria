@@ -32,13 +32,27 @@ function DocUpload({
   label: string; required?: boolean; hint?: string
   value: File | null; onChange: (f: File | null) => void
 }) {
+  const MAX_MB = 10
+  const MAX_BYTES = MAX_MB * 1024 * 1024
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null
+    if (f && f.size > MAX_BYTES) {
+      alert(`"${f.name}" exceeds the ${MAX_MB} MB limit. Please choose a smaller file.`)
+      e.target.value = ''
+      onChange(null)
+      return
+    }
+    onChange(f)
+  }
+
   return (
     <Field label={label} required={required} hint={hint}>
       <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group mt-1">
         <input
           type="file"
           accept="image/*,application/pdf"
-          onChange={e => onChange(e.target.files?.[0] ?? null)}
+          onChange={handleChange}
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
         />
         <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
@@ -262,7 +276,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             value={docBarangay} onChange={setDocBarangay}
           />
           <DocUpload
-            label="Valid ID" required
+            label="Valid ID of the Deceased Person" required
             hint="Any government-issued ID of the next of kin"
             value={docId} onChange={setDocId}
           />

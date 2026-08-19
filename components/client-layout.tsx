@@ -29,12 +29,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <HeroHeader />
       </div>
       <div
-        className="flex flex-col min-w-0 min-h-screen"
+        className="flex flex-col min-w-0 min-h-screen sidebar-content"
         style={{
-          marginLeft: collapsed ? '60px' : '280px',
           transition: 'margin-left 200ms ease-in-out',
         }}
       >
+        {/* Inject the lg margin as a scoped style so mobile gets 0 and desktop
+            gets the correct sidebar width — avoids inline style on mobile */}
+        <style>{`@media (min-width: 1024px) { .sidebar-content { margin-left: ${collapsed ? '60px' : '280px'}; } }`}</style>
         {children}
         <Footer />
       </div>

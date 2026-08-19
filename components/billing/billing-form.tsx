@@ -112,7 +112,14 @@ export function BillingForm({
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
-    if (f) { setFile(f); setFileName(f.name) }
+    if (f) {
+      if (f.size > 10 * 1024 * 1024) {
+        alert(`"${f.name}" exceeds the 10 MB limit. Please choose a smaller file.`)
+        e.target.value = ''
+        return
+      }
+      setFile(f); setFileName(f.name)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -279,7 +286,7 @@ export function BillingForm({
                       <p className="text-xs font-semibold text-foreground truncate px-4">
                         {fileName || 'Click or drag to upload receipt'}
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-1">JPEG, PNG, PDF · max 5 MB</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">JPEG, PNG, PDF · max 10 MB</p>
                     </div>
                   </Field>
 

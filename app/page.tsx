@@ -69,12 +69,10 @@ export default function HomePage() {
         the marginLeft being irrelevant below lg breakpoint.
       */}
       <div
-        className="flex flex-col min-w-0"
-        style={{
-          marginLeft: sidebarCollapsed ? '60px' : '280px',
-          transition: 'margin-left 200ms ease-in-out',
-        }}
+        className="flex flex-col min-w-0 home-content"
+        style={{ transition: 'margin-left 200ms ease-in-out' }}
       >
+        <style>{`@media (min-width: 1024px) { .home-content { margin-left: ${sidebarCollapsed ? '60px' : '280px'}; } }`}</style>
         <main className="overflow-x-hidden flex-1">
           <Suspense>
             <HeroSection />
