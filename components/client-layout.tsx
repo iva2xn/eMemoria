@@ -1,21 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { HomeSidebar } from '@/components/home/home-sidebar'
 import { HeroHeader } from '@/components/header'
+import { Footer } from '@/components/footer'
 
 const SIDEBAR_KEY = 'home:sidebarCollapsed'
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
-  // Always start collapsed — avoids SSR/client mismatch.
-  // useEffect syncs from localStorage after first paint.
-  const [collapsed, setCollapsed] = useState(true)
+function readCollapsed(): boolean {
+  if (typeof window === 'undefined') return true
+  const stored = localStorage.getItem(SIDEBAR_KEY)
+  return stored !== null ? stored === 'true' : true
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(SIDEBAR_KEY)
-    // If never set, keep collapsed (default). Otherwise restore saved state.
-    if (stored !== null) setCollapsed(stored === 'true')
-  }, [])
+export function ClientLayout({ children }: { children: React.ReactNode }) {
+  // Lazy initializer reads localStorage synchronously — no useEffect flash
+  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed)
 
   const handleCollapsedChange = (v: boolean) => {
     localStorage.setItem(SIDEBAR_KEY, String(v))
@@ -36,6 +36,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         {children}
+        <Footer />
       </div>
     </div>
   )

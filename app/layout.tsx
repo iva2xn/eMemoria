@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { ConditionalFooter } from "@/components/conditional-footer"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LastPageTracker } from "@/components/last-page-tracker"
 import "./globals.css"
@@ -32,7 +31,6 @@ export default function RootLayout({
           <LastPageTracker />
           <div className="flex flex-col flex-1 min-h-screen">
             {children}
-            <ConditionalFooter />
           </div>
         </ThemeProvider>
       </body>

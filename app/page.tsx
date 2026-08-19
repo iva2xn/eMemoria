@@ -6,20 +6,23 @@ import { HeroHeader } from '@/components/header'
 import { HomeSidebar } from '@/components/home/home-sidebar'
 import { HeroSection } from '@/components/home/hero-section'
 import { HomeSections } from '@/components/home/home-sections'
+import { Footer } from '@/components/footer'
 import { LAST_PAGE_KEY } from '@/components/last-page-tracker'
 
 const SIDEBAR_KEY  = 'home:sidebarCollapsed'
 const HOME_SEEN_KEY = 'home:seen' // sessionStorage — cleared when tab closes
 
+function readCollapsed(): boolean {
+  if (typeof window === 'undefined') return true
+  const stored = localStorage.getItem(SIDEBAR_KEY)
+  return stored !== null ? stored === 'true' : true
+}
+
 export default function HomePage() {
   const router = useRouter()
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
-
-  useEffect(() => {
-    const stored = localStorage.getItem(SIDEBAR_KEY)
-    if (stored !== null) setSidebarCollapsed(stored === 'true')
-  }, [])
+  // Lazy initializer — reads localStorage synchronously, no flash
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(readCollapsed)
 
   const handleSidebarChange = (v: boolean) => {
     localStorage.setItem(SIDEBAR_KEY, String(v))
@@ -78,6 +81,7 @@ export default function HomePage() {
           </Suspense>
           <HomeSections />
         </main>
+        <Footer />
       </div>
     </div>
   )
