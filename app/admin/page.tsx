@@ -16,15 +16,16 @@ import { ObituariesTab }  from '@/components/admin/obituaries-tab'
 import { ProfilesTab }    from '@/components/admin/profiles-tab'
 import { DocumentSubmissionsTab } from '@/components/admin/document-submissions-tab'
 import { TransactionRegisterTab } from '@/components/admin/transaction-register-tab'
+import { WakeScheduleTab } from '@/components/admin/wake-schedule-tab'
 import {
   LayoutDashboard, Mail, CreditCard,
   Grid3X3, ScrollText, UserCircle2, ShieldAlert,
   ClipboardList, LogOut, Menu, X, Receipt,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Moon,
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
-const VALID_TABS = ['overview','availments','columbarium','payments','transactions','obituaries','profiles','inquiries'] as const
+const VALID_TABS = ['overview','availments','wake-schedule','columbarium','payments','transactions','obituaries','profiles','inquiries'] as const
 type Tab = typeof VALID_TABS[number]
 
 function getTabFromHash(): Tab {
@@ -36,21 +37,23 @@ function getTabFromHash(): Tab {
 // ── Logical workflow order ────────────────────────────────────
 // 1. Overview         — dashboard at a glance
 // 2. Funeral Services — core operations: document submissions
-// 3. Columbarium      — core operations: slot management
-// 4. Payments         — financial: payment approvals
-// 5. Transactions     — financial: full transaction register
-// 6. Obituaries       — content: publish/manage tarps
-// 7. Profiles         — settings-type: user management (admin only)
-// 8. Inquiries        — always last per spec
+// 3. Wake Schedule    — coffin/casket service schedules & extension requests
+// 4. Columbarium      — core operations: slot management
+// 5. Payments         — financial: payment approvals
+// 6. Transactions     — financial: full transaction register
+// 7. Obituaries       — content: publish/manage tarps
+// 8. Profiles         — settings-type: user management (admin only)
+// 9. Inquiries        — always last per spec
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview',     label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
-  { id: 'availments',   label: 'Funeral Services', icon: <ClipboardList   className="h-4 w-4" /> },
-  { id: 'columbarium',  label: 'Columbarium',      icon: <Grid3X3         className="h-4 w-4" /> },
-  { id: 'payments',     label: 'Payments',         icon: <CreditCard      className="h-4 w-4" /> },
-  { id: 'transactions', label: 'Transactions',     icon: <Receipt         className="h-4 w-4" /> },
-  { id: 'obituaries',   label: 'Obituaries',       icon: <ScrollText      className="h-4 w-4" /> },
-  { id: 'profiles',     label: 'Profiles',         icon: <UserCircle2     className="h-4 w-4" /> },
-  { id: 'inquiries',    label: 'Inquiries',        icon: <Mail            className="h-4 w-4" /> },
+  { id: 'overview',       label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: 'availments',     label: 'Funeral Services', icon: <ClipboardList   className="h-4 w-4" /> },
+  { id: 'wake-schedule',  label: 'Wake Schedule',    icon: <Moon            className="h-4 w-4" /> },
+  { id: 'columbarium',    label: 'Columbarium',      icon: <Grid3X3         className="h-4 w-4" /> },
+  { id: 'payments',       label: 'Payments',         icon: <CreditCard      className="h-4 w-4" /> },
+  { id: 'transactions',   label: 'Transactions',     icon: <Receipt         className="h-4 w-4" /> },
+  { id: 'obituaries',     label: 'Obituaries',       icon: <ScrollText      className="h-4 w-4" /> },
+  { id: 'profiles',       label: 'Profiles',         icon: <UserCircle2     className="h-4 w-4" /> },
+  { id: 'inquiries',      label: 'Inquiries',        icon: <Mail            className="h-4 w-4" /> },
 ]
 
 // ── Nav item — works for both expanded and collapsed state ────
@@ -166,17 +169,18 @@ export default function AdminPage() {
   const currentRole = profile.role as UserRole
 
   const tabContent: Record<Tab, React.ReactNode> = {
-    overview:     <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
-                    if (paymentId) setHighlightPaymentId(paymentId)
-                    setTab(tab as Tab)
-                  }} />,
-    availments:   <DocumentSubmissionsTab currentRole={currentRole} />,
-    columbarium:  <ColumbariumTab />,
-    payments:     <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
-    transactions: <TransactionRegisterTab currentRole={currentRole} />,
-    obituaries:   <ObituariesTab />,
-    profiles:     <ProfilesTab currentRole={currentRole} />,
-    inquiries:    <InquiriesTab staffName={profile.name} />,
+    overview:       <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
+                      if (paymentId) setHighlightPaymentId(paymentId)
+                      setTab(tab as Tab)
+                    }} />,
+    availments:     <DocumentSubmissionsTab currentRole={currentRole} />,
+    'wake-schedule': <WakeScheduleTab currentRole={currentRole} />,
+    columbarium:    <ColumbariumTab />,
+    payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
+    transactions:   <TransactionRegisterTab currentRole={currentRole} />,
+    obituaries:     <ObituariesTab />,
+    profiles:       <ProfilesTab currentRole={currentRole} />,
+    inquiries:      <InquiriesTab staffName={profile.name} />,
   }
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)

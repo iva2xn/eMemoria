@@ -175,7 +175,7 @@
 - Payment portal pre-fills available info. Amount is fixed/calculated — not editable by client.
 - Payment proof is required.
 
-### Wake Schedule Tab *(New)*
+### Wake Schedule Tab *(New)* ✅ DONE
 
 **Client:**
 - View their scheduled wake.

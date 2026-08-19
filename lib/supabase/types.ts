@@ -184,6 +184,41 @@ export interface ClientNotification {
   created_at: string
 }
 
+export type WakeRequestType   = 'extension' | 'location_change'
+export type WakeRequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface Wake {
+  id: string
+  booking_id: string | null
+  user_id: string | null
+  deceased_name: string
+  pickup_datetime: string | null
+  burial_location: string | null
+  burial_location_other: string | null
+  wake_start_date: string | null
+  wake_end_date: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface WakeExtensionRequest {
+  id: string
+  wake_id: string
+  user_id: string
+  request_type: WakeRequestType
+  requested_end_date: string | null
+  new_location: string | null
+  new_location_other: string | null
+  status: WakeRequestStatus
+  rejection_reason: string | null
+  rejection_comment: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // Convenience type for the full DB shape (used by createClient generics)
 export interface Database {
   public: {
@@ -196,6 +231,8 @@ export interface Database {
       obituaries: { Row: Obituary; Insert: Omit<Obituary, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Obituary> }
       document_submissions: { Row: DocumentSubmission; Insert: Omit<DocumentSubmission, 'id' | 'created_at' | 'updated_at'>; Update: Partial<DocumentSubmission> }
       payment_info: { Row: PaymentInfo; Insert: never; Update: Partial<Omit<PaymentInfo, 'id' | 'updated_at'>> }
+      wakes: { Row: Wake; Insert: Omit<Wake, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Wake> }
+      wake_extension_requests: { Row: WakeExtensionRequest; Insert: Omit<WakeExtensionRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeExtensionRequest> }
     }
     Functions: {
       admin_delete_user: {

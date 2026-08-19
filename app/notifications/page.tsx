@@ -28,19 +28,21 @@ function timeAgo(iso: string): string {
 
 function NotifIcon({ eventType }: { eventType: string }) {
   const cls = 'h-4 w-4'
-  if (eventType === 'payment_approved')  return <Check        className={cls} />
-  if (eventType === 'payment_rejected')  return <AlertCircle  className={cls} />
-  if (eventType === 'payment_voided')    return <AlertCircle  className={cls} />
-  if (eventType === 'payment_pending')   return <Clock        className={cls} />
-  if (eventType === 'doc_approved')      return <CheckCheck   className={cls} />
-  if (eventType === 'doc_rejected')      return <FileText     className={cls} />
-  if (eventType === 'doc_pending')       return <FileText     className={cls} />
+  if (eventType === 'payment_approved')       return <Check        className={cls} />
+  if (eventType === 'payment_rejected')       return <AlertCircle  className={cls} />
+  if (eventType === 'payment_voided')         return <AlertCircle  className={cls} />
+  if (eventType === 'payment_pending')        return <Clock        className={cls} />
+  if (eventType === 'doc_approved')           return <CheckCheck   className={cls} />
+  if (eventType === 'doc_rejected')           return <FileText     className={cls} />
+  if (eventType === 'doc_pending')            return <FileText     className={cls} />
+  if (eventType === 'wake_request_approved')  return <Check        className={cls} />
+  if (eventType === 'wake_request_rejected')  return <AlertCircle  className={cls} />
   return <CreditCard className={cls} />
 }
 
 function iconBg(eventType: string): string {
-  if (eventType === 'payment_approved' || eventType === 'doc_approved')  return 'bg-primary text-primary-foreground'
-  if (eventType === 'payment_rejected' || eventType === 'doc_rejected')  return 'bg-red-500 text-white'
+  if (eventType === 'payment_approved' || eventType === 'doc_approved' || eventType === 'wake_request_approved')  return 'bg-primary text-primary-foreground'
+  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-red-500 text-white'
   if (eventType === 'payment_voided')                                     return 'bg-red-400 text-white'
   if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-amber-500 text-white'
   return 'bg-muted text-muted-foreground'
@@ -48,13 +50,15 @@ function iconBg(eventType: string): string {
 
 function typeLabel(eventType: string): string {
   const map: Record<string, string> = {
-    payment_approved: 'Payment Approved',
-    payment_rejected: 'Payment Not Approved',
-    payment_voided:   'Payment Voided',
-    payment_pending:  'Payment Received',
-    doc_approved:     'Documents Approved',
-    doc_rejected:     'Documents Not Approved',
-    doc_pending:      'Documents Received',
+    payment_approved:      'Payment Approved',
+    payment_rejected:      'Payment Not Approved',
+    payment_voided:        'Payment Voided',
+    payment_pending:       'Payment Received',
+    doc_approved:          'Documents Approved',
+    doc_rejected:          'Documents Not Approved',
+    doc_pending:           'Documents Received',
+    wake_request_approved: 'Wake Request Approved',
+    wake_request_rejected: 'Wake Request Not Approved',
   }
   return map[eventType] ?? 'Update'
 }

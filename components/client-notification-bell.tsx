@@ -22,19 +22,21 @@ function timeAgo(iso: string): string {
 
 function NotifIcon({ eventType, className }: { eventType: string; className?: string }) {
   const cls = className ?? 'h-3.5 w-3.5'
-  if (eventType === 'payment_approved')  return <Check        className={cls} />
-  if (eventType === 'payment_rejected')  return <AlertCircle  className={cls} />
-  if (eventType === 'payment_voided')    return <AlertCircle  className={cls} />
-  if (eventType === 'payment_pending')   return <Clock        className={cls} />
-  if (eventType === 'doc_approved')      return <CheckCheck   className={cls} />
-  if (eventType === 'doc_rejected')      return <FileText     className={cls} />
-  if (eventType === 'doc_pending')       return <FileText     className={cls} />
+  if (eventType === 'payment_approved')       return <Check        className={cls} />
+  if (eventType === 'payment_rejected')       return <AlertCircle  className={cls} />
+  if (eventType === 'payment_voided')         return <AlertCircle  className={cls} />
+  if (eventType === 'payment_pending')        return <Clock        className={cls} />
+  if (eventType === 'doc_approved')           return <CheckCheck   className={cls} />
+  if (eventType === 'doc_rejected')           return <FileText     className={cls} />
+  if (eventType === 'doc_pending')            return <FileText     className={cls} />
+  if (eventType === 'wake_request_approved')  return <Check        className={cls} />
+  if (eventType === 'wake_request_rejected')  return <AlertCircle  className={cls} />
   return <CreditCard className={cls} />
 }
 
 function dotColor(eventType: string): string {
-  if (eventType === 'payment_approved' || eventType === 'doc_approved')  return 'bg-primary'
-  if (eventType === 'payment_rejected' || eventType === 'doc_rejected')  return 'bg-red-500'
+  if (eventType === 'payment_approved' || eventType === 'doc_approved' || eventType === 'wake_request_approved')  return 'bg-primary'
+  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-red-500'
   if (eventType === 'payment_voided')                                     return 'bg-red-400'
   if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-amber-500'
   return 'bg-muted-foreground'

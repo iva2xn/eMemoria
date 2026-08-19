@@ -16,11 +16,12 @@ import {
 let cachedProfile: Profile | null | undefined = undefined
 
 const NAV = [
-  { href: '/',           label: 'Home',             icon: Home },
-  { href: '/services',   label: 'Funeral Services', icon: Layers },
-  { href: '/obituaries', label: 'Obituaries',       icon: ScrollText, authRequired: true },
-  { href: '/about',      label: 'About Us',         icon: Users },
-  { href: '/contact',    label: 'Contact',          icon: Phone },
+  { href: '/',              label: 'Home',             icon: Home },
+  { href: '/services',      label: 'Funeral Services', icon: Layers },
+  { href: '/obituaries',    label: 'Obituaries',       icon: ScrollText, authRequired: true },
+  { href: '/wake-schedule', label: 'Wake Schedule',    icon: Moon,       authRequired: true },
+  { href: '/about',         label: 'About Us',         icon: Users },
+  { href: '/contact',       label: 'Contact',          icon: Phone },
 ]
 
 export function HomeSidebar({
