@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview } from '@/components/ui/tarp-preview'
 import { Badge, SectionHeader, EmptyState, Spinner, FilterPills, inputCls } from './admin-primitives'
-import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw } from 'lucide-react'
+import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw, Eye } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
+import { createPortal } from 'react-dom'
 import type { Obituary } from '@/lib/supabase/types'
 
 // ── Shared helpers ────────────────────────────────────────────
@@ -23,6 +24,91 @@ const DELETE_REASONS = [
   'Test / placeholder record',
   'Other',
 ]
+
+// ── 2-Step Approve & Publish Modal ────────────────────────────
+function ApprovePublishModal({
+  obituary,
+  onClose,
+  onConfirm,
+}: {
+  obituary: Obituary
+  onClose: () => void
+  onConfirm: () => Promise<void>
+}) {
+  const [step, setStep]       = useState<1 | 2>(1)
+  const [loading, setLoading] = useState(false)
+
+  const getPhotoUrl = () => {
+    if (!obituary.image_path || obituary.image_path === 'obituaries/placeholder.png') return null
+    const supabase = require('@/lib/supabase/client').createClient()
+    return supabase.storage.from('obituaries').getPublicUrl(obituary.image_path).data.publicUrl
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-sm font-bold text-foreground">Approve & Publish Obituary</p>
+              <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {step === 1 ? (
+            <>
+              <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Name</span>
+                  <span className="font-bold text-foreground">{obituary.full_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Submitted</span>
+                  <span className="text-foreground">{new Date(obituary.created_at).toLocaleDateString('en-PH')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Submitter</span>
+                  <span className="text-foreground">{obituary.submitter_name ?? '—'}</span>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">Cancel</button>
+                <button onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all">
+                  Next →
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">Confirm Publication</p>
+                <p className="text-sm text-foreground">
+                  Publish <span className="font-semibold">"{obituary.full_name}"</span>? This will make it visible to all visitors.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">← Back</button>
+                <button
+                  onClick={async () => { setLoading(true); await onConfirm(); setLoading(false) }}
+                  disabled={loading}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                >
+                  {loading ? 'Publishing…' : 'Approve & Publish'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
 
 // ── Delete Confirm Modal ──────────────────────────────────────
 function DeleteConfirmModal({
@@ -594,6 +680,9 @@ export function ObituariesTab() {
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<Obituary | null>(null)
 
+  // Approve & Publish 2-step modal
+  const [approveTarget, setApproveTarget] = useState<Obituary | null>(null)
+
   // Edit fields
   const [editFirst,   setEditFirst]   = useState('')
   const [editMiddle,  setEditMiddle]  = useState('')
@@ -648,26 +737,44 @@ export function ObituariesTab() {
     setSaving(false)
   }
 
-  const togglePublish = async (id: string, current: boolean) => {
-    const { data: { user } } = supabase.auth.getUser ? await supabase.auth.getUser() : { data: { user: null } }
+  const approveAndPublish = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
     const actorName = user
       ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
       : 'Staff'
     const obit = rows.find(r => r.id === id)
 
-    await supabase.from('obituaries').update({ is_published: !current }).eq('id', id)
-    setRows(r => r.map(x => x.id === id ? { ...x, is_published: !current } : x))
-    if (selected?.id === id) setSelected(prev => prev ? { ...prev, is_published: !current } : null)
+    await supabase.from('obituaries').update({ is_approved: true, is_published: true }).eq('id', id)
+    setRows(r => r.map(x => x.id === id ? { ...x, is_approved: true, is_published: true } : x))
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, is_approved: true, is_published: true } : null)
+    setApproveTarget(null)
 
     await logActivity({
-      category:     'log',
-      event_type:   !current ? 'obituary_published' : 'obituary_unpublished',
-      entity_table: 'obituaries',
-      entity_id:    id,
-      actor_id:     user?.id,
-      actor_name:   actorName,
-      message:      `${actorName} ${!current ? 'published' : 'unpublished'} obituary for ${obit?.full_name ?? 'unknown'}`,
-      metadata:     { full_name: obit?.full_name },
+      category: 'log', event_type: 'obituary_published',
+      entity_table: 'obituaries', entity_id: id,
+      actor_id: user?.id, actor_name: actorName,
+      message: `${actorName} approved and published obituary for ${obit?.full_name ?? 'unknown'}`,
+      metadata: { full_name: obit?.full_name },
+    })
+  }
+
+  const unpublish = async (id: string) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+    const obit = rows.find(r => r.id === id)
+
+    await supabase.from('obituaries').update({ is_published: false }).eq('id', id)
+    setRows(r => r.map(x => x.id === id ? { ...x, is_published: false } : x))
+    if (selected?.id === id) setSelected(prev => prev ? { ...prev, is_published: false } : null)
+
+    await logActivity({
+      category: 'log', event_type: 'obituary_unpublished',
+      entity_table: 'obituaries', entity_id: id,
+      actor_id: user?.id, actor_name: actorName,
+      message: `${actorName} unpublished obituary for ${obit?.full_name ?? 'unknown'}`,
+      metadata: { full_name: obit?.full_name },
     })
   }
 
@@ -754,6 +861,15 @@ export function ObituariesTab() {
         />
       )}
 
+      {/* Approve & Publish 2-step modal */}
+      {approveTarget && (
+        <ApprovePublishModal
+          obituary={approveTarget}
+          onClose={() => setApproveTarget(null)}
+          onConfirm={() => approveAndPublish(approveTarget.id)}
+        />
+      )}
+
       {/* ── Active view ── */}
       {view === 'active' && (
         <>
@@ -790,7 +906,7 @@ export function ObituariesTab() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                        <Badge label={o.is_published ? 'Published' : 'Draft'} variant={o.is_published ? 'green' : 'muted'} />
+                        <Badge label={o.is_published ? 'Published' : o.is_approved ? 'Approved' : 'Pending'} variant={o.is_published ? 'green' : o.is_approved ? 'blue' : 'amber'} />
                         <button
                           onClick={() => openEdit(o)}
                           className="h-7 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors"
@@ -798,14 +914,14 @@ export function ObituariesTab() {
                           Edit
                         </button>
                         <button
-                          onClick={() => togglePublish(o.id, o.is_published)}
+                          onClick={() => o.is_published ? unpublish(o.id) : setApproveTarget(o)}
                           className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${
                             o.is_published
                               ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
                               : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
                           }`}
                         >
-                          {o.is_published ? 'Unpublish' : 'Publish'}
+                          {o.is_published ? 'Unpublish' : 'Approve & Publish'}
                         </button>
                         <button
                           onClick={() => setDeleteTarget(o)}
@@ -868,14 +984,14 @@ export function ObituariesTab() {
                       {saving ? 'Saving…' : 'Save Changes'}
                     </Button>
                     <button
-                      onClick={() => togglePublish(selected.id, selected.is_published)}
+                      onClick={() => selected.is_published ? unpublish(selected.id) : setApproveTarget(selected)}
                       className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${
                         selected.is_published
                           ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
                           : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
                       }`}
                     >
-                      {selected.is_published ? 'Unpublish' : 'Publish'}
+                      {selected.is_published ? 'Unpublish' : 'Approve & Publish'}
                     </button>
                     <button
                       onClick={() => setDeleteTarget(selected)}

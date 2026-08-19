@@ -98,12 +98,14 @@ export interface Payment {
 
 export interface Obituary {
   id: string
+  user_id: string | null        // migration 022 — submitter link
   full_name: string
   birth_date: string | null
   death_date: string | null
   age: number | null
   image_path: string
   is_published: boolean
+  is_approved: boolean          // migration 022
   venue_address: string | null
   contact_number: string | null
   submitter_name: string | null

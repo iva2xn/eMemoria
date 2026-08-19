@@ -17,7 +17,38 @@ interface TarpPreviewProps {
   showDownload?: boolean
 }
 
-function formatDisplayDate(dateStr: string) {
+// ── Age display helper ────────────────────────────────────────
+// Auto-computes from birth/death dates if age not provided.
+// "1 year old", "3 months old", etc.
+export function computeAge(
+  birthDate: string,
+  deathDate: string,
+  providedAge?: string | number | null,
+): string {
+  if (providedAge !== undefined && providedAge !== null && providedAge !== '') {
+    const n = Number(providedAge)
+    if (!isNaN(n)) return n === 1 ? '1 year old' : `${n} years old`
+  }
+  if (!birthDate || !deathDate) return ''
+  const b = new Date(birthDate + 'T00:00:00')
+  const d = new Date(deathDate + 'T00:00:00')
+  if (isNaN(b.getTime()) || isNaN(d.getTime())) return ''
+  let years  = d.getFullYear() - b.getFullYear()
+  let months = d.getMonth()    - b.getMonth()
+  if (d.getDate() < b.getDate()) months--
+  if (months < 0) { years--; months += 12 }
+  if (years < 1) {
+    const totalMonths = years * 12 + months
+    return totalMonths === 1 ? '1 month old' : `${totalMonths} months old`
+  }
+  return years === 1 ? '1 year old' : `${years} years old`
+}
+
+const BRANCH_INFO = [
+  'Main Branch: MAHARLIKA HIGHWAY, BRGY. SAMPALOC 2, SARIAYA, QUEZON',
+  'Branch: BRGY. MAYUWI TAYABAS CITY',
+  'Contact No.: 0916-797-8416',
+] as const
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }).toUpperCase()
@@ -212,7 +243,9 @@ export function TarpPreview({
                 <span style={dateStyle}>
                   {deathDate ? `DIED : ${formatDisplayDate(deathDate)}` : <span style={{ opacity: 0.3 }}>DIED : —</span>}
                 </span>
-                {age && <span style={dateStyle}>{age} YEARS OLD</span>}
+                {(age !== '' && age !== null && age !== undefined) && (
+                  <span style={dateStyle}>{computeAge(birthDate, deathDate, age)?.toUpperCase()}</span>
+                )}
               </div>
             </div>
           </div>
@@ -254,14 +287,22 @@ export function TarpPreview({
               M.G. FUNERAL HOMES
             </span>
           </div>
-          <div style={{ height: '60%', background: 'rgb(34,197,94)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 16px' }}>
-            <span style={{ fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: 17, color: 'white', letterSpacing: '0.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}
-              title={venueAddress}>
-              {venueAddress ? venueAddress.toUpperCase() : <span style={{ opacity: 0.4 }}>VENUE ADDRESS</span>}
-            </span>
-            <span style={{ fontFamily: 'Impact, "Arial Black", sans-serif', fontSize: 16, color: 'white', letterSpacing: '0.03em', whiteSpace: 'nowrap' }}>
-              {contactNumber ? `CONTACT NOS. : ${contactNumber}` : <span style={{ opacity: 0.4 }}>CONTACT NUMBER</span>}
-            </span>
+          <div style={{ height: '60%', background: 'rgb(34,197,94)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 16px', gap: 1 }}>
+            {BRANCH_INFO.map((line, i) => (
+              <span key={i} style={{
+                fontFamily: 'Impact, "Arial Black", sans-serif',
+                fontSize: i === 0 ? 11 : 12,
+                color: 'white',
+                letterSpacing: '0.02em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
+                textAlign: 'center',
+              }}>
+                {line}
+              </span>
+            ))}
           </div>
         </div>
 
