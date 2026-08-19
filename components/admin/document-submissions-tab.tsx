@@ -286,7 +286,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                   : (
                     <div className="grid grid-cols-2 gap-2">
                       {docs.map(d => (
-                        <DocImageCard key={d.label} path={d.path!} label={d.label} onLightbox={setLightbox} />
+                        <DocImageCard key={d.label} path={d.path!} label={d.label} onLightbox={(url, label) => setLightbox({ url, label })} />
                       ))}
                     </div>
                   )

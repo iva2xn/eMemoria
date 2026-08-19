@@ -133,7 +133,7 @@
 3. **In-site notifications** — all communication (payment status, approvals, rejections, etc.) should happen within the site via a notification system. Notifications should be clickable and redirect logically. Email is only for: (a) inquiries from landing page (non-logged-in users) and (b) OTP.
 4. **Client notification tab** — implement notifications for the client side.
 
-### Account / Profile Tab *(New)* DDONE test features
+### Account / Profile Tab *(New)* 
 
 - Profile picture upload (max 10MB).
 - Edit: First name, Middle initial, Last name, Suffix (separate fields).
@@ -145,16 +145,12 @@
   - Auto-detects duplicate emails ("This email has already been taken").
 - **Account deletion request** — client can request account deletion. 30-day grace period before permanent deletion.
 
-### Registration / Sign Up
+### Registration / Sign Up DDONE test features
 
 - Separate fields: First Name, Middle Initial, Last Name, Suffix (if any).
 - Checkbox to agree to Terms & Conditions before account creation.
 - Email duplicate detection ("This email has already been taken").
 - **Password complexity** — must include uppercase, lowercase, number, and special character.
-
-### Forgot Password
-
-- Same OTP verification flow as email change (enter email → send OTP → verify → change password).
 
 ### Obituaries (Client-facing)
 
