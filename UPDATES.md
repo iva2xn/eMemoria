@@ -152,7 +152,7 @@
 - Email duplicate detection ("This email has already been taken").
 - **Password complexity** — must include uppercase, lowercase, number, and special character.
 
-### Obituaries (Client-facing)
+### Obituaries (Client-facing) Done daw
 
 - **No longer public** — only the client who uploaded/was published to can see their obituary.
 - **2-tab layout inside Obituaries:**

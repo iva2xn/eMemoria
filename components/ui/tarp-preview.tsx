@@ -49,6 +49,8 @@ const BRANCH_INFO = [
   'Branch: BRGY. MAYUWI TAYABAS CITY',
   'Contact No.: 0916-797-8416',
 ] as const
+
+function formatDisplayDate(dateStr: string) {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' }).toUpperCase()
