@@ -10,6 +10,7 @@ import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw, Eye } from 
 import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
 import { createPortal } from 'react-dom'
+import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 import type { Obituary } from '@/lib/supabase/types'
 
 // ── Shared helpers ────────────────────────────────────────────
@@ -132,6 +133,7 @@ function DeleteConfirmModal({
   onClose: () => void
   onConfirm: (reason: string, comment: string) => Promise<void>
 }) {
+  useLockBodyScroll()
   const [step, setStep] = useState<1 | 2>(1)
   const [reason, setReason] = useState('')
   const [comment, setComment] = useState('')
@@ -151,81 +153,79 @@ function DeleteConfirmModal({
     setLoading(false)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <h2 className="text-sm font-bold text-foreground">Delete Obituary</h2>
-            </div>
-            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-red-500" />
+            <h2 className="text-sm font-bold text-foreground">Delete Obituary</h2>
           </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          <div className="px-6 py-5 space-y-4">
-            {step === 1 ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  Moving <span className="font-semibold text-foreground">"{obituary.full_name}"</span> to Recently Deleted.
-                  It will be permanently removed after 30 days.
-                </p>
-                {error && <AlertBanner variant="error" message={error} />}
+        <div className="px-6 py-5 space-y-4">
+          {step === 1 ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Moving <span className="font-semibold text-foreground">"{obituary.full_name}"</span> to Recently Deleted.
+                It will be permanently removed after 30 days.
+              </p>
+              {error && <AlertBanner variant="error" message={error} />}
+              <div className="space-y-1.5">
+                <label className={lbl}>Reason for deletion <span className="text-primary">*</span></label>
+                <select
+                  value={reason}
+                  onChange={e => { setReason(e.target.value); setError('') }}
+                  className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">Select a reason…</option>
+                  {DELETE_REASONS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              {reason === 'Other' && (
                 <div className="space-y-1.5">
-                  <label className={lbl}>Reason for deletion <span className="text-primary">*</span></label>
-                  <select
-                    value={reason}
-                    onChange={e => { setReason(e.target.value); setError('') }}
-                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="">Select a reason…</option>
-                    {DELETE_REASONS.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
+                  <label className={lbl}>Describe the reason <span className="text-primary">*</span></label>
+                  <textarea
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    rows={3}
+                    placeholder="Enter details…"
+                    className="w-full px-3 py-2 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all resize-none"
+                  />
                 </div>
-                {reason === 'Other' && (
-                  <div className="space-y-1.5">
-                    <label className={lbl}>Describe the reason <span className="text-primary">*</span></label>
-                    <textarea
-                      value={comment}
-                      onChange={e => setComment(e.target.value)}
-                      rows={3}
-                      placeholder="Enter details…"
-                      className="w-full px-3 py-2 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all resize-none"
-                    />
-                  </div>
-                )}
-                <div className="flex gap-3 pt-1">
-                  <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                  <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
-                    Next →
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Confirm Deletion</p>
-                  <p className="text-sm text-foreground font-semibold">{obituary.full_name}</p>
-                  <p className="text-xs text-muted-foreground">Reason: {reason}{reason === 'Other' && comment ? ` — ${comment}` : ''}</p>
-                  <p className="text-[11px] text-amber-600 font-medium">This will move the record to Recently Deleted for 30 days.</p>
-                </div>
-                <div className="flex gap-3 pt-1">
-                  <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
-                    {loading ? 'Deleting…' : 'Confirm Delete'}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+              )}
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+                <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  Next →
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Confirm Deletion</p>
+                <p className="text-sm text-foreground font-semibold">{obituary.full_name}</p>
+                <p className="text-xs text-muted-foreground">Reason: {reason}{reason === 'Other' && comment ? ` — ${comment}` : ''}</p>
+                <p className="text-[11px] text-amber-600 font-medium">This will move the record to Recently Deleted for 30 days.</p>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
+                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  {loading ? 'Deleting…' : 'Confirm Delete'}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -239,6 +239,7 @@ function PermanentDeleteModal({
   onClose: () => void
   onConfirm: () => Promise<void>
 }) {
+  useLockBodyScroll()
   const [step, setStep]       = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
 
@@ -248,60 +249,58 @@ function PermanentDeleteModal({
     setLoading(false)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-red-500" />
-              <div>
-                <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
-                <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
-              </div>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-red-500" />
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
+              <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
             </div>
-            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" />
-            </button>
           </div>
-          <div className="px-6 py-5 space-y-4">
-            {step === 1 ? (
-              <>
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1">Warning — Permanent Deletion</p>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                  <Button type="button" onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
-                    Next →
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
-                  <p className="text-sm text-foreground">
-                    Permanently delete <span className="font-semibold">"{obituary.full_name}"</span>?
-                  </p>
-                  <p className="text-[11px] text-red-600 font-medium">This cannot be undone.</p>
-                </div>
-                <div className="flex gap-3">
-                  <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
-                    {loading ? 'Deleting…' : 'Delete Forever'}
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {step === 1 ? (
+            <>
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1">Warning — Permanent Deletion</p>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+                <Button type="button" onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  Next →
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
+                <p className="text-sm text-foreground">
+                  Permanently delete <span className="font-semibold">"{obituary.full_name}"</span>?
+                </p>
+                <p className="text-[11px] text-red-600 font-medium">This cannot be undone.</p>
+              </div>
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
+                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  {loading ? 'Deleting…' : 'Delete Forever'}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -315,6 +314,7 @@ function RecoverConfirmModal({
   onClose: () => void
   onConfirm: () => Promise<void>
 }) {
+  useLockBodyScroll()
   const [loading, setLoading] = useState(false)
 
   const handleConfirm = async () => {
@@ -323,39 +323,38 @@ function RecoverConfirmModal({
     setLoading(false)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">Recover Obituary?</h2>
-            </div>
-            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">Recover Obituary?</h2>
           </div>
-          <div className="px-6 py-5 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Restore <span className="font-semibold text-foreground">"{obituary.full_name}"</span> back to the active obituaries list?
-            </p>
-            <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-              <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl">
-                {loading ? 'Recovering…' : 'Yes, Recover'}
-              </Button>
-            </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Restore <span className="font-semibold text-foreground">"{obituary.full_name}"</span> back to the active obituaries list?
+          </p>
+          <div className="flex gap-3">
+            <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
+            <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl">
+              {loading ? 'Recovering…' : 'Yes, Recover'}
+            </Button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
 // ── Create Tarp Modal ─────────────────────────────────────────
 function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  useLockBodyScroll()
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
 
@@ -438,12 +437,11 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     setDone(true)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <ScrollText className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-bold text-foreground">Create Tarpaulin / Obituary</h2>
@@ -465,7 +463,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               <Button onClick={() => { onSuccess(); onClose() }} className="rounded-xl px-8 mt-2">Done</Button>
             </div>
           ) : (
-            <div className="px-6 py-5 space-y-5">
+            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
               <div className="space-y-1.5">
                 <p className={lbl}>Live Tarpaulin Preview</p>
                 <TarpPreview
@@ -556,9 +554,9 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               </form>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

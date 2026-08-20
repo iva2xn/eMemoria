@@ -8,7 +8,6 @@ import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
-import { NotificationPanel } from '@/components/admin/notification-panel'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon } from 'lucide-react'
 
@@ -117,9 +116,6 @@ export function AdminHeader({
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
-          {/* Notification bell */}
-          {authReady && profile && <NotificationPanel />}
-
           {/* Logout — always visible */}
           {authReady && profile && (
             <Button variant="ghost" size="icon" onClick={handleLogout}

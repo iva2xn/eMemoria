@@ -264,7 +264,6 @@ export function BillingForm({
                         placeholder={
                           method === 'gcash'    ? '13-digit GCash reference' :
                           method === 'bdo_bank' ? 'BDO transaction reference' :
-                          method === 'bpi_bank' ? 'BPI transaction reference' :
                           'Receipt / OR number (optional)'
                         }
                         value={refNum} onChange={e => setRefNum(e.target.value)} className={inp} />

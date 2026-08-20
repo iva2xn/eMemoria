@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
+import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview, computeAge } from '@/components/ui/tarp-preview'
@@ -28,6 +30,7 @@ interface ObituaryModalProps {
 }
 
 export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, onDone }: ObituaryModalProps) {
+  useLockBodyScroll()
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
 
@@ -143,14 +146,12 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
     setDone(true)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <ScrollText className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-bold text-foreground">Memorial Tarpaulin Details</h2>
@@ -179,7 +180,7 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
 
           ) : (
             /* Form */
-            <div className="px-6 py-5 space-y-5 max-h-[85vh] overflow-y-auto">
+            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Payment submitted. Fill in the details below so we can prepare the memorial tarpaulin for your loved one.
               </p>
@@ -304,8 +305,8 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
               </form>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

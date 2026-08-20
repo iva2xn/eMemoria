@@ -9,9 +9,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area
 } from 'recharts'
 import {
-  BarChart3, ArrowRight, CreditCard, Mail,
-  ChevronDown, ChevronUp, Users, TrendingUp,
-  TrendingDown, DollarSign, FileCheck, CheckSquare,
+  BarChart3, ArrowRight, Mail,
+  ChevronDown, ChevronUp,
   Inbox, Wallet
 } from 'lucide-react'
 import type { Inquiry, Payment, UserRole } from '@/lib/supabase/types'
@@ -65,6 +64,14 @@ const PRODUCT_LABELS: Record<string, string> = {
   general:      'General',
 }
 
+const PERIOD_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: 'week',  label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'year',  label: 'This Year' },
+] as const
+type PeriodFilter = typeof PERIOD_OPTIONS[number]['value']
+
 function buildProductBreakdown(payments: { amount: number; product_type: string }[]) {
   const map: Record<string, number> = {}
   payments.forEach(p => {
@@ -85,43 +92,30 @@ function timeAgo(iso: string) {
 
 /* ── Metrics Stat Card ─────────────────────────── */
 function MetricCard({
-  label, value, subtitle, trend, trendType = 'up', icon: Icon, onClick
+  label, value, subtitle, trend, trendType = 'up', onClick, accent = 'default'
 }: {
   label: string; value: string | number; subtitle?: string; trend?: string; trendType?: 'up' | 'down'
-  icon: React.ElementType; onClick?: () => void
+  onClick?: () => void; accent?: 'default' | 'amber' | 'emerald'
 }) {
+  const accentColor = accent === 'amber' ? 'text-amber-500' : accent === 'emerald' ? 'text-emerald-500' : 'text-foreground'
   return (
     <div
       onClick={onClick}
-      className={`bg-card border border-border/60 rounded-[20px] p-5 flex flex-col justify-between shadow-sm transition-all duration-200 ${
-        onClick ? 'cursor-pointer hover:border-primary/40 hover:shadow-md' : ''
+      className={`bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3 shadow-sm transition-all duration-200 ${
+        onClick ? 'cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99]' : ''
       }`}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase">{label}</p>
-          {subtitle && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{subtitle}</p>}
-        </div>
-        <div className="h-8 w-8 rounded-xl bg-muted/60 border border-border/40 flex items-center justify-center text-muted-foreground shrink-0">
-          <Icon className="h-4 w-4" />
-        </div>
-      </div>
-      <div>
-        <p className="text-[28px] font-bold text-foreground leading-none tracking-tight">{value}</p>
-        {trend && (
-          <div className="flex items-center gap-1 mt-2.5">
-            {trendType === 'up' ? (
-              <span className="inline-flex items-center text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                ▲ {trend}
-              </span>
-            ) : (
-              <span className="inline-flex items-center text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded">
-                ▼ {trend}
-              </span>
-            )}
-            <span className="text-[10px] text-muted-foreground/80">since last month</span>
-          </div>
-        )}
+      <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">{label}</p>
+      <p className={`text-[32px] font-bold leading-none tracking-tight ${accentColor}`}>{value}</p>
+      <div className="flex items-center gap-1.5 min-h-[18px]">
+        {trend ? (
+          trendType === 'up' ? (
+            <span className="inline-flex items-center text-[10px] font-semibold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.5 rounded-md">▲ {trend}</span>
+          ) : (
+            <span className="inline-flex items-center text-[10px] font-semibold text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded-md">▼ {trend}</span>
+          )
+        ) : null}
+        {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
       </div>
     </div>
   )
@@ -132,6 +126,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const supabase = createClient()
 
   const [stats,            setStats]            = useState({ pending: 0, inquiries: 0, profiles: 0, thisMonthRevenue: 0, totalRevenue: 0, approvedCount: 0 })
+  const [approvedPayments, setApprovedPayments] = useState<{ amount: number; approved_at: string | null; product_type: string }[]>([])
   const [pendingPayments,  setPendingPayments]  = useState<(Payment & { guest_name?: string })[]>([])
   const [recentInquiries,  setRecentInquiries]  = useState<Inquiry[]>([])
   const [dailyTrend,       setDailyTrend]       = useState<{ day: string; revenue: number }[]>([])
@@ -139,6 +134,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [loading,          setLoading]          = useState(true)
   const [showReport,       setShowReport]       = useState(false)
   const [expandedInq,      setExpandedInq]      = useState<string | null>(null)
+  const [periodFilter,     setPeriodFilter]     = useState<PeriodFilter>('month')
 
   // Dynamic state for percentages
   const [paidInvoicesPct,  setPaidInvoicesPct]  = useState(0)
@@ -148,7 +144,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     setLoading(true)
     const [
       { count: pending }, { count: inquiries }, { count: profiles },
-      { data: pendingRows }, { data: recentInq }, { data: approvedPayments },
+      { data: pendingRows }, { data: recentInq }, { data: approvedRaw },
     ] = await Promise.all([
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('inquiries').select('*', { count: 'exact', head: true }),
@@ -158,26 +154,21 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
       supabase.from('payments').select('amount,approved_at,product_type').eq('status', 'approved'),
     ])
 
-    const approved = (approvedPayments ?? []) as { amount: number; approved_at: string | null; product_type: string }[]
+    const approved    = (approvedRaw ?? []) as { amount: number; approved_at: string | null; product_type: string }[]
+    const pendingList = (pendingRows ?? []) as (Payment & { guest_name?: string })[]
+    const totalRevenue = approved.reduce((s, p) => s + Number(p.amount), 0)
+    const pendingRevenue = pendingList.reduce((s, p) => s + Number(p.amount), 0)
+    const totalPossible  = totalRevenue + pendingRevenue
+
     const now = new Date()
     const mk  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const thisMonthRevenue = approved.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
-    const totalRevenue     = approved.reduce((s, p) => s + Number(p.amount), 0)
 
-    // Calculate actual monetary amounts
-    const pendingList = (pendingRows ?? []) as (Payment & { guest_name?: string })[]
-    const pendingRevenue = pendingList.reduce((sum, item) => sum + Number(item.amount), 0)
-    const totalPossibleRevenue = totalRevenue + pendingRevenue
-
-    // 1. Paid Invoices Ratio (Approved count vs total submitted count)
     const totalCount = (pending ?? 0) + approved.length
-    const calculatedPaidPct = totalCount > 0 ? Math.round((approved.length / totalCount) * 100) : 0
-    setPaidInvoicesPct(calculatedPaidPct)
+    setPaidInvoicesPct(totalCount > 0 ? Math.round((approved.length / totalCount) * 100) : 0)
+    setFundsReceivedPct(totalPossible > 0 ? Math.round((totalRevenue / totalPossible) * 100) : 0)
 
-    // 2. Funds Received Ratio (Approved money vs total money)
-    const calculatedFundsPct = totalPossibleRevenue > 0 ? Math.round((totalRevenue / totalPossibleRevenue) * 100) : 0
-    setFundsReceivedPct(calculatedFundsPct)
-
+    setApprovedPayments(approved)
     setStats({ pending: pending ?? 0, inquiries: inquiries ?? 0, profiles: profiles ?? 0, thisMonthRevenue, totalRevenue, approvedCount: approved.length })
     setPendingPayments(pendingList)
     setRecentInquiries((recentInq ?? []) as Inquiry[])
@@ -187,6 +178,25 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  // ── Period revenue computation (client-side from stored approvedPayments) ──
+  const periodRevenue = (() => {
+    const now   = new Date()
+    const today = now.toISOString().slice(0, 10)
+    if (periodFilter === 'today') {
+      return approvedPayments.filter(p => p.approved_at?.startsWith(today)).reduce((s, p) => s + Number(p.amount), 0)
+    }
+    if (periodFilter === 'week') {
+      const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6)
+      return approvedPayments.filter(p => p.approved_at && p.approved_at >= weekAgo.toISOString().slice(0, 10)).reduce((s, p) => s + Number(p.amount), 0)
+    }
+    if (periodFilter === 'month') {
+      const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      return approvedPayments.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
+    }
+    // year
+    return approvedPayments.filter(p => p.approved_at?.startsWith(String(now.getFullYear()))).reduce((s, p) => s + Number(p.amount), 0)
+  })()
 
   const markRead = async (id: string) => {
     await supabase.from('inquiries').update({ is_read: true }).eq('id', id)
@@ -212,42 +222,62 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
         
         {/* Col 1 Stack */}
         <div className="flex flex-col gap-4">
-          <MetricCard 
-            label="Pending Payments" 
-            value={stats.pending} 
-            trend={stats.pending > 0 ? `${stats.pending} pending` : '0.0%'} 
+          <MetricCard
+            label="Pending Payments"
+            value={stats.pending}
+            trend={stats.pending > 0 ? `${stats.pending} awaiting` : 'All clear'}
             trendType={stats.pending > 0 ? 'down' : 'up'}
-            icon={Inbox} 
-            onClick={() => onNavigate('payments')} 
+            accent={stats.pending > 0 ? 'amber' : 'default'}
+            onClick={() => onNavigate('payments')}
           />
-          <MetricCard 
-            label="Monthly Total" 
-            subtitle={`Approved payments — ${new Date().toLocaleString('en-PH', { month: 'long', year: 'numeric' })}`}
-            value={`₱${stats.thisMonthRevenue.toLocaleString('en-PH')}`} 
-            trend="0.2%" 
-            trendType="up"
-            icon={DollarSign} 
+
+          {/* Revenue card with period pill-buttons */}
+          <div
             onClick={() => setShowReport(true)}
-          />
+            className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3 shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue</p>
+              {/* Pill group — stops click from opening sales report */}
+              <div className="flex items-center gap-0.5 bg-muted/60 border border-border/50 rounded-lg p-0.5" onClick={e => e.stopPropagation()}>
+                {PERIOD_OPTIONS.map(o => (
+                  <button
+                    key={o.value}
+                    onClick={() => setPeriodFilter(o.value)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
+                      periodFilter === o.value
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">
+              ₱{periodRevenue.toLocaleString('en-PH')}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {PERIOD_OPTIONS.find(o => o.value === periodFilter)?.label} · approved
+            </p>
+          </div>
         </div>
 
         {/* Col 2 Stack */}
         <div className="flex flex-col gap-4">
-          <MetricCard 
-            label="Approved" 
-            value={stats.approvedCount} 
-            trend="3.4%" 
+          <MetricCard
+            label="Approved"
+            value={stats.approvedCount}
+            trend="All time"
             trendType="up"
-            icon={CheckSquare}
+            accent="emerald"
             onClick={() => onNavigate('payments')}
           />
-          <MetricCard 
-            label="Total Revenue" 
-            subtitle="All-time approved payments"
-            value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`} 
-            trend="1.2%" 
-            trendType="up"
-            icon={Wallet} 
+          <MetricCard
+            label="Total Revenue"
+            value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
+            subtitle="All-time approved"
             onClick={() => setShowReport(true)}
           />
         </div>

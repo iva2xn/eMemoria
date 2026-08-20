@@ -7,6 +7,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { Badge, type BadgeVariant } from './admin-primitives'
 import { BarChart3, Download, ChevronDown, X, Ban } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
+import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 
 const PRODUCT_TYPES = ['all', 'columbarium', 'package', 'urn', 'cremation', 'general'] as const
 type ProductFilter = typeof PRODUCT_TYPES[number]
@@ -359,23 +360,13 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
   const statusVariant = (s: string): BadgeVariant =>
     s === 'approved' ? 'green' : s === 'pending' ? 'amber' : s === 'voided' ? 'muted' : 'red'
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      {/* Void modal */}
-      {voidRow && (
-        <SalesReportVoidModal
-          row={voidRow}
-          onClose={() => setVoidRow(null)}
-          onVoided={handleVoid}
-          inputCls={inp}
-        />
-      )}
-      <div className="flex min-h-full items-start justify-center p-4 pt-8">
-        <div className="relative w-full max-w-5xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-5xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
 
           {/* ── Header ── */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div className="flex items-center gap-2.5">
               <BarChart3 className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-bold text-foreground">Sales Report</h2>
@@ -415,7 +406,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* ── Filters — flat, no nested card ── */}
-          <div className="px-6 pt-4 pb-3 border-b border-border/60 space-y-3">
+          <div className="px-6 pt-4 pb-3 border-b border-border/60 space-y-3 shrink-0">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
               <input type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   className={inp} />
@@ -453,7 +444,16 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          <div className="px-6 py-4 space-y-4">
+          <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+            {/* Void modal */}
+            {voidRow && (
+              <SalesReportVoidModal
+                row={voidRow}
+                onClose={() => setVoidRow(null)}
+                onVoided={handleVoid}
+                inputCls={inp}
+              />
+            )}
             {error && <AlertBanner variant="error" message={error} />}
 
             {loading ? (
@@ -575,8 +575,8 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
               </>
             )}
           </div>
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

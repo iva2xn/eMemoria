@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import {
@@ -8,6 +9,7 @@ import {
   SearchInput, inputCls, type BadgeVariant,
 } from './admin-primitives'
 import { logActivity } from '@/lib/activity-log'
+import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 import {
   Download, Filter, ChevronDown, ChevronUp,
   FileText, FileSpreadsheet, X, AlertTriangle,
@@ -153,8 +155,9 @@ function VoidModal({ row, onClose, onVoided }: {
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
@@ -228,7 +231,8 @@ function VoidModal({ row, onClose, onVoided }: {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -273,8 +277,9 @@ function RecoverModal({ row, onClose, onRecovered }: {
     onClose()
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
@@ -306,7 +311,8 @@ function RecoverModal({ row, onClose, onRecovered }: {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -366,14 +372,13 @@ function ExportPreviewModal({ allRows, onClose, initialDateFrom, initialDateTo }
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-start justify-center p-4 pt-8">
-        <div className="relative w-full max-w-3xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-3xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Download className="h-4 w-4 text-primary" />
@@ -388,7 +393,7 @@ function ExportPreviewModal({ allRows, onClose, initialDateFrom, initialDateTo }
             </button>
           </div>
 
-          <div className="px-6 py-5 space-y-5">
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
 
             {/* ── Filters ── */}
             <div>
@@ -526,9 +531,9 @@ function ExportPreviewModal({ allRows, onClose, initialDateFrom, initialDateTo }
               </button>
             </div>
           </div>
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 

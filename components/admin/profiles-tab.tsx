@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Badge, SectionHeader, EmptyState, Spinner, TableShell, Th, SearchInput, type BadgeVariant } from './admin-primitives'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { logActivity } from '@/lib/activity-log'
+import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 import { Trash2, X, UserCog } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
@@ -33,22 +35,21 @@ function RoleChangeModal({
     setLoading(false)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <UserCog className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">Change Role</h2>
-            </div>
-            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <UserCog className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">Change Role</h2>
           </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
             {step === 1 ? (
               <>
                 <p className="text-sm text-muted-foreground">
@@ -92,9 +93,9 @@ function RoleChangeModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
-  )
+      </div>,
+      document.body
+    )
 }
 
 // ── Delete Account Confirm Modal ──────────────────────────────
@@ -127,11 +128,10 @@ function DeleteAccountModal({
     setLoading(false)
   }
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm pointer-events-none" />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto">
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-red-500" />
@@ -166,11 +166,7 @@ function DeleteAccountModal({
                 </div>
                 <div className="flex gap-3 pt-1">
                   <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0"
-                  >
+                  <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
                     Next →
                   </Button>
                 </div>
@@ -187,21 +183,16 @@ function DeleteAccountModal({
                 </div>
                 <div className="flex gap-3 pt-1">
                   <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                  <Button
-                    type="button"
-                    onClick={handleConfirm}
-                    disabled={loading}
-                    className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0"
-                  >
+                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
                     {loading ? 'Deleting…' : 'Delete Account'}
                   </Button>
                 </div>
               </>
             )}
           </div>
-        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
