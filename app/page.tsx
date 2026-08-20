@@ -15,15 +15,21 @@ const HOME_SEEN_KEY = 'home:seen' // sessionStorage — cleared when tab closes
 export default function HomePage() {
   const router = useRouter()
 
-  // Always start collapsed=true on both server and client to avoid
-  // hydration mismatch. Sync from localStorage after mount.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
-  const [mounted, setMounted] = useState(false)
+  const [mounted,          setMounted]          = useState(false)
+  const [isLg,             setIsLg]             = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem(SIDEBAR_KEY)
     if (stored !== null) setSidebarCollapsed(stored === 'true')
+
+    // Track whether we're on a large screen
+    const mq = window.matchMedia('(min-width: 1024px)')
+    setIsLg(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsLg(e.matches)
+    mq.addEventListener('change', handler)
     setMounted(true)
+    return () => mq.removeEventListener('change', handler)
   }, [])
 
   const handleSidebarChange = (v: boolean) => {
@@ -65,13 +71,12 @@ export default function HomePage() {
       </div>
 
       {/*
-        Desktop: margin-left tracks sidebar width — only applied after mount
-        to avoid SSR/client hydration mismatch.
-        Mobile: sidebar is hidden so marginLeft has no visible effect.
+        Desktop (lg+): margin-left tracks sidebar width.
+        Mobile: no margin — sidebar is hidden (lg:flex in HomeSidebar).
       */}
       <div
         className="flex flex-col min-w-0"
-        style={mounted ? {
+        style={mounted && isLg ? {
           marginLeft: sidebarCollapsed ? 60 : 280,
           transition: 'margin-left 200ms ease-in-out',
         } : undefined}
