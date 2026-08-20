@@ -61,7 +61,7 @@ export function BillingForm({
 
   const [includeServiceFee, setIncludeServiceFee] = useState(isUrn)
   const defaultAmount = isColumbarium
-    ? String(reservationFee)
+    ? String(prePrice)
     : isUrn ? String(prePrice + (isUrn ? SERVICE_FEE : 0)) : prePrice ? String(prePrice) : ''
 
   // Local form state — presentation only, submit logic lives in the page
@@ -176,7 +176,7 @@ export function BillingForm({
                   {prePrice > 0 && (
                     <p className="text-muted-foreground">
                       {isColumbarium
-                        ? <>Full price: <span className="font-semibold text-foreground">₱{prePrice.toLocaleString('en-PH')}</span> · 10% reservation fee: <span className="font-bold text-primary">₱{reservationFee.toLocaleString('en-PH')}</span></>
+                        ? <>Price: <span className="font-bold text-primary">₱{prePrice.toLocaleString('en-PH')}</span> (full price — online payment)</>
                         : <>Price: <span className="font-semibold text-foreground">₱{prePrice.toLocaleString('en-PH')}</span></>
                       }
                     </p>
@@ -270,7 +270,7 @@ export function BillingForm({
                         }
                         value={refNum} onChange={e => setRefNum(e.target.value)} className={inp} />
                     </Field>
-                    <Field label={isColumbarium ? 'Amount (₱) — 10% reservation fee' : 'Amount (₱)'} required>
+                    <Field label="Amount (₱)" required>
                       <input type="number" placeholder="e.g. 2500" min="1"
                         value={amount} onChange={e => setAmount(e.target.value)}
                         readOnly={isColumbarium || isUrn}

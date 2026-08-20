@@ -24,7 +24,8 @@ function BillingContent() {
   const isColumbarium  = preProduct === 'columbarium'
   const isUrn          = preProduct === 'urn'
   const isPackage      = preProduct === 'package'
-  const reservationFee = isColumbarium && prePrice ? Math.round(prePrice * 0.10) : 0
+  // Columbarium online = full price (no reservation fee)
+  const reservationFee = 0
   const SERVICE_FEE    = 25_000
 
   // ── Auth + profile pre-fill ─────────────────────────────────────────────────
@@ -82,7 +83,6 @@ function BillingContent() {
     const notesArr = [
       preLevel ? `Level: ${preLevel}` : '',
       isColumbarium && prePrice ? `Full price: ₱${prePrice.toLocaleString('en-PH')}` : '',
-      isColumbarium && reservationFee ? `Reservation fee (10%): ₱${reservationFee.toLocaleString('en-PH')}` : '',
       isUrn && includeServiceFee  ? `Includes ₱25,000 cremation service fee` : '',
       isUrn && !includeServiceFee ? `Urn only (service fee waived)` : '',
       notes.trim(),

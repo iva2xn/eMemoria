@@ -19,6 +19,7 @@ import type { DocumentSubmission, DocumentSubmissionStatus, UserRole } from '@/l
 type SubmissionRow = DocumentSubmission & {
   profileName?: string
   profileEmail?: string
+  profilePhone?: string
 }
 
 type ActiveSubTab = 'active' | 'deleted'
@@ -40,6 +41,9 @@ function clientName(r: SubmissionRow) {
 }
 function clientEmail(r: SubmissionRow) {
   return r.profileEmail ?? r.guest_email ?? ''
+}
+function clientPhone(r: SubmissionRow) {
+  return r.profilePhone ?? r.guest_phone ?? '—'
 }
 function statusVariant(s: string): BadgeVariant {
   if (s === 'approved')       return 'green'
@@ -266,7 +270,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                 {[
                   { label: 'Client',   value: clientName(submission) },
                   { label: 'Email',    value: clientEmail(submission) || '—' },
-                  { label: 'Phone',    value: submission.guest_phone ?? '—' },
+                  { label: 'Phone',    value: clientPhone(submission) },
                   { label: 'Submitted', value: fmtDate(submission.created_at) },
                   { label: 'Package',  value: submission.product_label ?? submission.product_type },
                   { label: 'Price',    value: submission.product_price ? `₱${Number(submission.product_price).toLocaleString('en-PH')}` : '—' },
@@ -790,7 +794,7 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
           {/* Info grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
             {[
-              { label: 'Phone',    value: submission.guest_phone ?? '—' },
+              { label: 'Phone',    value: clientPhone(submission) },
               { label: 'Package',  value: submission.product_label ?? submission.product_type },
               { label: 'Product',  value: submission.product_type },
               { label: 'Ref',      value: submission.product_ref ?? '—' },
@@ -876,15 +880,16 @@ export function DocumentSubmissionsTab({ currentRole = 'admin' }: { currentRole?
       .from('document_submissions').select('*').order('created_at', { ascending: false })
     if (!submissions) { setLoading(false); return }
     const userIds = [...new Set(submissions.filter(s => s.user_id).map(s => s.user_id as string))]
-    let profileMap: Record<string, { name: string; email: string }> = {}
+    let profileMap: Record<string, { name: string; email: string; phone: string | null }> = {}
     if (userIds.length) {
-      const { data: profiles } = await supabase.from('profiles').select('id,name,email').in('id', userIds)
-      if (profiles) profileMap = Object.fromEntries(profiles.map(p => [p.id, { name: p.name, email: p.email }]))
+      const { data: profiles } = await supabase.from('profiles').select('id,name,email,phone').in('id', userIds)
+      if (profiles) profileMap = Object.fromEntries(profiles.map(p => [p.id, { name: p.name, email: p.email, phone: p.phone ?? null }]))
     }
     setRows(submissions.map(s => ({
       ...(s as DocumentSubmission),
       profileName:  s.user_id ? profileMap[s.user_id]?.name  : undefined,
       profileEmail: s.user_id ? profileMap[s.user_id]?.email : undefined,
+      profilePhone: s.user_id ? profileMap[s.user_id]?.phone ?? undefined : undefined,
     })))
     setLoading(false)
   }, [supabase])

@@ -12,17 +12,19 @@ import { LAST_PAGE_KEY } from '@/components/last-page-tracker'
 const SIDEBAR_KEY  = 'home:sidebarCollapsed'
 const HOME_SEEN_KEY = 'home:seen' // sessionStorage — cleared when tab closes
 
-function readCollapsed(): boolean {
-  if (typeof window === 'undefined') return true
-  const stored = localStorage.getItem(SIDEBAR_KEY)
-  return stored !== null ? stored === 'true' : true
-}
-
 export default function HomePage() {
   const router = useRouter()
 
-  // Lazy initializer — reads localStorage synchronously, no flash
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(readCollapsed)
+  // Always start collapsed=true on both server and client to avoid
+  // hydration mismatch. Sync from localStorage after mount.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_KEY)
+    if (stored !== null) setSidebarCollapsed(stored === 'true')
+    setMounted(true)
+  }, [])
 
   const handleSidebarChange = (v: boolean) => {
     localStorage.setItem(SIDEBAR_KEY, String(v))
@@ -63,16 +65,17 @@ export default function HomePage() {
       </div>
 
       {/*
-        Desktop: margin-left via inline style so it transitions in exact
-        sync with the sidebar width (same 200ms ease-in-out, single paint).
-        Mobile: sidebar is hidden so no margin needed — overridden by
-        the marginLeft being irrelevant below lg breakpoint.
+        Desktop: margin-left tracks sidebar width — only applied after mount
+        to avoid SSR/client hydration mismatch.
+        Mobile: sidebar is hidden so marginLeft has no visible effect.
       */}
       <div
-        className="flex flex-col min-w-0 home-content"
-        style={{ transition: 'margin-left 200ms ease-in-out' }}
+        className="flex flex-col min-w-0"
+        style={mounted ? {
+          marginLeft: sidebarCollapsed ? 60 : 280,
+          transition: 'margin-left 200ms ease-in-out',
+        } : undefined}
       >
-        <style>{`@media (min-width: 1024px) { .home-content { margin-left: ${sidebarCollapsed ? '60px' : '280px'}; } }`}</style>
         <main className="overflow-x-hidden flex-1">
           <Suspense>
             <HeroSection />

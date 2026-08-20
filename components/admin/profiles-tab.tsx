@@ -113,8 +113,8 @@ function DeleteAccountModal({
   const [error, setError] = useState('')
 
   const handleNext = () => {
-    if (confirm.trim().toLowerCase() !== 'delete') {
-      setError('Type "delete" to continue.')
+    if (confirm.trim() !== 'DELETE') {
+      setError('Type "DELETE" (all caps) to continue.')
       return
     }
     setError('')
@@ -154,13 +154,13 @@ function DeleteAccountModal({
                 {error && <AlertBanner variant="error" message={error} />}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Type <span className="text-red-500">delete</span> to continue
+                    Type <span className="text-red-500 font-mono">DELETE</span> to continue
                   </label>
                   <input
                     type="text"
                     value={confirm}
                     onChange={e => { setConfirm(e.target.value); setError('') }}
-                    placeholder='Type "delete" here'
+                    placeholder='DELETE'
                     className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-red-500/60 focus:ring-1 focus:ring-red-500/10 outline-none transition-all"
                   />
                 </div>

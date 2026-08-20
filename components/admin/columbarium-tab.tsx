@@ -708,17 +708,46 @@ export function ColumbariumTab() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-5 text-[11px] font-semibold text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-5 text-[11px] font-semibold text-muted-foreground">
         <span className="flex items-center gap-2">
-          <span className="h-4 w-4 rounded-sm inline-block border border-[#6b6e70]" style={{ background: '#1e1e1e', boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.8)' }} />
+          <span style={{
+            display: 'inline-block', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
+            backgroundColor: 'color-mix(in srgb, var(--color-background) 60%, #111 40%)',
+            border: '2px solid color-mix(in srgb, var(--color-border) 80%, transparent)',
+            boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.5)',
+          }} />
           Available
         </span>
         <span className="flex items-center gap-2">
-          <span className="h-4 w-4 rounded-sm inline-block border border-[#4a4a4a]" style={{ background: 'linear-gradient(145deg, #7a7c7e, #5a5c5d)' }} />
+          <span style={{
+            display: 'inline-flex', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
+            background: 'linear-gradient(145deg, #7a7c7e, #4a4c4d)',
+            border: '1px solid rgba(0,0,0,0.4)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{
+              background: 'linear-gradient(145deg, #d4af37, #aa8222)',
+              color: '#2a1a00', fontSize: 5, fontWeight: 800,
+              padding: '1px 2px', borderRadius: 1, textTransform: 'uppercase',
+              letterSpacing: 0.3, lineHeight: 1.2, userSelect: 'none',
+            }}>RSV</span>
+          </span>
           Reserved
         </span>
         <span className="flex items-center gap-2">
-          <span className="h-4 w-4 rounded-sm inline-block border border-[#3a3a3a]" style={{ background: 'linear-gradient(145deg, #6a6c6e, #4a4c4d)' }} />
+          <span style={{
+            display: 'inline-block', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
+            backgroundColor: '#5a5c5d',
+            backgroundImage: [
+              'linear-gradient(#d4af37, #d4af37)',
+              'linear-gradient(#d4af37, #d4af37)',
+              'linear-gradient(145deg, #7a7c7e, #4a4c4d)',
+            ].join(', '),
+            backgroundSize: '2px 12px, 8px 2px, 100% 100%',
+            backgroundPosition: 'center 3px, center 7px, center',
+            backgroundRepeat: 'no-repeat',
+            border: '1px solid rgba(0,0,0,0.4)',
+          }} />
           Occupied
         </span>
       </div>

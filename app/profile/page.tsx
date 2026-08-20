@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
@@ -11,7 +10,7 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { PhoneInput } from '@/components/ui/phone-input'
 import {
   User, Mail, Phone, Camera, Check, X,
-  ShieldCheck, AlertTriangle, Trash2, ChevronLeft,
+  ShieldCheck, AlertTriangle, Trash2,
   Send, KeyRound,
 } from 'lucide-react'
 import type { Profile } from '@/lib/supabase/types'
@@ -51,7 +50,7 @@ function DeleteAccountModal({
 
   const handleNext = () => {
     if (!reason.trim()) { setError('Please tell us why you want to delete your account.'); return }
-    if (confirm.trim().toLowerCase() !== 'delete') { setError('Type "delete" to continue.'); return }
+    if (confirm.trim() !== 'DELETE') { setError('Type "DELETE" (all caps) to continue.'); return }
     setError('')
     setStep(2)
   }
@@ -89,10 +88,10 @@ function DeleteAccountModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={lbl}>Type <span className="text-red-500">"delete"</span> to continue</label>
+                <label className={lbl}>Type <span className="text-red-500 font-mono">"DELETE"</span> to continue</label>
                 <input
                   type="text" value={confirm} onChange={e => { setConfirm(e.target.value); setError('') }}
-                  placeholder='delete' className={inp} />
+                  placeholder='DELETE' className={inp} />
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
@@ -344,15 +343,10 @@ export default function ProfilePage() {
 
       <main className="flex-1 bg-background">
         {/* Hero strip */}
-        <div className="border-b border-border/40 bg-muted/20 px-6 py-10">
-          <div className="max-w-2xl mx-auto flex items-center gap-4">
-            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Your Account</p>
-              <h1 className="font-serif text-3xl font-bold text-foreground">Profile</h1>
-            </div>
+        <div className="border-b border-border/40 bg-muted/20 px-6 py-8">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Your Account</p>
+            <h1 className="font-serif text-3xl font-bold text-foreground">Profile</h1>
           </div>
         </div>
 

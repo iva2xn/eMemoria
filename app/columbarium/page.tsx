@@ -73,7 +73,7 @@ export default function ColumbariumPage() {
             clickable para mabuksan yung SlotModal / details about sa slot */}
         <section className="pb-10 max-w-6xl mx-auto px-4 md:px-6">
           <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-            <div className="px-5 py-6 flex items-center justify-center">
+            <div className="px-5 py-6 text-center">
               <h2 className="text-xl font-bold uppercase tracking-widest text-foreground">COLUMBARIUM SLOTS</h2>
             </div>
 
@@ -89,7 +89,7 @@ export default function ColumbariumPage() {
               />
             )}
 
-            <div className="px-5 py-6 text-center">
+            <div className="px-5 py-6 text-center border-t border-border/40">
               <p className="text-sm text-muted-foreground">
                 We are committed to providing a peaceful and respectful resting place where families can honor and remember their loved ones.
               </p>
@@ -103,11 +103,11 @@ export default function ColumbariumPage() {
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Reserve a Niche</p>
             <h2 className="font-serif text-2xl md:text-3xl font-bold text-foreground mb-4">Reservation</h2>
             <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-              Families may reserve a columbarium slot through the funeral service. For assistance, please contact Marcelo P. Gayeta Funeral Services directly.
+              Online payments are full price. Walk-in reservations at the counter may be arranged with staff for a reservation fee. Browse available slots above and click to reserve.
             </p>
-            <a href="/billing?product=columbarium&label=Columbarium+Slot+Reservation"
-              className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors">
-              Reserve a Slot
+            <a href="/contact"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-xl border border-primary text-primary font-semibold text-sm hover:bg-primary/10 transition-colors">
+              Contact Us for Walk-in Reservation
             </a>
           </div>
         </section>
