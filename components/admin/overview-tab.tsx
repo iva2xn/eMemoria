@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Spinner } from './admin-primitives'
+import { Spinner, MiniSelect } from './admin-primitives'
 import { SalesReportModal } from './sales-report-modal'
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -43,10 +43,10 @@ function BarTip({ active, payload, label }: { active?: boolean; payload?: { valu
   )
 }
 
-function buildDailyTrend(payments: { amount: number; approved_at: string | null }[]) {
+function buildDailyTrend(payments: { amount: number; approved_at: string | null }[], days = 14) {
   const now = new Date()
-  return Array.from({ length: 14 }, (_, i) => {
-    const d   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (13 - i))
+  return Array.from({ length: days }, (_, i) => {
+    const d   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i))
     const key = d.toISOString().slice(0, 10)
     return {
       day:     `${d.getMonth() + 1}/${d.getDate()}`,
@@ -135,6 +135,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [showReport,       setShowReport]       = useState(false)
   const [expandedInq,      setExpandedInq]      = useState<string | null>(null)
   const [periodFilter,     setPeriodFilter]     = useState<PeriodFilter>('month')
+  const [chartDays,        setChartDays]        = useState<7 | 14 | 30 | 90>(14)
 
   // Dynamic state for percentages
   const [paidInvoicesPct,  setPaidInvoicesPct]  = useState(0)
@@ -173,8 +174,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     setPendingPayments(pendingList)
     setRecentInquiries((recentInq ?? []) as Inquiry[])
     setDailyTrend(buildDailyTrend(approved))
-    setProductBreakdown(buildProductBreakdown(approved))
-    setLoading(false)
+    setProductBreakdown(buildProductBreakdown(approved)); setLoading(false)
   }, [supabase])
 
   useEffect(() => { load() }, [load])
@@ -197,6 +197,16 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     // year
     return approvedPayments.filter(p => p.approved_at?.startsWith(String(now.getFullYear()))).reduce((s, p) => s + Number(p.amount), 0)
   })()
+
+  // Recompute trend whenever chartDays changes (no extra DB call)
+  const chartTrend = buildDailyTrend(approvedPayments, chartDays)
+
+  const CHART_RANGES = [
+    { days: 7  as const, label: '7d'  },
+    { days: 14 as const, label: '14d' },
+    { days: 30 as const, label: '30d' },
+    { days: 90 as const, label: '90d' },
+  ]
 
   const markRead = async (id: string) => {
     await supabase.from('inquiries').update({ is_read: true }).eq('id', id)
@@ -231,29 +241,19 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             onClick={() => onNavigate('payments')}
           />
 
-          {/* Revenue card with period pill-buttons */}
+          {/* Revenue card with period dropdown */}
           <div
             onClick={() => setShowReport(true)}
             className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3 shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue</p>
-              {/* Pill group — stops click from opening sales report */}
-              <div className="flex items-center gap-0.5 bg-muted/60 border border-border/50 rounded-lg p-0.5" onClick={e => e.stopPropagation()}>
-                {PERIOD_OPTIONS.map(o => (
-                  <button
-                    key={o.value}
-                    onClick={() => setPeriodFilter(o.value)}
-                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${
-                      periodFilter === o.value
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </div>
+              <MiniSelect
+                value={periodFilter}
+                options={PERIOD_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                onChange={v => setPeriodFilter(v as PeriodFilter)}
+                onClick={e => e.stopPropagation()}
+              />
             </div>
             <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">
               ₱{periodRevenue.toLocaleString('en-PH')}
@@ -283,7 +283,10 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
         </div>
 
         {/* Col 3 Tall Card: Users (With Donut) */}
-        <div className="bg-card border border-border/60 rounded-[24px] p-6 flex flex-col justify-between shadow-sm min-h-[280px]">
+        <div
+          onClick={() => onNavigate('profiles')}
+          className="bg-card border border-border/60 rounded-[24px] p-6 flex flex-col justify-between shadow-sm min-h-[280px] cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+        >
           <div>
             <p className="text-xs text-muted-foreground font-semibold tracking-wide uppercase mb-1">Registered Users</p>
             <p className="text-3xl font-bold text-foreground leading-none tracking-tight">{stats.profiles}</p>
@@ -302,22 +305,31 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-1.5 min-w-0">
-              <div className="flex items-center gap-2">
+              <button
+                onClick={e => { e.stopPropagation(); onNavigate('profiles') }}
+                className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+              >
                 <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
                 <span className="text-[10px] text-foreground font-medium">Registered</span>
                 <span className="text-[10px] text-muted-foreground font-mono ml-auto">72%</span>
-              </div>
-              <div className="flex items-center gap-2">
+              </button>
+              <button
+                onClick={e => { e.stopPropagation(); onNavigate('inquiries') }}
+                className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+              >
                 <span className="h-2 w-2 rounded-full bg-border shrink-0" />
                 <span className="text-[10px] text-muted-foreground">Guest inquiries</span>
                 <span className="text-[10px] text-muted-foreground font-mono ml-auto">28%</span>
-              </div>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Col 4 Tall Card: Subscriptions (With Donut) */}
-        <div className="bg-card border border-border/60 rounded-[24px] p-6 flex flex-col justify-between shadow-sm min-h-[280px]">
+        {/* Col 4 Tall Card: Total Inquiries (With Donut) */}
+        <div
+          onClick={() => onNavigate('inquiries')}
+          className="bg-card border border-border/60 rounded-[24px] p-6 flex flex-col justify-between shadow-sm min-h-[280px] cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
+        >
           <div>
             <p className="text-xs text-muted-foreground font-semibold tracking-wide uppercase mb-1">Total Inquiries</p>
             <p className="text-3xl font-bold text-foreground leading-none tracking-tight">{stats.inquiries}</p>
@@ -339,11 +351,15 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               {pieData.slice(0, 3).map((item, i) => {
                 const pct = isPlaceholder ? 33.3 : totalPieRev > 0 ? (item.value / totalPieRev) * 100 : 0
                 return (
-                  <div key={item.name} className="flex items-center gap-2">
+                  <button
+                    key={item.name}
+                    onClick={e => { e.stopPropagation(); onNavigate('funeral-services') }}
+                    className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+                  >
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ background: isPlaceholder ? G[i] + '88' : G[i % G.length] }} />
                     <span className="text-[10px] text-foreground capitalize truncate flex-1">{item.name}</span>
                     <span className="text-[10px] text-muted-foreground font-mono shrink-0">{isPlaceholder ? '0%' : `${pct.toFixed(0)}%`}</span>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -363,17 +379,19 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Sales Dynamics</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Last 14 days · Daily Approved Revenue</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Daily approved revenue</p>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground bg-muted/50 border border-border/30 px-2.5 py-1 rounded-lg">
-                {new Date().getFullYear()}
-              </span>
+              <MiniSelect
+                value={chartDays}
+                options={CHART_RANGES.map(r => ({ value: r.days, label: `Last ${r.label}` }))}
+                onChange={v => setChartDays(v as typeof chartDays)}
+              />
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }} barSize={11}>
+                <BarChart data={chartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }} barSize={11}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} opacity={0.5} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={1} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(chartDays / 7)} />
                   <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false}
                     tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`} width={32} />
                   <RechartsTooltip content={<BarTip />} cursor={{ fill: 'var(--color-muted)', opacity: 0.3 }} />
@@ -388,15 +406,17 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Overall User Activity</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Active customer submissions & updates</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Active customer submissions &amp; updates</p>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground bg-muted/50 border border-border/30 px-2.5 py-1 rounded-lg">
-                {new Date().getFullYear()}
-              </span>
+              <MiniSelect
+                value={chartDays}
+                options={CHART_RANGES.map(r => ({ value: r.days, label: `Last ${r.label}` }))}
+                onChange={v => setChartDays(v as typeof chartDays)}
+              />
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dailyTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <AreaChart data={chartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
@@ -404,7 +424,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} opacity={0.5} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={1} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(chartDays / 7)} />
                   <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={32} />
                   <RechartsTooltip />
                   <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorActivity)" />

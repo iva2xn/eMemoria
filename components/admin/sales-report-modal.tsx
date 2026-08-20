@@ -356,7 +356,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const inp = 'h-9 px-3 rounded-lg bg-background border border-border/70 text-xs focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
+  const inp = 'h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none'
   const statusVariant = (s: string): BadgeVariant =>
     s === 'approved' ? 'green' : s === 'pending' ? 'amber' : s === 'voided' ? 'muted' : 'red'
 

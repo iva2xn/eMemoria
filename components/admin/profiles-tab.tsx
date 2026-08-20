@@ -350,7 +350,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
                       <select
                         value={u.role}
                         onChange={e => openRoleChange(u, e.target.value as UserRole)}
-                        className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
+                        className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
                       >
                         <option value="client">client</option>
                         <option value="staff">staff</option>
@@ -407,7 +407,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
                       <select
                         value={u.role}
                         onChange={e => openRoleChange(u, e.target.value as UserRole)}
-                        className="h-8 pl-3 pr-7 rounded-xl bg-background border border-border text-xs font-semibold outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
+                        className="h-8 pl-3 pr-7 rounded-xl bg-background border border-border text-xs font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
                       >
                         <option value="client">client</option>
                         <option value="staff">staff</option>

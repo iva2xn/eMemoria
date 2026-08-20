@@ -15,7 +15,7 @@ import type { Obituary } from '@/lib/supabase/types'
 
 // ── Shared helpers ────────────────────────────────────────────
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
-const inp = 'w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all'
+const inp = 'w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none'
 
 const DELETE_REASONS = [
   'Duplicate entry',

@@ -1,5 +1,7 @@
 'use client'
 
+import React from 'react'
+
 // Shared small primitives used across all admin tab components
 
 export type BadgeVariant = 'green' | 'amber' | 'red' | 'muted' | 'blue'
@@ -132,4 +134,81 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   )
 }
 
-export const inputCls = 'w-full h-10 px-3.5 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
+export const inputCls = 'w-full h-10 px-3.5 rounded-xl bg-background border border-border/80 text-sm text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50 appearance-none'
+
+/**
+ * Fully custom dropdown — no native <select>, so the OS dark popover
+ * never appears. Used for compact inline selectors in card/chart headers.
+ */
+export function MiniSelect<T extends string | number>({
+  value,
+  options,
+  onChange,
+  onClick,
+  className = '',
+}: {
+  value: T
+  options: { value: T; label: string }[]
+  onChange: (v: T) => void
+  onClick?: React.MouseEventHandler<HTMLButtonElement>
+  className?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+  const ref = React.useRef<HTMLDivElement>(null)
+
+  // Close on outside click
+  React.useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <div ref={ref} className={`relative inline-block ${className}`}>
+      {/* Trigger button */}
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); onClick?.(e); setOpen(v => !v) }}
+        className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-lg bg-background border border-border/60 text-[11px] font-semibold text-foreground hover:border-primary/50 focus:outline-none transition-all cursor-pointer"
+      >
+        {selected?.label ?? String(value)}
+        <svg
+          className={`h-3 w-3 text-muted-foreground transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 10 6"
+        >
+          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+
+      {/* Custom dropdown panel */}
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[110px] bg-card border border-border rounded-xl shadow-xl overflow-hidden">
+          {options.map(o => (
+            <button
+              key={String(o.value)}
+              type="button"
+              onClick={e => { e.stopPropagation(); onChange(o.value); setOpen(false) }}
+              className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold text-left transition-colors ${
+                o.value === value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-foreground hover:bg-muted/60'
+              }`}
+            >
+              {o.value === value && (
+                <svg className="h-2.5 w-2.5 shrink-0" viewBox="0 0 10 8" fill="none">
+                  <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              <span className={o.value === value ? '' : 'ml-[14px]'}>{o.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

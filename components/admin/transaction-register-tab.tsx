@@ -338,7 +338,7 @@ function ExportPreviewModal({ allRows, onClose, initialDateFrom, initialDateTo }
   const [scope,       setScope]       = useState<ExportScope>('filtered')
   const [exporting,   setExporting]   = useState(false)
 
-  const inp = 'h-8 px-2.5 rounded-lg bg-background border border-border/70 text-xs focus:border-primary/60 outline-none transition-all'
+  const inp = 'h-8 px-2.5 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none'
 
   // Compute preview rows based on current filter state
   const filteredRows = useMemo(() => {
