@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { TarpPreview } from '@/components/ui/tarp-preview'
+import { TarpPreview, computeAge } from '@/components/ui/tarp-preview'
 import { UploadCloud, ScrollText, X, CheckCircle2 } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/phone-input'
 
@@ -36,7 +36,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
   const [lastName,      setLastName]      = useState('')
   const [birthDate,     setBirthDate]     = useState('')
   const [deathDate,     setDeathDate]     = useState('')
-  const [age,           setAge]           = useState('')
   const [venueAddress,  setVenueAddress]  = useState('')
   const [contactNumber, setContactNumber] = useState(submitterPhone)
   const [photo,         setPhoto]         = useState<File | null>(null)
@@ -46,26 +45,52 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
   const [error,         setError]         = useState('')
   const [done,          setDone]          = useState(false)
 
+  // Age is always auto-computed from birth + death dates — never manually entered
+  const today       = new Date().toISOString().split('T')[0]
+  const computedAge = computeAge(birthDate, deathDate)
+
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    setPhoto(f); setFileName(f.name)
+    if (f.size > 10 * 1024 * 1024) {
+      setError('Photo must be under 10 MB.')
+      return
+    }
+    setPhoto(f)
+    setFileName(f.name)
     setPhotoPreview(URL.createObjectURL(f))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+
     if (!firstName.trim())    { setError('First name of deceased is required.'); return }
     if (!lastName.trim())     { setError('Last name of deceased is required.'); return }
     if (!birthDate)           { setError('Date of birth is required.'); return }
     if (!deathDate)           { setError('Date of death is required.'); return }
-    if (!age)                 { setError('Age is required.'); return }
     if (!venueAddress.trim()) { setError('Venue address is required.'); return }
     if (!contactNumber.trim()){ setError('Contact number is required.'); return }
 
     setLoading(true)
+
     const fullName = [firstName.trim(), middleName.trim(), lastName.trim()].filter(Boolean).join(' ')
+
+    // Compute numeric age for DB storage — keep months as fractional year for babies
+    let ageNum: number | null = null
+    if (birthDate && deathDate) {
+      const b = new Date(birthDate + 'T00:00:00')
+      const d = new Date(deathDate + 'T00:00:00')
+      let years  = d.getFullYear() - b.getFullYear()
+      let months = d.getMonth() - b.getMonth()
+      if (d.getDate() < b.getDate()) months--
+      if (months < 0) { years--; months += 12 }
+      // Store 0 for babies under 1 year — the display string handles months
+      ageNum = years >= 0 ? years : 0
+    }
+
+    // Get current user — required so the obituary appears on their /obituaries page
+    const { data: { user } } = await supabase.auth.getUser()
 
     let imagePath = 'obituaries/placeholder.png'
     if (photo) {
@@ -77,16 +102,20 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
     }
 
     const { error: insertErr } = await supabase.from('obituaries').insert({
-      full_name:       fullName.trim(),
+      full_name:       fullName,
       birth_date:      birthDate || null,
       death_date:      deathDate || null,
-      age:             age ? Number(age) : null,
+      age:             ageNum,
       image_path:      imagePath,
       venue_address:   venueAddress.trim(),
       contact_number:  contactNumber.trim(),
-      submitter_name:  submitterName,
-      submitter_email: submitterEmail,
+      submitter_name:  submitterName || null,
+      submitter_email: submitterEmail || null,
+      // Link to the logged-in user so it appears on their /obituaries page
+      user_id:         user?.id ?? null,
+      created_by:      user?.id ?? null,
       is_published:    false,
+      is_approved:     false,
     })
 
     setLoading(false)
@@ -100,16 +129,21 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
       <div className="flex min-h-full items-center justify-center p-4">
         <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
 
+          {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2">
               <ScrollText className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-bold text-foreground">Memorial Tarpaulin Details</h2>
             </div>
-            <button onClick={onDone} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <button
+              onClick={onDone}
+              className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
 
+          {/* Done state */}
           {done ? (
             <div className="px-6 py-12 flex flex-col items-center gap-4 text-center">
               <div className="h-14 w-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -117,24 +151,33 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
               </div>
               <h3 className="font-serif text-xl font-bold text-foreground">Obituary Submitted</h3>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-                Our team will prepare the tarpaulin and reach out to you at <span className="font-semibold text-foreground">{submitterEmail}</span>.
+                Our team will review your submission. You can track its status in{' '}
+                <span className="font-semibold text-foreground">My Obituaries</span>.
               </p>
               <Button onClick={onDone} className="rounded-xl px-8 mt-2">Continue</Button>
             </div>
+
           ) : (
-            <div className="px-6 py-5 space-y-5">
-              <p className="text-xs text-muted-foreground">
-                Payment submitted. Please fill in the details below so we can prepare the memorial tarpaulin for your loved one.
+            /* Form */
+            <div className="px-6 py-5 space-y-5 max-h-[85vh] overflow-y-auto">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Payment submitted. Fill in the details below so we can prepare the memorial tarpaulin for your loved one.
               </p>
 
-              <div className="space-y-1.5">
+              {/* Live preview */}
+              <div>
                 <p className={lbl}>Live Tarpaulin Preview</p>
                 <TarpPreview
-                  firstName={firstName || 'FIRST NAME'} middleName={middleName}
-                  lastName={lastName || 'LAST NAME'} birthDate={birthDate}
-                  deathDate={deathDate} age={age} photoUrl={photoPreview}
-                  venueAddress={venueAddress} contactNumber={contactNumber}
-                  showDownload
+                  firstName={firstName || 'FIRST NAME'}
+                  middleName={middleName}
+                  lastName={lastName || 'LAST NAME'}
+                  birthDate={birthDate}
+                  deathDate={deathDate}
+                  age={computedAge}
+                  photoUrl={photoPreview}
+                  venueAddress={venueAddress}
+                  contactNumber={contactNumber}
+                  showDownload={false}
                 />
               </div>
 
@@ -144,34 +187,66 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <Field label="First Name of Deceased" required>
-                      <input type="text" placeholder="e.g. Juan" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} required />
+                      <input
+                        type="text" placeholder="e.g. Juan"
+                        value={firstName} onChange={e => setFirstName(e.target.value)}
+                        className={inp}
+                      />
                     </Field>
                   </div>
                   <Field label="Middle Name (optional)">
-                    <input type="text" placeholder="e.g. Santos" value={middleName} onChange={e => setMiddleName(e.target.value)} className={inp} />
+                    <input
+                      type="text" placeholder="e.g. Santos"
+                      value={middleName} onChange={e => setMiddleName(e.target.value)}
+                      className={inp}
+                    />
                   </Field>
                   <Field label="Last Name / Surname" required>
-                    <input type="text" placeholder="e.g. Dela Cruz" value={lastName} onChange={e => setLastName(e.target.value)} className={inp} required />
+                    <input
+                      type="text" placeholder="e.g. Dela Cruz"
+                      value={lastName} onChange={e => setLastName(e.target.value)}
+                      className={inp}
+                    />
                   </Field>
                   <Field label="Date of Birth" required>
-                    <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className={inp} required />
+                    <input
+                      type="date" value={birthDate} max={today}
+                      onChange={e => setBirthDate(e.target.value)}
+                      className={inp}
+                    />
                   </Field>
                   <Field label="Date of Death" required>
-                    <input type="date" value={deathDate} onChange={e => setDeathDate(e.target.value)} className={inp} required />
+                    <input
+                      type="date" value={deathDate} max={today}
+                      onChange={e => setDeathDate(e.target.value)}
+                      className={inp}
+                    />
                   </Field>
-                  <Field label="Age" required>
-                    <input type="number" placeholder="e.g. 72" min="0" max="150" value={age} onChange={e => setAge(e.target.value)} className={inp} required />
-                  </Field>
+
+                  {/* Auto-computed age — read-only */}
+                  {computedAge && (
+                    <div className="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Age</span>
+                      <span className="text-sm font-bold text-primary">{computedAge}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
+                    </div>
+                  )}
+
                   <Field label="Contact Number" required>
                     <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
                   </Field>
                   <div className="sm:col-span-2">
                     <Field label="Venue / Wake Address" required>
-                      <input type="text" placeholder="e.g. Brgy. Mayuwi, Tayabas City" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} className={inp} required />
+                      <input
+                        type="text" placeholder="e.g. Brgy. Mayuwi, Tayabas City"
+                        value={venueAddress} onChange={e => setVenueAddress(e.target.value)}
+                        className={inp}
+                      />
                     </Field>
                   </div>
                 </div>
 
+                {/* Photo upload */}
                 <Field label="Photo of Deceased (PNG with transparent background preferred)">
                   <div
                     className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group"
@@ -179,13 +254,17 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                   >
                     <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
                     <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
-                    <p className="text-xs font-semibold text-foreground truncate px-4">{fileName || 'Click to upload photo'}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">PNG recommended · max 5 MB</p>
+                    <p className="text-xs font-semibold text-foreground truncate px-4">
+                      {fileName || 'Click to upload photo'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">PNG recommended · max 10 MB</p>
                   </div>
                 </Field>
 
                 <div className="flex gap-3 pt-1">
-                  <Button type="button" variant="ghost" onClick={onDone} className="flex-1 h-11 rounded-xl">Skip for now</Button>
+                  <Button type="button" variant="ghost" onClick={onDone} className="flex-1 h-11 rounded-xl">
+                    Skip for now
+                  </Button>
                   <Button type="submit" disabled={loading} className="flex-1 h-11 font-bold rounded-xl">
                     {loading ? 'Submitting…' : 'Submit Obituary'}
                   </Button>

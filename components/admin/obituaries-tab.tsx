@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { TarpPreview } from '@/components/ui/tarp-preview'
+import { TarpPreview, computeAge } from '@/components/ui/tarp-preview'
 import { Badge, SectionHeader, EmptyState, Spinner, FilterPills, inputCls } from './admin-primitives'
 import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw, Eye } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/phone-input'
@@ -35,33 +35,44 @@ function ApprovePublishModal({
   onClose: () => void
   onConfirm: () => Promise<void>
 }) {
+  const supabase = createClient()
   const [step, setStep]       = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
 
-  const getPhotoUrl = () => {
-    if (!obituary.image_path || obituary.image_path === 'obituaries/placeholder.png') return null
-    const supabase = require('@/lib/supabase/client').createClient()
-    return supabase.storage.from('obituaries').getPublicUrl(obituary.image_path).data.publicUrl
-  }
+  const photoUrl = obituary.image_path && obituary.image_path !== 'obituaries/placeholder.png'
+    ? supabase.storage.from('obituaries').getPublicUrl(obituary.image_path).data.publicUrl
+    : null
+
+  const nameParts = obituary.full_name.trim().split(' ')
+  const firstName = nameParts[0] ?? ''
+  const lastName  = nameParts[nameParts.length - 1] ?? ''
+  const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Eye className="h-4 w-4 text-primary" />
             <div>
-              <p className="text-sm font-bold text-foreground">Approve & Publish Obituary</p>
-              <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
+              <p className="text-sm font-bold text-foreground">Approve &amp; Publish Obituary</p>
+              <p className="text-[10px] text-muted-foreground">Step {step} of 2 — Review before confirming</p>
             </div>
           </div>
           <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-6 py-5 space-y-4 max-h-[80vh] overflow-y-auto">
           {step === 1 ? (
             <>
+              {/* Tarp preview */}
+              <TarpPreview
+                firstName={firstName} middleName={middleName} lastName={lastName}
+                birthDate={obituary.birth_date ?? ''} deathDate={obituary.death_date ?? ''}
+                age={obituary.age ?? ''} photoUrl={photoUrl}
+                venueAddress={obituary.venue_address ?? ''} contactNumber={obituary.contact_number ?? ''}
+              />
               <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2 text-xs">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Name</span>
@@ -88,7 +99,8 @@ function ApprovePublishModal({
               <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">Confirm Publication</p>
                 <p className="text-sm text-foreground">
-                  Publish <span className="font-semibold">"{obituary.full_name}"</span>? This will make it visible to all visitors.
+                  Approve and publish <span className="font-semibold">"{obituary.full_name}"</span>?
+                  Once published, it will be visible to the client in their Obituaries tab.
                 </p>
               </div>
               <div className="flex gap-2 pt-1">
@@ -352,7 +364,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [lastName,      setLastName]      = useState('')
   const [birthDate,     setBirthDate]     = useState('')
   const [deathDate,     setDeathDate]     = useState('')
-  const [age,           setAge]           = useState('')
   const [venueAddress,  setVenueAddress]  = useState('')
   const [contactNumber, setContactNumber] = useState('')
   const [photo,         setPhoto]         = useState<File | null>(null)
@@ -362,6 +373,9 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
   const [done,          setDone]          = useState(false)
+
+  // Age is auto-computed from birth + death dates
+  const computedAge = computeAge(birthDate, deathDate)
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -377,12 +391,23 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     if (!lastName.trim())     { setError('Last name is required.'); return }
     if (!birthDate)           { setError('Date of birth is required.'); return }
     if (!deathDate)           { setError('Date of death is required.'); return }
-    if (!age)                 { setError('Age is required.'); return }
     if (!venueAddress.trim()) { setError('Venue address is required.'); return }
     if (!contactNumber.trim()){ setError('Contact number is required.'); return }
 
     setLoading(true)
     const fullName = [firstName.trim(), middleName.trim(), lastName.trim()].filter(Boolean).join(' ')
+
+    // Compute numeric age for DB — 0 for babies under 1 year
+    let ageNum: number | null = null
+    if (birthDate && deathDate) {
+      const b = new Date(birthDate + 'T00:00:00')
+      const d = new Date(deathDate + 'T00:00:00')
+      let years = d.getFullYear() - b.getFullYear()
+      let months = d.getMonth() - b.getMonth()
+      if (d.getDate() < b.getDate()) months--
+      if (months < 0) { years--; }
+      ageNum = years >= 0 ? years : 0
+    }
 
     let imagePath = 'obituaries/placeholder.png'
     if (photo) {
@@ -393,15 +418,19 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       imagePath = path
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
+
     const { error: insertErr } = await supabase.from('obituaries').insert({
       full_name:      fullName.trim(),
       birth_date:     birthDate || null,
       death_date:     deathDate || null,
-      age:            age ? Number(age) : null,
+      age:            ageNum,
       image_path:     imagePath,
       venue_address:  venueAddress.trim(),
       contact_number: contactNumber.trim(),
       is_published:   isPublished,
+      is_approved:    isPublished, // approved if publishing immediately
+      created_by:     user?.id ?? null,
     })
 
     setLoading(false)
@@ -445,7 +474,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                   lastName={lastName || 'LAST NAME'}
                   birthDate={birthDate}
                   deathDate={deathDate}
-                  age={age}
+                  age={computedAge}
                   photoUrl={photoPreview}
                   venueAddress={venueAddress}
                   contactNumber={contactNumber}
@@ -470,16 +499,19 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                   </div>
                   <div>
                     <label className={lbl}>Date of Birth <span className="text-primary">*</span></label>
-                    <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className={inp} />
+                    <input type="date" value={birthDate} max={new Date().toISOString().split('T')[0]} onChange={e => setBirthDate(e.target.value)} className={inp} />
                   </div>
                   <div>
                     <label className={lbl}>Date of Death <span className="text-primary">*</span></label>
-                    <input type="date" value={deathDate} onChange={e => setDeathDate(e.target.value)} className={inp} />
+                    <input type="date" value={deathDate} max={new Date().toISOString().split('T')[0]} onChange={e => setDeathDate(e.target.value)} className={inp} />
                   </div>
-                  <div>
-                    <label className={lbl}>Age <span className="text-primary">*</span></label>
-                    <input type="number" placeholder="e.g. 72" min="0" max="150" value={age} onChange={e => setAge(e.target.value)} className={inp} />
-                  </div>
+                  {computedAge && (
+                    <div className="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Age</span>
+                      <span className="text-sm font-bold text-primary">{computedAge}</span>
+                      <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
+                    </div>
+                  )}
                   <div>
                     <label className={lbl}>Contact Number <span className="text-primary">*</span></label>
                     <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
