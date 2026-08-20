@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import {
-  Calendar, MapPin, Clock, ChevronLeft,
+  Calendar, MapPin, Clock,
   Moon, AlertTriangle, Check, X, ChevronRight,
   CalendarDays, Navigation, CheckCircle2, XCircle,
 } from 'lucide-react'
@@ -432,18 +432,13 @@ export default function WakeSchedulePage() {
 
       <main className="flex-1 bg-background">
         {/* Hero */}
-        <div className="border-b border-border/40 bg-muted/20 px-6 py-10">
-          <div className="max-w-2xl mx-auto flex items-center gap-4">
-            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-              <ChevronLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Your Account</p>
-              <h1 className="font-serif text-3xl font-bold text-foreground flex items-center gap-3">
-                <Moon className="h-7 w-7 text-primary" />
-                Wake Schedule
-              </h1>
-            </div>
+        <div className="border-b border-border/40 bg-muted/20 px-6 py-8">
+          <div className="max-w-2xl mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Your Account</p>
+            <h1 className="font-serif text-3xl font-bold text-foreground flex items-center gap-3">
+              <Moon className="h-7 w-7 text-primary" />
+              Wake Schedule
+            </h1>
           </div>
         </div>
 
@@ -458,20 +453,42 @@ export default function WakeSchedulePage() {
 
           {/* No wake record */}
           {!wake ? (
-            <div className="py-20 text-center space-y-3">
+            <div className="py-16 text-center space-y-4">
               <div className="h-16 w-16 rounded-full bg-muted/40 flex items-center justify-center mx-auto border border-border/60">
                 <Moon className="h-7 w-7 text-muted-foreground/40" />
               </div>
-              <p className="text-sm font-semibold text-muted-foreground">No wake schedule found</p>
-              <p className="text-xs text-muted-foreground/60 max-w-xs mx-auto leading-relaxed">
-                Wake schedules are created once your coffin/casket service booking has been confirmed by our staff.
-                If you have an active booking, please wait for confirmation or contact us for assistance.
-              </p>
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground">No wake schedule found</p>
+                <p className="text-xs text-muted-foreground/60 max-w-xs mx-auto leading-relaxed mt-1">
+                  Your wake schedule will appear here once our staff sets it up after your booking is confirmed.
+                </p>
+              </div>
+
+              {/* How to get a wake scheduled */}
+              <div className="max-w-sm mx-auto bg-card border border-border rounded-2xl overflow-hidden text-left mt-2">
+                <div className="px-5 py-3 border-b border-border/60 bg-primary/5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">How to Get a Wake Scheduled</p>
+                </div>
+                <ol className="px-5 py-4 space-y-3">
+                  {[
+                    { n: '1', text: 'Avail a Traditional Burial Package from our Services page.' },
+                    { n: '2', text: 'Submit the required documents for staff review.' },
+                    { n: '3', text: 'Once approved, complete your payment through the billing page.' },
+                    { n: '4', text: 'Our staff will create your wake schedule and it will appear here.' },
+                  ].map(s => (
+                    <li key={s.n} className="flex items-start gap-3 text-xs text-muted-foreground">
+                      <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
+                      <span className="leading-relaxed">{s.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+
               <Link
-                href="/contact"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline mt-2"
+                href="/services/traditional"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline mt-1"
               >
-                Contact Us <ChevronRight className="h-3.5 w-3.5" />
+                View Traditional Burial Packages <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           ) : (
@@ -597,11 +614,7 @@ export default function WakeSchedulePage() {
             </>
           )}
 
-          <div className="pt-4 text-center">
-            <Link href="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-              ← Back to Home
-            </Link>
-          </div>
+
         </div>
       </main>
     </ClientLayout>

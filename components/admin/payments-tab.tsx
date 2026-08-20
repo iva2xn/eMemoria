@@ -165,6 +165,65 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
     if (row.product_type === 'columbarium' && row.product_ref) {
       await supabase.from('columbarium_slots').update({ status: 'reserved', reserved_by_user_id: row.user_id ?? null, reserved_at: new Date().toISOString() }).eq('slot_code', row.product_ref).eq('status', 'available')
     }
+
+    // ── Auto-create wake for traditional burial packages ──────
+    if (row.product_type === 'package' && row.user_id) {
+      // Idempotency: only create if no wake exists for this booking
+      const existingWake = row.booking_id
+        ? (await supabase.from('wakes').select('id').eq('booking_id', row.booking_id).maybeSingle()).data
+        : null
+      const existingByUser = !row.booking_id
+        ? (await supabase.from('wakes').select('id').eq('user_id', row.user_id).maybeSingle()).data
+        : null
+
+      if (!existingWake && !existingByUser) {
+        // Try to get deceased name from the user's most recent obituary
+        const { data: obit } = await supabase
+          .from('obituaries')
+          .select('full_name')
+          .eq('user_id', row.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        const deceasedName = obit?.full_name ?? 'Deceased (to be filled by staff)'
+
+        // Default schedule: pickup tomorrow 8 AM, 3-day wake
+        const tomorrow = new Date()
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        tomorrow.setHours(8, 0, 0, 0)
+
+        const wakeStart = new Date(tomorrow)
+        wakeStart.setDate(wakeStart.getDate() + 1)
+
+        const wakeEnd = new Date(wakeStart)
+        wakeEnd.setDate(wakeEnd.getDate() + 3)
+
+        const toDateStr = (d: Date) => d.toISOString().split('T')[0]
+
+        await supabase.from('wakes').insert({
+          booking_id:      row.booking_id ?? null,
+          user_id:         row.user_id,
+          deceased_name:   deceasedName,
+          pickup_datetime: tomorrow.toISOString(),
+          wake_start_date: toDateStr(wakeStart),
+          wake_end_date:   toDateStr(wakeEnd),
+          notes:           `Auto-generated upon payment approval for ${row.product_ref ?? 'package'}. Please update pickup time, wake dates, and burial location as needed.`,
+        })
+
+        await logActivity({
+          category:     'log',
+          event_type:   'wake_auto_created',
+          entity_table: 'wakes',
+          entity_id:    null,
+          actor_id:     user?.id,
+          actor_name:   actorName,
+          message:      `Wake schedule auto-created for ${clientName(row)} (${deceasedName}) after ${row.product_ref ?? 'package'} payment approval`,
+          metadata:     { deceased: deceasedName, package: row.product_ref, client: clientName(row) },
+        })
+      }
+    }
+
     await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ${fmtAmt(row.amount)} from ${clientName(row)}`, metadata: { amount: row.amount } })
     setLoading(false); onApproved(row.id)
     // Auto-download official receipt on approval

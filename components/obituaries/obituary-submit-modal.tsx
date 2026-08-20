@@ -196,10 +196,10 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                   <input type="text" placeholder="e.g. Dela Cruz" value={lastName} onChange={e => setLastName(e.target.value)} className={inp} />
                 </Field>
                 <Field label="Date of Birth" required>
-                  <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className={inp} />
+                  <input type="date" value={birthDate} max={new Date().toISOString().split('T')[0]} onChange={e => setBirthDate(e.target.value)} className={inp} />
                 </Field>
                 <Field label="Date of Death" required>
-                  <input type="date" value={deathDate} onChange={e => setDeathDate(e.target.value)} className={inp} />
+                  <input type="date" value={deathDate} max={new Date().toISOString().split('T')[0]} onChange={e => setDeathDate(e.target.value)} className={inp} />
                 </Field>
                 {/* Auto-computed age read-only display */}
                 {computedAge && (
