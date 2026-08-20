@@ -43,20 +43,30 @@ export function HomeSidebar({
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
-    if (cachedProfile !== undefined) {
-      setProfile(cachedProfile); setAuthReady(true)
-    }
     const fetchProfile = async (userId: string) => {
       const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
       const resolved = data ?? null
       cachedProfile = resolved; setProfile(resolved); setAuthReady(true)
     }
+
+    // On every pathname change, re-fetch if we already know the user —
+    // this ensures avatar / name updates from /profile are reflected immediately
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        fetchProfile(user.id)
+      } else if (cachedProfile !== undefined) {
+        setProfile(cachedProfile); setAuthReady(true)
+      }
+    })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session?.user) fetchProfile(session.user.id)
       else { cachedProfile = null; setProfile(null); setAuthReady(true) }
     })
     return () => subscription.unsubscribe()
-  }, [supabase])
+  // Re-run on pathname so navigating back from /profile re-fetches
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, pathname])
 
   const handleLogout = async () => {
     cachedProfile = null
@@ -152,8 +162,19 @@ export function HomeSidebar({
               href="/profile"
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 border border-border/50 hover:border-primary/40 hover:bg-muted/80 transition-all group"
             >
-              <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                <span className="text-xs font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
+              <div className="h-7 w-7 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center shrink-0 border border-border/40">
+                {profile.avatar_path ? (
+                  <Image
+                    src={supabase.storage.from('avatars').getPublicUrl(profile.avatar_path).data.publicUrl}
+                    alt={profile.name}
+                    width={28}
+                    height={28}
+                    className="object-cover w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-xs font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-foreground truncate">{profile.name}</p>
@@ -169,8 +190,19 @@ export function HomeSidebar({
               title="Your Profile"
               className="w-full flex items-center justify-center px-0 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
             >
-              <div className="h-6 w-6 rounded-full bg-primary/15 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
+              <div className="h-6 w-6 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center border border-border/40">
+                {profile.avatar_path ? (
+                  <Image
+                    src={supabase.storage.from('avatars').getPublicUrl(profile.avatar_path).data.publicUrl}
+                    alt={profile.name}
+                    width={24}
+                    height={24}
+                    className="object-cover w-full h-full"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-[10px] font-bold text-primary">{profile.name?.charAt(0).toUpperCase()}</span>
+                )}
               </div>
             </Link>
           )}
