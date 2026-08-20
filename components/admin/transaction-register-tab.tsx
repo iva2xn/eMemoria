@@ -34,7 +34,7 @@ type ExportScope   = 'filtered' | 'selected' | 'all'
 type ActiveSubTab  = 'register' | 'voided'
 
 const PRODUCT_TYPES  = ['all','columbarium','package','urn','cremation','general'] as const
-const PAYMENT_METHODS = ['all','gcash','bdo_bank','bpi_bank','cash'] as const
+const PAYMENT_METHODS = ['all','gcash','bdo_bank','cash'] as const
 const VOID_REASONS   = [
   'Duplicate entry',
   'Client cancellation',

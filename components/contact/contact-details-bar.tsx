@@ -64,16 +64,19 @@ export function ContactDetailsBar() {
             {CONTACT_ITEMS.map(({ icon: Icon, label, value, sub, href }) => {
               const inner = (
                 <div className="px-6 py-4 flex items-start gap-3">
-                  <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${href ? 'text-primary' : 'text-muted-foreground'}`} />
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-                    <p className="text-sm font-semibold text-foreground mt-0.5">{value}</p>
+                    <p className={`text-sm font-semibold mt-0.5 ${href ? 'text-primary underline-offset-2 group-hover:underline' : 'text-foreground'}`}>{value}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
                   </div>
                 </div>
               )
               return href ? (
-                <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="block hover:bg-muted/30 transition-colors">{inner}</a>
+                <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer"
+                  className="group block hover:bg-primary/5 active:bg-primary/10 transition-colors">
+                  {inner}
+                </a>
               ) : <div key={label}>{inner}</div>
             })}
           </div>
@@ -87,14 +90,22 @@ export function ContactDetailsBar() {
             {CONTACT_ITEMS.map(({ icon: Icon, label, value, sub, href }) => {
               const inner = (
                 <div className="px-6 py-6 flex flex-col gap-1.5">
-                  <Icon className="h-4 w-4 text-muted-foreground mb-0.5" />
+                  <Icon className={`h-4 w-4 mb-0.5 ${href ? 'text-primary' : 'text-muted-foreground'}`} />
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-                  <p className="text-sm font-semibold text-foreground leading-snug">{value}</p>
+                  <p className={`text-sm font-semibold leading-snug ${href ? 'text-primary group-hover:underline underline-offset-2' : 'text-foreground'}`}>{value}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{sub}</p>
+                  {href && (
+                    <p className="text-[10px] text-primary/60 font-semibold mt-0.5">
+                      {href.startsWith('tel:') ? 'Tap to call' : href.startsWith('mailto:') ? 'Tap to email' : 'View on map →'}
+                    </p>
+                  )}
                 </div>
               )
               return href ? (
-                <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="hover:bg-muted/30 transition-colors first:pl-0">{inner}</a>
+                <a key={label} href={href} target={href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer"
+                  className="group hover:bg-primary/5 active:bg-primary/10 transition-colors first:pl-0 cursor-pointer">
+                  {inner}
+                </a>
               ) : <div key={label}>{inner}</div>
             })}
           </div>

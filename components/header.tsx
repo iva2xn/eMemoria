@@ -63,6 +63,7 @@ export function AdminHeader({
   }, [supabase])
 
   const handleLogout = async () => {
+    if (!window.confirm('Sign out of your account?')) return
     cachedProfile = null
     await supabase.auth.signOut()
     setProfile(null)
@@ -239,6 +240,7 @@ export function HeroHeader() {
   }, [supabase])
 
   const handleLogout = async () => {
+    if (!window.confirm('Sign out of your account?')) return
     cachedProfile = null
     await supabase.auth.signOut()
     setProfile(null)

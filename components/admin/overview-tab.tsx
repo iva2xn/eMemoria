@@ -238,7 +238,8 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             value={stats.approvedCount} 
             trend="3.4%" 
             trendType="up"
-            icon={CheckSquare} 
+            icon={CheckSquare}
+            onClick={() => onNavigate('payments')}
           />
           <MetricCard 
             label="Total Revenue" 

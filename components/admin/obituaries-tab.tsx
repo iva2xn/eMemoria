@@ -647,20 +647,43 @@ function RecentlyDeletedPane() {
         <div className="space-y-3">
           {rows.map(o => {
             const daysLeft = o.deleted_at ? daysUntilPermanentDelete(o.deleted_at) : 0
+            const photoUrl = o.image_path && o.image_path !== 'obituaries/placeholder.png'
+              ? supabase.storage.from('obituaries').getPublicUrl(o.image_path).data.publicUrl
+              : null
+            const nameParts = o.full_name.trim().split(' ')
+            const initials = [nameParts[0]?.[0], nameParts[nameParts.length - 1]?.[0]].filter(Boolean).join('').toUpperCase()
             return (
-              <div key={o.id} className="bg-card border border-border rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div key={o.id} className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-start gap-4">
+                {/* Photo thumbnail */}
+                <div className="h-16 w-16 rounded-xl overflow-hidden bg-muted/40 border border-border shrink-0 flex items-center justify-center">
+                  {photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoUrl} alt={o.full_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-bold text-muted-foreground">{initials}</span>
+                  )}
+                </div>
+
+                {/* Details */}
                 <div className="flex-1 min-w-0 space-y-1">
-                  <p className="font-semibold text-sm text-foreground truncate">{o.full_name}</p>
+                  <p className="font-bold text-sm text-foreground">{o.full_name}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                    {o.birth_date && <span>Born: {new Date(o.birth_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
+                    {o.death_date && <span>Died: {new Date(o.death_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
+                    {o.venue_address && <span className="truncate max-w-[200px]">Venue: {o.venue_address}</span>}
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Deleted: {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString() : '—'}
-                    {' · '}Reason: {o.delete_reason ?? '—'}
+                    Deleted {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                    {o.delete_reason ? ` · Reason: ${o.delete_reason}` : ''}
                     {o.delete_comment ? ` (${o.delete_comment})` : ''}
                   </p>
-                  <p className={`text-[11px] font-semibold ${daysLeft <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
+                  <p className={`text-[11px] font-bold ${daysLeft <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
                     {daysLeft} day{daysLeft !== 1 ? 's' : ''} until permanent deletion
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 shrink-0 sm:self-center">
                   <button
                     onClick={() => setRecoverTarget(o)}
                     className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"

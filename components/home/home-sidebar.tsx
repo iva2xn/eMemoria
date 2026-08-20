@@ -36,9 +36,11 @@ export function HomeSidebar({
   const { theme, setTheme } = useTheme()
   const supabase = useRef(createClient()).current
 
-  const [mounted,   setMounted]   = useState(false)
-  const [profile,   setProfile]   = useState<Profile | null>(cachedProfile ?? null)
-  const [authReady, setAuthReady] = useState(cachedProfile !== undefined)
+  const [mounted,    setMounted]    = useState(false)
+  const [profile,    setProfile]    = useState<Profile | null>(cachedProfile ?? null)
+  const [authReady,  setAuthReady]  = useState(cachedProfile !== undefined)
+  // Bust the browser's image cache whenever the avatar is freshly fetched
+  const [avatarCacheBust, setAvatarCacheBust] = useState<number>(Date.now())
 
   useEffect(() => setMounted(true), [])
 
@@ -46,7 +48,11 @@ export function HomeSidebar({
     const fetchProfile = async (userId: string) => {
       const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
       const resolved = data ?? null
-      cachedProfile = resolved; setProfile(resolved); setAuthReady(true)
+      cachedProfile = resolved
+      setProfile(resolved)
+      setAuthReady(true)
+      // Refresh the cache-bust timestamp so any newly uploaded avatar is shown
+      if (resolved?.avatar_path) setAvatarCacheBust(Date.now())
     }
 
     // On every pathname change, re-fetch if we already know the user —
@@ -69,6 +75,7 @@ export function HomeSidebar({
   }, [supabase, pathname])
 
   const handleLogout = async () => {
+    if (!window.confirm('Sign out of your account?')) return
     cachedProfile = null
     await supabase.auth.signOut()
     setProfile(null)

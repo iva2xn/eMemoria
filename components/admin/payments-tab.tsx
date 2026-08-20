@@ -15,7 +15,6 @@ import {
   Receipt,
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
-import { generateReceipt } from '@/lib/generate-receipt'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -226,16 +225,6 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
 
     await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ${fmtAmt(row.amount)} from ${clientName(row)}`, metadata: { amount: row.amount } })
     setLoading(false); onApproved(row.id)
-    // Auto-download official receipt on approval
-    try {
-      await generateReceipt({
-        ...row,
-        status: 'approved',
-        approved_at: new Date().toISOString(),
-        profileName:  row.profileName,
-        profileEmail: row.profileEmail,
-      })
-    } catch { /* receipt download is best-effort */ }
     onClose()
   }
 
@@ -297,13 +286,14 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
               {receiptUrl && (
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment Receipt</p>
-                  <button className="w-full relative group rounded-xl overflow-hidden border border-border" onClick={() => setLightbox(true)}>
+                  <button className="w-full relative group rounded-xl overflow-hidden border border-border bg-muted/20" onClick={() => setLightbox(true)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img ref={receiptRef} src={receiptUrl} alt="Receipt" className="w-full h-40 object-cover" />
+                    <img ref={receiptRef} src={receiptUrl} alt="Receipt" className="w-full max-h-64 object-contain" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                       <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </button>
+                  <p className="text-[10px] text-muted-foreground mt-1">Click to view full screen</p>
                 </div>
               )}
               {/* Notes */}

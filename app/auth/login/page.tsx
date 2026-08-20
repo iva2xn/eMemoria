@@ -14,6 +14,7 @@ function LoginContent() {
   const supabase     = createClient()
   const searchParams = useSearchParams()
   const nextUrl      = searchParams.get('next') ?? '/'
+  const verified     = searchParams.get('verified') === '1'
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -84,7 +85,8 @@ function LoginContent() {
             <p className="text-sm text-muted-foreground">Access your M.P. Gayeta account to view billing and slots.</p>
           </div>
 
-          {errorMsg && <AlertBanner variant="error" message={errorMsg} />}
+          {errorMsg  && <AlertBanner variant="error"   message={errorMsg} />}
+          {verified  && <AlertBanner variant="success" message="Email confirmed! You can now sign in." />}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <FormField id="email" label="Email Address" type="email"

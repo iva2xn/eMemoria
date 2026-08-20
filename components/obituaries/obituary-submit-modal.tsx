@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview, computeAge } from '@/components/ui/tarp-preview'
 import { PhoneInput } from '@/components/ui/phone-input'
-import { ScrollText, X, CheckCircle2, UploadCloud, ChevronLeft, AlertTriangle } from 'lucide-react'
+import { ScrollText, X, CheckCircle2, UploadCloud, ChevronLeft, AlertTriangle, Wand2 } from 'lucide-react'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
@@ -40,6 +40,8 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
   const [photo,          setPhoto]          = useState<File | null>(null)
   const [photoPreview,   setPhotoPreview]   = useState<string | null>(null)
   const [fileName,       setFileName]       = useState('')
+  const [bgRemoving,     setBgRemoving]     = useState(false)
+  const [bgRemoved,      setBgRemoved]      = useState(false)
   const [loading,        setLoading]        = useState(false)
   const [error,          setError]          = useState('')
   const [done,           setDone]           = useState(false)
@@ -47,11 +49,34 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
   // Auto-computed age — shown in review and tarp preview
   const computedAge = computeAge(birthDate, deathDate)
 
-  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
-    setPhoto(f); setFileName(f.name)
-    setPhotoPreview(URL.createObjectURL(f))
+    // Show original preview immediately
+    const originalUrl = URL.createObjectURL(f)
+    setPhoto(f)
+    setFileName(f.name)
+    setPhotoPreview(originalUrl)
+    setBgRemoved(false)
+
+    // Auto background removal
+    setBgRemoving(true)
+    try {
+      const { removeBackground } = await import('@/lib/remove-background')
+      const { url, blob } = await removeBackground(f)
+      // Replace preview with bg-removed version
+      URL.revokeObjectURL(originalUrl)
+      setPhotoPreview(url)
+      // Replace the file blob so we upload the bg-removed PNG
+      const bgRemovedFile = new File([blob], f.name.replace(/\.\w+$/, '.png'), { type: 'image/png' })
+      setPhoto(bgRemovedFile)
+      setBgRemoved(true)
+    } catch (err) {
+      console.warn('Background removal failed, using original:', err)
+      // Fall back to original — no error shown to user
+    } finally {
+      setBgRemoving(false)
+    }
   }
 
   // Step 1 → Step 2 validation
@@ -230,22 +255,34 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Photo upload */}
-              <Field label="Photo of Deceased (PNG with transparent background preferred)">
+              <Field label="Photo of Deceased">
                 <div
                   className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group"
-                  onClick={() => fileRef.current?.click()}
+                  onClick={() => !bgRemoving && fileRef.current?.click()}
                 >
                   <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
-                  <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
-                  <p className="text-xs font-semibold text-foreground truncate px-4">{fileName || 'Click to upload photo'}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">PNG recommended · max 5 MB</p>
+                  {bgRemoving ? (
+                    <>
+                      <Wand2 className="h-5 w-5 text-primary mx-auto mb-1.5 animate-pulse" />
+                      <p className="text-xs font-semibold text-primary">Removing background…</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">This may take a few seconds</p>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
+                      <p className="text-xs font-semibold text-foreground truncate px-4">{fileName || 'Click to upload photo'}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {bgRemoved ? '✓ Background removed automatically' : 'PNG, JPG · max 5 MB · background auto-removed'}
+                      </p>
+                    </>
+                  )}
                 </div>
               </Field>
 
               <div className="flex gap-3 pt-1">
                 <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-11 rounded-xl">Cancel</Button>
-                <Button type="button" onClick={handleNext} className="flex-1 h-11 font-bold rounded-xl">
-                  Review →
+                <Button type="button" onClick={handleNext} disabled={bgRemoving} className="flex-1 h-11 font-bold rounded-xl">
+                  {bgRemoving ? 'Processing photo…' : 'Review →'}
                 </Button>
               </div>
             </div>

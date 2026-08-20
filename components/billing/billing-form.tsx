@@ -14,7 +14,6 @@ import { PhoneInput } from '@/components/ui/phone-input'
 const METHODS = [
   { id: 'gcash',    label: 'GCash' },
   { id: 'bdo_bank', label: 'BDO Bank' },
-  { id: 'bpi_bank', label: 'BPI Bank' },
   { id: 'cash',     label: 'Cash (Counter)' },
 ] as const
 type MethodId = typeof METHODS[number]['id']

@@ -84,7 +84,7 @@ function RegisterContent() {
       .filter(Boolean).join(' ')
 
     setLoading(true)
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
@@ -101,12 +101,27 @@ function RegisterContent() {
     })
     setLoading(false)
 
+    // Supabase silently "succeeds" for existing emails when email enumeration
+    // protection is on — identities array is empty in that case.
+    if (!signUpError && signUpData.user && signUpData.user.identities?.length === 0) {
+      setEmailTaken(true)
+      setError('This email has already been taken.')
+      return
+    }
+
     if (signUpError) {
+      const msg  = signUpError.message?.toLowerCase() ?? ''
+      const code = (signUpError as { code?: string }).code ?? ''
       if (
-        signUpError.message.toLowerCase().includes('already registered') ||
-        signUpError.message.toLowerCase().includes('already been taken') ||
-        signUpError.message.toLowerCase().includes('unique') ||
-        signUpError.code === 'user_already_exists'
+        msg.includes('already registered') ||
+        msg.includes('already been taken') ||
+        msg.includes('already exists') ||
+        msg.includes('unique') ||
+        msg.includes('duplicate') ||
+        msg.includes('user already') ||
+        msg.includes('email address is already') ||
+        code === 'user_already_exists' ||
+        code === '23505'
       ) {
         setEmailTaken(true)
         setError('This email has already been taken.')

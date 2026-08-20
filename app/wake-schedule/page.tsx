@@ -9,7 +9,7 @@ import { ClientLayout } from '@/components/client-layout'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import {
   Calendar, MapPin, Clock,
-  Moon, AlertTriangle, Check, X, ChevronRight,
+  Moon, AlertTriangle, Check, X, ChevronRight, ChevronLeft,
   CalendarDays, Navigation, CheckCircle2, XCircle,
 } from 'lucide-react'
 import { SARIAYA_CEMETERIES } from '@/components/admin/wake-schedule-tab'
@@ -435,10 +435,7 @@ export default function WakeSchedulePage() {
         <div className="border-b border-border/40 bg-muted/20 px-6 py-8">
           <div className="max-w-2xl mx-auto">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Your Account</p>
-            <h1 className="font-serif text-3xl font-bold text-foreground flex items-center gap-3">
-              <Moon className="h-7 w-7 text-primary" />
-              Wake Schedule
-            </h1>
+            <h1 className="font-serif text-3xl font-bold text-foreground">Wake Schedule</h1>
           </div>
         </div>
 

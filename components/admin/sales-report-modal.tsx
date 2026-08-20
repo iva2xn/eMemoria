@@ -10,7 +10,7 @@ import { logActivity } from '@/lib/activity-log'
 
 const PRODUCT_TYPES = ['all', 'columbarium', 'package', 'urn', 'cremation', 'general'] as const
 type ProductFilter = typeof PRODUCT_TYPES[number]
-const PAYMENT_METHODS = ['all', 'gcash', 'bdo_bank', 'bpi_bank', 'cash'] as const
+const PAYMENT_METHODS = ['all', 'gcash', 'bdo_bank', 'cash'] as const
 type MethodFilter = typeof PAYMENT_METHODS[number]
 
 const VOID_REASONS = [

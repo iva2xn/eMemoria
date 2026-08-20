@@ -134,6 +134,7 @@ export default function AdminPage() {
   }, [profile, activeTab])
 
   const handleLogout = async () => {
+    if (!window.confirm('Sign out of the admin panel?')) return
     await supabase.auth.signOut()
     router.push('/')
     router.refresh()

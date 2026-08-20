@@ -40,3 +40,6 @@ next-env.d.ts
 
 # supabase
 supabase/.temp/
+
+# internal revision tracking
+UPDATES_V2.md

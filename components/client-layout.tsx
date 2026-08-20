@@ -1,21 +1,28 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HomeSidebar } from '@/components/home/home-sidebar'
 import { HeroHeader } from '@/components/header'
 import { Footer } from '@/components/footer'
 
 const SIDEBAR_KEY = 'home:sidebarCollapsed'
 
-function readCollapsed(): boolean {
-  if (typeof window === 'undefined') return true
-  const stored = localStorage.getItem(SIDEBAR_KEY)
-  return stored !== null ? stored === 'true' : true
-}
-
 export function ClientLayout({ children }: { children: React.ReactNode }) {
-  // Lazy initializer reads localStorage synchronously — no useEffect flash
-  const [collapsed, setCollapsed] = useState<boolean>(readCollapsed)
+  const [collapsed, setCollapsed] = useState(true) // always true on SSR — no mismatch
+  const [mounted,   setMounted]   = useState(false)
+  const [isLg,      setIsLg]      = useState(false)
+
+  useEffect(() => {
+    const stored = localStorage.getItem(SIDEBAR_KEY)
+    if (stored !== null) setCollapsed(stored === 'true')
+
+    const mq = window.matchMedia('(min-width: 1024px)')
+    setIsLg(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsLg(e.matches)
+    mq.addEventListener('change', handler)
+    setMounted(true)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const handleCollapsedChange = (v: boolean) => {
     localStorage.setItem(SIDEBAR_KEY, String(v))
@@ -28,15 +35,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <div className="lg:hidden">
         <HeroHeader />
       </div>
+      {/* No <style> tag — margin only applied after mount on lg+ screens */}
       <div
-        className="flex flex-col min-w-0 min-h-screen sidebar-content"
-        style={{
+        className="flex flex-col min-w-0 min-h-screen"
+        style={mounted && isLg ? {
+          marginLeft: collapsed ? 60 : 280,
           transition: 'margin-left 200ms ease-in-out',
-        }}
+        } : undefined}
       >
-        {/* Inject the lg margin as a scoped style so mobile gets 0 and desktop
-            gets the correct sidebar width — avoids inline style on mobile */}
-        <style>{`@media (min-width: 1024px) { .sidebar-content { margin-left: ${collapsed ? '60px' : '280px'}; } }`}</style>
         {children}
         <Footer />
       </div>
