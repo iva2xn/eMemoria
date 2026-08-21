@@ -15,6 +15,7 @@ import {
   Receipt,
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
+import { generateReceipt } from '@/lib/generate-receipt'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -246,9 +247,9 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
             <p className="text-sm font-semibold text-white">Payment Receipt</p>
             <button onClick={() => setLightbox(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+          <div className="flex-1 overflow-y-auto flex items-start justify-center p-4" onClick={e => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={receiptUrl} alt="Receipt" className="max-h-full max-w-full object-contain rounded-lg shadow-2xl" />
+            <img src={receiptUrl} alt="Receipt" className="block max-w-full max-h-[80vh] w-auto h-auto rounded-lg shadow-2xl mx-auto object-contain" />
           </div>
         </div>
       )}
@@ -286,9 +287,9 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
               {receiptUrl && (
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment Receipt</p>
-                  <button className="w-full relative group rounded-xl overflow-hidden border border-border bg-muted/20" onClick={() => setLightbox(true)}>
+                  <button className="w-full block relative group rounded-xl overflow-hidden border border-border bg-muted/20" onClick={() => setLightbox(true)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img ref={receiptRef} src={receiptUrl} alt="Receipt" className="w-full max-h-64 object-contain" />
+                    <img ref={receiptRef} src={receiptUrl} alt="Receipt" className="block w-full h-auto" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                       <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -662,9 +663,9 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
             <p className="text-sm font-semibold text-white">Payment Receipt</p>
             <button onClick={() => setLightbox(false)} className="h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20"><X className="h-4 w-4" /></button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex-1 overflow-y-auto flex items-start justify-center p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={receiptUrl} alt="Receipt" className="max-h-full max-w-full object-contain rounded-lg shadow-2xl" />
+            <img src={receiptUrl} alt="Receipt" className="block max-w-full max-h-[80vh] w-auto h-auto rounded-lg shadow-2xl mx-auto object-contain" />
           </div>
         </div>
       )}
@@ -747,9 +748,9 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
           {receiptUrl && (
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Payment Receipt</p>
-              <button className="relative group rounded-xl overflow-hidden border border-border max-w-xs" onClick={() => setLightbox(true)}>
+              <button className="relative block group rounded-xl overflow-hidden border border-border max-w-xs" onClick={() => setLightbox(true)}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={receiptUrl} alt="Receipt" className="w-full h-40 object-cover" />
+                <img src={receiptUrl} alt="Receipt" className="block w-full h-auto" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
                   <Eye className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -769,17 +770,18 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
 }
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear }: {
+export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear, initialStatusFilter }: {
   currentRole: UserRole
   highlightPaymentId?: string | null
   onHighlightClear?: () => void
+  initialStatusFilter?: PaymentStatus | 'all'
 }) {
   const supabase = createClient()
   const [rows,        setRows]        = useState<PaymentRow[]>([])
   const [loading,     setLoading]     = useState(true)
   const [loadError,   setLoadError]   = useState('')
   const [search,      setSearch]      = useState('')
-  const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all')
+  const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>(initialStatusFilter ?? 'all')
   const [showCashModal, setShowCashModal] = useState(false)
   const [reviewRow,   setReviewRow]   = useState<PaymentRow | null>(null)
   const [voidRow,     setVoidRow]     = useState<PaymentRow | null>(null)
@@ -984,13 +986,8 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear 
                             )}
                             {p.status === 'approved' && (
                               <button
-                                onClick={async () => {
-                                  setExporting(true)
-                                  await generateReceipt({ ...p, profileName: p.profileName, profileEmail: p.profileEmail })
-                                  setExporting(false)
-                                }}
-                                disabled={exporting}
-                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-primary/30 text-primary text-[10px] font-bold hover:bg-primary/10 disabled:opacity-40 transition-colors"
+                                onClick={() => setDetailRow(p)}
+                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-primary/30 text-primary text-[10px] font-bold hover:bg-primary/10 transition-colors"
                               >
                                 <Receipt className="h-3 w-3" /> Receipt
                               </button>

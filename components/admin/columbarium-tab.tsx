@@ -6,7 +6,11 @@ import type React from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SectionHeader, EmptyState, Spinner, inputCls } from './admin-primitives'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { X, Banknote, Check, AlertTriangle, ChevronLeft } from 'lucide-react'
+import {
+  X, Check, AlertTriangle, ChevronLeft,
+  ChevronDown, ChevronUp, UserPlus, Landmark,
+  Info, Banknote, BookOpen, Wrench, Tag,
+} from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
 import type { ColumbariumSlot, SlotStatus } from '@/lib/supabase/types'
 
@@ -20,13 +24,22 @@ const ROW_LABELS: Record<number, string> = {
   6: 'Ground Level',
 }
 
-// Fixed prices per row — matches DB seed and slot-grid.tsx
 const ROW_PRICES: Record<number, number> = {
   1: 25000, 2: 35000, 3: 25000, 4: 20000, 5: 20000, 6: 20000,
 }
 
 function fmtAmt(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
+}
+
+// Helper to get current user info
+async function getActorInfo() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const actorName = user
+    ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+    : 'Staff'
+  return { user, actorName }
 }
 
 // ── Niche slot visuals ────────────────────────────────────────
@@ -171,14 +184,23 @@ function StatusChangeModal({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <p className="font-bold text-sm text-foreground">Update Slot Status</p>
             <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
           </div>
-          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -209,22 +231,43 @@ function StatusChangeModal({
                 </div>
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">Cancel</button>
-                <button onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all">Next →</button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setStep(2)}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all"
+                >
+                  Next →
+                </button>
               </div>
             </>
           ) : (
             <>
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Confirm Change</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+                  Confirm Change
+                </p>
                 <p className="text-sm text-foreground">
                   Mark slot <span className="font-mono font-bold">{slot.slot_code}</span> as{' '}
                   <span className={`font-bold ${STATUS_STYLES[newStatus].split(' ')[0]}`}>{newStatus}</span>?
                 </p>
               </div>
               <div className="flex gap-2 pt-1">
-                <button onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">← Back</button>
-                <button onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all">
+                <button
+                  onClick={() => setStep(1)}
+                  className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={loading}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
+                >
                   {loading ? 'Saving…' : 'Confirm'}
                 </button>
               </div>
@@ -237,236 +280,300 @@ function StatusChangeModal({
   )
 }
 
-// ── Record Cash Walk-in Modal ─────────────────────────────────
-// Columbarium-specific: service dropdown is the 6 levels with fixed prices,
-// no OR/Notes or Product Ref fields.
-const COLUMBARIUM_SERVICES = Object.entries(ROW_LABELS).map(([row, label]) => ({
-  row:   Number(row),
-  label,
-  price: ROW_PRICES[Number(row)],
-}))
+// ── Shared discount/price UI ──────────────────────────────────
+function DiscountBlock({
+  basePrice,
+  seniorPwd,
+  onToggle,
+}: {
+  basePrice: number
+  seniorPwd: boolean
+  onToggle: (v: boolean) => void
+}) {
+  const discount    = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
+  const finalAmount = basePrice - discount
 
-function CashWalkInModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  return (
+    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
+      <label className="flex items-center gap-3 cursor-pointer select-none">
+        <div className="relative">
+          <input
+            type="checkbox"
+            checked={seniorPwd}
+            onChange={e => onToggle(e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
+            {seniorPwd && (
+              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-foreground">Senior Citizen / PWD — 20% Discount</p>
+          <p className="text-[10px] text-muted-foreground">Check if client has a valid Senior ID or PWD card</p>
+        </div>
+      </label>
+      {seniorPwd && (
+        <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Original</span>
+            <span className="font-mono">{fmtAmt(basePrice)}</span>
+          </div>
+          <div className="flex justify-between text-amber-600">
+            <span>20% Discount</span>
+            <span className="font-mono">− {fmtAmt(discount)}</span>
+          </div>
+          <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1">
+            <span>Amount Payable</span>
+            <span className="font-mono">{fmtAmt(finalAmount)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ModalHeader({
+  title, sub, onBack, onClose,
+}: {
+  title: string; sub: string; onBack?: () => void; onClose: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex items-center gap-2.5">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground mr-0.5"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <Banknote className="h-4 w-4 text-primary" />
+        <div>
+          <h3 className="text-sm font-bold text-foreground">{title}</h3>
+          <p className="text-[10px] text-muted-foreground">{sub}</p>
+        </div>
+      </div>
+      <button
+        onClick={onClose}
+        className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between px-4 py-2.5 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-semibold text-foreground">{value}</span>
+    </div>
+  )
+}
+
+// ── ReserveWalkInModal ────────────────────────────────────────
+function ReserveWalkInModal({
+  slot,
+  onClose,
+  onSuccess,
+}: {
+  slot: ColumbariumSlot
+  onClose: () => void
+  onSuccess: (updatedSlot: ColumbariumSlot) => void
+}) {
   const supabase = createClient()
-  const [step,       setStep]       = useState<'form' | 'review'>('form')
-  const [name,       setName]       = useState('')
-  const [phone,      setPhone]      = useState('')
-  const [email,      setEmail]      = useState('')
-  const [slotCode,   setSlotCode]   = useState('')
-  const [rowIdx,     setRowIdx]     = useState<number | ''>('')
-  const [seniorPwd,  setSeniorPwd]  = useState(false)
-  const [loading,    setLoading]    = useState(false)
-  const [error,      setError]      = useState('')
+  const [step,      setStep]      = useState<'form' | 'review'>('form')
+  const [name,      setName]      = useState('')
+  const [phone,     setPhone]     = useState('')
+  const [email,     setEmail]     = useState('')
+  const [seniorPwd, setSeniorPwd] = useState(false)
+  const [loading,   setLoading]   = useState(false)
+  const [error,     setError]     = useState('')
 
-  const selectedLevel = typeof rowIdx === 'number' ? COLUMBARIUM_SERVICES[rowIdx] : null
-  const basePrice     = selectedLevel?.price ?? 0
-  const discount      = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
-  const finalAmount   = basePrice - discount
+  const basePrice   = ROW_PRICES[slot.row_number] ?? 0
+  const discount    = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
+  const finalAmount = basePrice - discount
 
   const handleNext = () => {
     setError('')
-    if (!name.trim())       { setError('Client name is required.'); return }
-    if (!phone.trim())      { setError('Phone number is required.'); return }
-    if (rowIdx === '')      { setError('Please select a slot level.'); return }
+    if (!name.trim())  { setError('Client name is required.');  return }
+    if (!phone.trim()) { setError('Phone number is required.'); return }
     setStep('review')
   }
 
   const handleSubmit = async () => {
     setLoading(true); setError('')
-    const { data: profile } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
-    const { data: { user } } = await supabase.auth.getUser()
-    const actorName = user
-      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
-      : 'Staff'
+    try {
+      const { user, actorName } = await getActorInfo()
+      const { data: profile } = await supabase
+        .from('profiles').select('id').eq('email', email).maybeSingle()
 
-    const notes = seniorPwd ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}` : null
-    const { error: err, data: inserted } = await supabase.from('payments').insert({
-      user_id:      profile?.id ?? null,
-      guest_name:   profile ? null : name.trim(),
-      guest_email:  profile ? null : (email.trim() || null),
-      guest_phone:  phone.trim(),
-      product_type: 'columbarium',
-      product_ref:  slotCode.trim() || selectedLevel?.label || null,
-      method:       'cash',
-      amount:       finalAmount,
-      status:       'approved',
-      notes,
-      approved_by:  user?.id ?? null,
-      approved_at:  new Date().toISOString(),
-    }).select('id').single()
+      const notes = seniorPwd
+        ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`
+        : null
 
-    if (err) { setError(err.message); setStep('form'); setLoading(false); return }
+      const { error: payErr, data: inserted } = await supabase.from('payments').insert({
+        user_id:      profile?.id ?? null,
+        guest_name:   profile ? null : name.trim(),
+        guest_email:  profile ? null : (email.trim() || null),
+        guest_phone:  phone.trim(),
+        product_type: 'columbarium',
+        product_ref:  slot.slot_code,
+        method:       'cash',
+        amount:       finalAmount,
+        status:       'approved',
+        notes,
+        approved_by:  user?.id ?? null,
+        approved_at:  new Date().toISOString(),
+      }).select('id').single()
 
-    await logActivity({
-      category: 'log',
-      event_type: 'cash_payment_recorded',
-      entity_table: 'payments',
-      entity_id: inserted?.id,
-      actor_id: user?.id,
-      actor_name: actorName,
-      message: `${actorName} recorded columbarium walk-in cash payment for ${name} — ${fmtAmt(finalAmount)}`,
-      metadata: {
-        client_name: name,
-        level: selectedLevel?.label,
-        amount: finalAmount,
-        senior_pwd: seniorPwd,
-      },
-    })
+      if (payErr) { setError(payErr.message); setStep('form'); setLoading(false); return }
 
-    setLoading(false)
-    onSuccess(); onClose()
+      const now = new Date().toISOString()
+      const { error: slotErr, data: updatedSlot } = await supabase
+        .from('columbarium_slots')
+        .update({ status: 'reserved', reserved_at: now })
+        .eq('id', slot.id)
+        .select()
+        .single()
+
+      if (slotErr) { setError(slotErr.message); setStep('form'); setLoading(false); return }
+
+      await logActivity({
+        category:     'log',
+        event_type:   'slot_reserved_walkin',
+        entity_table: 'columbarium_slots',
+        entity_id:    slot.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} recorded walk-in reservation for ${name} — slot ${slot.slot_code} — ${fmtAmt(finalAmount)}`,
+        metadata: {
+          client_name:  name,
+          slot_code:    slot.slot_code,
+          level:        ROW_LABELS[slot.row_number],
+          amount:       finalAmount,
+          senior_pwd:   seniorPwd,
+          payment_id:   inserted?.id,
+        },
+      })
+
+      setLoading(false)
+      onSuccess(updatedSlot as ColumbariumSlot)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.')
+      setLoading(false)
+    }
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <ModalHeader
+          title={step === 'form' ? 'Reserve Walk-in' : 'Review Reservation'}
+          sub={step === 'form' ? 'Step 1 of 2 — Client details' : 'Step 2 of 2 — Confirm'}
+          onBack={step === 'review' ? () => setStep('form') : undefined}
+          onClose={onClose}
+        />
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2.5">
-            {step === 'review' && (
-              <button onClick={() => setStep('form')} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground mr-0.5">
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-            )}
-            <Banknote className="h-4 w-4 text-primary" />
-            <div>
-              <h3 className="text-sm font-bold text-foreground">
-                {step === 'form' ? 'Record Walk-in Cash Payment' : 'Review Before Recording'}
-              </h3>
-              <p className="text-[10px] text-muted-foreground">
-                {step === 'form' ? 'Step 1 of 2 — Client & Slot' : 'Step 2 of 2 — Confirm details'}
-              </p>
-            </div>
-          </div>
-          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {error && <AlertBanner variant="error" message={error} />}
 
           {step === 'form' ? (
             <>
-              {/* Client info */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Client Name <span className="text-red-500">*</span>
                 </label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)}
-                  placeholder="Juan Dela Cruz" className={inputCls} />
+                <input
+                  type="text" value={name} onChange={e => setName(e.target.value)}
+                  placeholder="Juan Dela Cruz" className={inputCls}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Phone Number <span className="text-red-500">*</span>
                 </label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  placeholder="09XX XXX XXXX" className={inputCls} />
+                <input
+                  type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                  placeholder="09XX XXX XXXX" className={inputCls}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Email Address <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                  Email Address{' '}
+                  <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
                 </label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="juan@example.com" className={inputCls} />
+                <input
+                  type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="juan@example.com" className={inputCls}
+                />
               </div>
 
-              {/* Slot level dropdown */}
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Slot Level <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={rowIdx}
-                  onChange={e => { setRowIdx(e.target.value === '' ? '' : Number(e.target.value)); setSeniorPwd(false) }}
-                  className={inputCls}
-                >
-                  <option value="">— Select a level —</option>
-                  {COLUMBARIUM_SERVICES.map((s, i) => (
-                    <option key={i} value={i}>{s.label} — {fmtAmt(s.price)}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Optional slot code */}
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Slot Code <span className="text-muted-foreground/50 font-normal normal-case">(optional — e.g. R2C05)</span>
-                </label>
-                <input type="text" value={slotCode} onChange={e => setSlotCode(e.target.value.toUpperCase())}
-                  placeholder="R2C05" className={inputCls} />
-              </div>
-
-              {/* Price display */}
-              {selectedLevel && (
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Fixed Price</p>
-                  <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{selectedLevel.label} — price is fixed and non-editable</p>
-                </div>
-              )}
-
-              {/* Senior/PWD discount */}
-              {selectedLevel && (
-                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <div className="relative">
-                      <input type="checkbox" checked={seniorPwd} onChange={e => setSeniorPwd(e.target.checked)} className="sr-only peer" />
-                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
-                        {seniorPwd && (
-                          <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-foreground">Senior Citizen / PWD — 20% Discount</p>
-                      <p className="text-[10px] text-muted-foreground">Check if client has a valid Senior ID or PWD card</p>
-                    </div>
+              {/* Read-only slot info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Slot Code
                   </label>
-                  {seniorPwd && (
-                    <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Original</span>
-                        <span className="font-mono">{fmtAmt(basePrice)}</span>
-                      </div>
-                      <div className="flex justify-between text-amber-600">
-                        <span>20% Discount</span>
-                        <span className="font-mono">− {fmtAmt(discount)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1">
-                        <span>Amount Payable</span>
-                        <span className="font-mono">{fmtAmt(finalAmount)}</span>
-                      </div>
-                    </div>
-                  )}
+                  <input
+                    type="text" value={slot.slot_code} readOnly
+                    className={`${inputCls} opacity-60 cursor-not-allowed`}
+                  />
                 </div>
-              )}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Level
+                  </label>
+                  <input
+                    type="text" value={ROW_LABELS[slot.row_number]} readOnly
+                    className={`${inputCls} opacity-60 cursor-not-allowed`}
+                  />
+                </div>
+              </div>
+
+              {/* Fixed price */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs">
+                <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Fixed Price</p>
+                <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {ROW_LABELS[slot.row_number]} — price is fixed and non-editable
+                </p>
+              </div>
+
+              <DiscountBlock
+                basePrice={basePrice}
+                seniorPwd={seniorPwd}
+                onToggle={setSeniorPwd}
+              />
             </>
           ) : (
-            /* Review step */
             <div className="space-y-4">
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="bg-muted/30 border-b border-border px-4 py-2">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Payment Summary</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                    Reservation Summary
+                  </p>
                 </div>
                 <div className="divide-y divide-border/40">
-                  {[
-                    { label: 'Client',    value: name },
-                    { label: 'Phone',     value: phone },
-                    ...(email ? [{ label: 'Email', value: email }] : []),
-                    { label: 'Level',     value: selectedLevel?.label ?? '—' },
-                    ...(slotCode ? [{ label: 'Slot Code', value: slotCode }] : []),
-                    { label: 'Method',    value: 'Cash' },
-                  ].map(f => (
-                    <div key={f.label} className="flex justify-between px-4 py-2.5 text-xs">
-                      <span className="text-muted-foreground">{f.label}</span>
-                      <span className="font-semibold text-foreground">{f.value}</span>
-                    </div>
-                  ))}
+                  <ReviewRow label="Client"    value={name} />
+                  <ReviewRow label="Phone"     value={phone} />
+                  {email && <ReviewRow label="Email" value={email} />}
+                  <ReviewRow label="Slot Code" value={slot.slot_code} />
+                  <ReviewRow label="Level"     value={ROW_LABELS[slot.row_number]} />
+                  <ReviewRow label="Method"    value="Cash" />
                   {seniorPwd && (
                     <>
                       <div className="flex justify-between px-4 py-2.5 text-xs">
@@ -480,7 +587,9 @@ function CashWalkInModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                     </>
                   )}
                   <div className="flex justify-between px-4 py-3 text-sm font-bold bg-primary/[0.04]">
-                    <span className="text-primary/70 uppercase tracking-wider text-[10px] font-black">Total Amount</span>
+                    <span className="text-primary/70 uppercase tracking-wider text-[10px] font-black">
+                      Amount Paid (Cash)
+                    </span>
                     <span className="text-primary">{fmtAmt(finalAmount)}</span>
                   </div>
                 </div>
@@ -488,27 +597,46 @@ function CashWalkInModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
-                  This will be recorded as an approved cash payment immediately.
-                  Please verify all details before confirming.
+                  This will record an approved cash payment and mark slot{' '}
+                  <span className="font-mono font-bold">{slot.slot_code}</span> as{' '}
+                  <span className="font-bold text-amber-600">Reserved</span>.
                 </p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t border-border/60 flex gap-2 shrink-0">
           {step === 'form' ? (
             <>
-              <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">Cancel</button>
-              <button onClick={handleNext} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all">Review →</button>
+              <button
+                onClick={onClose}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNext}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all"
+              >
+                Review →
+              </button>
             </>
           ) : (
             <>
-              <button onClick={() => setStep('form')} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">Edit</button>
-              <button onClick={handleSubmit} disabled={loading}
-                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5">
-                <Check className="h-3.5 w-3.5" />{loading ? 'Recording…' : 'Confirm & Record'}
+              <button
+                onClick={() => setStep('form')}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {loading ? 'Recording…' : 'Confirm & Reserve'}
               </button>
             </>
           )}
@@ -519,55 +647,492 @@ function CashWalkInModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   )
 }
 
-// ── Slot Detail + Status Change Panel ────────────────────────
+// ── OccupyWalkInModal ─────────────────────────────────────────
+function OccupyWalkInModal({
+  slot,
+  onClose,
+  onSuccess,
+}: {
+  slot: ColumbariumSlot
+  onClose: () => void
+  onSuccess: (updatedSlot: ColumbariumSlot) => void
+}) {
+  const supabase = createClient()
+  const [step,          setStep]          = useState<'form' | 'review'>('form')
+  const [name,          setName]          = useState('')
+  const [phone,         setPhone]         = useState('')
+  const [email,         setEmail]         = useState('')
+  const [occupantName,  setOccupantName]  = useState('')
+  const [birthDate,     setBirthDate]     = useState('')
+  const [deathDate,     setDeathDate]     = useState('')
+  const [seniorPwd,     setSeniorPwd]     = useState(false)
+  const [loading,       setLoading]       = useState(false)
+  const [error,         setError]         = useState('')
+
+  const basePrice   = ROW_PRICES[slot.row_number] ?? 0
+  const discount    = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
+  const finalAmount = basePrice - discount
+
+  const handleNext = () => {
+    setError('')
+    if (!name.trim())         { setError('Client name is required.');    return }
+    if (!phone.trim())        { setError('Phone number is required.');   return }
+    if (!occupantName.trim()) { setError('Occupant name is required.');  return }
+    setStep('review')
+  }
+
+  const handleSubmit = async () => {
+    setLoading(true); setError('')
+    try {
+      const { user, actorName } = await getActorInfo()
+      const { data: profile } = await supabase
+        .from('profiles').select('id').eq('email', email).maybeSingle()
+
+      const notes = seniorPwd
+        ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`
+        : null
+
+      const { error: payErr, data: inserted } = await supabase.from('payments').insert({
+        user_id:      profile?.id ?? null,
+        guest_name:   profile ? null : name.trim(),
+        guest_email:  profile ? null : (email.trim() || null),
+        guest_phone:  phone.trim(),
+        product_type: 'columbarium',
+        product_ref:  slot.slot_code,
+        method:       'cash',
+        amount:       finalAmount,
+        status:       'approved',
+        notes,
+        approved_by:  user?.id ?? null,
+        approved_at:  new Date().toISOString(),
+      }).select('id').single()
+
+      if (payErr) { setError(payErr.message); setStep('form'); setLoading(false); return }
+
+      const { error: slotErr, data: updatedSlot } = await supabase
+        .from('columbarium_slots')
+        .update({
+          status:               'occupied',
+          occupant_name:        occupantName.trim(),
+          occupant_birth_date:  birthDate || null,
+          occupant_death_date:  deathDate || null,
+        })
+        .eq('id', slot.id)
+        .select()
+        .single()
+
+      if (slotErr) { setError(slotErr.message); setStep('form'); setLoading(false); return }
+
+      await logActivity({
+        category:     'log',
+        event_type:   'slot_occupied_walkin',
+        entity_table: 'columbarium_slots',
+        entity_id:    slot.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} recorded walk-in occupation for ${name} — slot ${slot.slot_code} (${occupantName}) — ${fmtAmt(finalAmount)}`,
+        metadata: {
+          client_name:    name,
+          slot_code:      slot.slot_code,
+          level:          ROW_LABELS[slot.row_number],
+          occupant_name:  occupantName,
+          amount:         finalAmount,
+          senior_pwd:     seniorPwd,
+          payment_id:     inserted?.id,
+        },
+      })
+
+      setLoading(false)
+      onSuccess(updatedSlot as ColumbariumSlot)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.')
+      setLoading(false)
+    }
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <ModalHeader
+          title={step === 'form' ? 'Mark as Occupied (Walk-in)' : 'Review Occupation'}
+          sub={step === 'form' ? 'Step 1 of 2 — Client & occupant details' : 'Step 2 of 2 — Confirm'}
+          onBack={step === 'review' ? () => setStep('form') : undefined}
+          onClose={onClose}
+        />
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {error && <AlertBanner variant="error" message={error} />}
+
+          {step === 'form' ? (
+            <>
+              {/* Client info */}
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Client (Payer)
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Client Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text" value={name} onChange={e => setName(e.target.value)}
+                  placeholder="Juan Dela Cruz" className={inputCls}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                  placeholder="09XX XXX XXXX" className={inputCls}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Email Address{' '}
+                  <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                </label>
+                <input
+                  type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  placeholder="juan@example.com" className={inputCls}
+                />
+              </div>
+
+              {/* Read-only slot info */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Slot Code
+                  </label>
+                  <input
+                    type="text" value={slot.slot_code} readOnly
+                    className={`${inputCls} opacity-60 cursor-not-allowed`}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Level
+                  </label>
+                  <input
+                    type="text" value={ROW_LABELS[slot.row_number]} readOnly
+                    className={`${inputCls} opacity-60 cursor-not-allowed`}
+                  />
+                </div>
+              </div>
+
+              {/* Occupant info */}
+              <div className="h-px bg-border/50 my-1" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Occupant (Deceased)
+              </p>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Occupant Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text" value={occupantName} onChange={e => setOccupantName(e.target.value)}
+                  placeholder="Full name of the deceased" className={inputCls}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Birth Date{' '}
+                    <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Death Date{' '}
+                    <span className="text-muted-foreground/50 font-normal normal-case">(optional)</span>
+                  </label>
+                  <input
+                    type="date" value={deathDate} onChange={e => setDeathDate(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              {/* Fixed price */}
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs">
+                <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Fixed Price</p>
+                <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {ROW_LABELS[slot.row_number]} — price is fixed and non-editable
+                </p>
+              </div>
+
+              <DiscountBlock
+                basePrice={basePrice}
+                seniorPwd={seniorPwd}
+                onToggle={setSeniorPwd}
+              />
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="bg-muted/30 border-b border-border px-4 py-2">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                    Occupation Summary
+                  </p>
+                </div>
+                <div className="divide-y divide-border/40">
+                  <ReviewRow label="Client"        value={name} />
+                  <ReviewRow label="Phone"         value={phone} />
+                  {email && <ReviewRow label="Email" value={email} />}
+                  <ReviewRow label="Slot Code"     value={slot.slot_code} />
+                  <ReviewRow label="Level"         value={ROW_LABELS[slot.row_number]} />
+                  <ReviewRow label="Occupant"      value={occupantName} />
+                  {birthDate && <ReviewRow label="Birth Date" value={birthDate} />}
+                  {deathDate && <ReviewRow label="Death Date" value={deathDate} />}
+                  <ReviewRow label="Method"        value="Cash" />
+                  {seniorPwd && (
+                    <>
+                      <div className="flex justify-between px-4 py-2.5 text-xs">
+                        <span className="text-muted-foreground">Original Price</span>
+                        <span className="font-mono text-muted-foreground line-through">{fmtAmt(basePrice)}</span>
+                      </div>
+                      <div className="flex justify-between px-4 py-2.5 text-xs text-amber-600">
+                        <span>Senior/PWD Discount (20%)</span>
+                        <span className="font-mono">− {fmtAmt(discount)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between px-4 py-3 text-sm font-bold bg-primary/[0.04]">
+                    <span className="text-primary/70 uppercase tracking-wider text-[10px] font-black">
+                      Amount Paid (Cash)
+                    </span>
+                    <span className="text-primary">{fmtAmt(finalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground">
+                  This will record an approved cash payment and mark slot{' '}
+                  <span className="font-mono font-bold">{slot.slot_code}</span> as{' '}
+                  <span className="font-bold text-red-600">Occupied</span>.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-border/60 flex gap-2 shrink-0">
+          {step === 'form' ? (
+            <>
+              <button
+                onClick={onClose}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleNext}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all"
+              >
+                Review →
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setStep('form')}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {loading ? 'Recording…' : 'Confirm & Occupy'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── SlotPanel — context-aware, mode-split ─────────────────────
+type SlotPanelMode = 'view' | 'reserve' | 'occupy'
+
 function SlotPanel({
   slot,
   onClose,
   onStatusChange,
+  onSlotUpdated,
 }: {
   slot: ColumbariumSlot
   onClose: () => void
   onStatusChange: (newStatus: SlotStatus) => void
+  onSlotUpdated: (updated: ColumbariumSlot) => void
 }) {
+  const [mode, setMode] = useState<SlotPanelMode>('view')
+
   const STATUS_OPTS = [
-    { value: 'available' as SlotStatus, label: 'Available', active: 'bg-primary text-primary-foreground border-primary',       idle: 'border-primary/30 text-primary hover:bg-primary/10' },
-    { value: 'reserved'  as SlotStatus, label: 'Reserved',  active: 'bg-amber-500 text-white border-amber-500',                idle: 'border-amber-400/40 text-amber-600 hover:bg-amber-400/10' },
-    { value: 'occupied'  as SlotStatus, label: 'Occupied',  active: 'bg-red-500 text-white border-red-500',                    idle: 'border-red-400/40 text-red-500 hover:bg-red-400/10' },
+    {
+      value: 'available' as SlotStatus, label: 'Available',
+      active: 'bg-primary text-primary-foreground border-primary',
+      idle: 'border-primary/30 text-primary hover:bg-primary/10',
+    },
+    {
+      value: 'reserved' as SlotStatus, label: 'Reserved',
+      active: 'bg-amber-500 text-white border-amber-500',
+      idle: 'border-amber-400/40 text-amber-600 hover:bg-amber-400/10',
+    },
+    {
+      value: 'occupied' as SlotStatus, label: 'Occupied',
+      active: 'bg-red-500 text-white border-red-500',
+      idle: 'border-red-400/40 text-red-500 hover:bg-red-400/10',
+    },
   ]
 
+  // When a sub-modal is open, render it instead via portals — keep panel underneath
+  if (mode === 'reserve') {
+    return (
+      <ReserveWalkInModal
+        slot={slot}
+        onClose={() => setMode('view')}
+        onSuccess={updated => { onSlotUpdated(updated); onClose() }}
+      />
+    )
+  }
+
+  if (mode === 'occupy') {
+    return (
+      <OccupyWalkInModal
+        slot={slot}
+        onClose={() => setMode('view')}
+        onSuccess={updated => { onSlotUpdated(updated); onClose() }}
+      />
+    )
+  }
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border overflow-hidden" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm bg-card rounded-2xl shadow-2xl border border-border overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <p className="font-mono font-bold text-xl text-foreground">{slot.slot_code}</p>
             <p className="text-xs text-muted-foreground">{ROW_LABELS[slot.row_number]}</p>
           </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground">
+          <button
+            onClick={onClose}
+            className="h-8 w-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="px-5 py-5 space-y-4">
+          {/* Slot info rows */}
           <div className="divide-y divide-border/50 text-sm">
             {[
               { label: 'Level',  value: ROW_LABELS[slot.row_number] },
               { label: 'Column', value: `${slot.col_number} of 12` },
               { label: 'Price',  value: fmtAmt(Number(slot.price)), bold: true },
-              ...(slot.occupant_name       ? [{ label: 'Occupant', value: slot.occupant_name }] : []),
-              ...(slot.occupant_birth_date ? [{ label: 'Born',     value: slot.occupant_birth_date }] : []),
-              ...(slot.occupant_death_date ? [{ label: 'Died',     value: slot.occupant_death_date }] : []),
-              ...(slot.reserved_at ? [{ label: 'Reserved', value: new Date(slot.reserved_at).toLocaleString() }] : []),
+              ...(slot.occupant_name
+                ? [{ label: 'Occupant', value: slot.occupant_name }]
+                : []),
+              ...(slot.occupant_birth_date
+                ? [{ label: 'Born', value: slot.occupant_birth_date }]
+                : []),
+              ...(slot.occupant_death_date
+                ? [{ label: 'Died', value: slot.occupant_death_date }]
+                : []),
+              ...(slot.reserved_at
+                ? [{ label: 'Reserved', value: new Date(slot.reserved_at).toLocaleString() }]
+                : []),
             ].map(({ label, value, bold }) => (
               <div key={label} className="flex justify-between py-2.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-                <span className={`text-sm ${bold ? 'font-bold text-primary' : 'font-medium text-foreground'}`}>{value}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </span>
+                <span className={`text-sm ${bold ? 'font-bold text-primary' : 'font-medium text-foreground'}`}>
+                  {value}
+                </span>
               </div>
             ))}
           </div>
 
+          {/* ── Available slot: primary CTAs ── */}
+          {slot.status === 'available' && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Walk-in Actions
+              </p>
+              <button
+                onClick={() => setMode('reserve')}
+                className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+              >
+                <UserPlus className="h-4 w-4" />
+                Reserve (Walk-in)
+              </button>
+              <button
+                onClick={() => setMode('occupy')}
+                className="w-full h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 text-sm font-bold hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+              >
+                <Landmark className="h-4 w-4" />
+                Mark as Occupied
+              </button>
+            </div>
+          )}
+
+          {/* ── Reserved slot: primary CTA ── */}
+          {slot.status === 'reserved' && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Walk-in Actions
+              </p>
+              <button
+                onClick={() => setMode('occupy')}
+                className="w-full h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Landmark className="h-4 w-4" />
+                Mark as Occupied (Walk-in)
+              </button>
+            </div>
+          )}
+
+          {/* ── Occupied slot: read-only badge ── */}
+          {slot.status === 'occupied' && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-2.5">
+              <Info className="h-4 w-4 text-red-500 shrink-0" />
+              <p className="text-xs text-foreground">
+                This slot is <span className="font-bold text-red-600">Occupied</span>. Full payment has been received. Use status override below to correct if needed.
+              </p>
+            </div>
+          )}
+
+          {/* Status override */}
           <div className="space-y-2 pt-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Update Status</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Manual Status Override
+            </p>
             <div className="grid grid-cols-3 gap-2">
               {STATUS_OPTS.map(opt => (
                 <button
@@ -575,19 +1140,188 @@ function SlotPanel({
                   disabled={slot.status === opt.value}
                   onClick={() => onStatusChange(opt.value)}
                   className={`h-9 rounded-xl border text-[11px] font-bold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
-                    slot.status === opt.value ? opt.active : `bg-background ${opt.idle}`
+                    slot.status === opt.value
+                      ? opt.active
+                      : `bg-background ${opt.idle}`
                   }`}
                 >
                   {opt.label}
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-muted-foreground pt-0.5">A confirmation step will appear before any change is applied.</p>
+            <p className="text-[10px] text-muted-foreground pt-0.5">
+              A confirmation step will appear before any change is applied.
+            </p>
           </div>
         </div>
       </div>
     </div>,
     document.body
+  )
+}
+
+// ── Legend — graphical mini-niches ───────────────────────────
+function NicheLegend() {
+  return (
+    <div className="flex flex-wrap items-start gap-5 text-[11px] font-semibold text-muted-foreground">
+
+      {/* Available */}
+      <span className="flex items-center gap-2.5">
+        <span
+          style={{
+            display: 'inline-block',
+            width: 22, height: 22,
+            borderRadius: 2,
+            flexShrink: 0,
+            backgroundColor: '#2a2a2a',
+            border: '2px solid #8e9091',
+            boxShadow: 'inset 0 5px 10px rgba(0,0,0,0.8), inset 0 1px 3px rgba(0,0,0,0.5)',
+          }}
+        />
+        <span>
+          <span className="block text-foreground">Available</span>
+          <span className="block font-normal text-[10px]">Click to reserve or mark occupied</span>
+        </span>
+      </span>
+
+      {/* Reserved */}
+      <span className="flex items-center gap-2.5">
+        <span
+          style={{
+            display: 'inline-flex',
+            width: 22, height: 22,
+            borderRadius: 2,
+            flexShrink: 0,
+            background: 'linear-gradient(145deg, #7a7c7e, #5a5c5d)',
+            border: '1px solid #4a4a4a',
+            boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+          }}
+        >
+          {/* Corner dots */}
+          <span style={{ position: 'absolute', width: 3, height: 3, borderRadius: '50%', background: '#a98844', boxShadow: '14px 0 0 #a98844', top: 3, left: 3 }} />
+          <span style={{ position: 'absolute', width: 3, height: 3, borderRadius: '50%', background: '#a98844', boxShadow: '14px 0 0 #a98844', bottom: 3, left: 3 }} />
+          <span style={{
+            background: 'linear-gradient(145deg, #d4af37, #aa8222)',
+            color: '#333',
+            fontSize: 6, fontWeight: 800,
+            padding: '1px 3px', borderRadius: 1,
+            border: '1px solid #7a6015',
+            textTransform: 'uppercase',
+            lineHeight: 1.2,
+            letterSpacing: 0.3,
+            position: 'relative',
+            zIndex: 2,
+          }}>RSV</span>
+        </span>
+        <span>
+          <span className="block text-foreground">Reserved</span>
+          <span className="block font-normal text-[10px]">Walk-in reserved, awaiting full payment</span>
+        </span>
+      </span>
+
+      {/* Occupied */}
+      <span className="flex items-center gap-2.5">
+        <span
+          style={{
+            display: 'inline-block',
+            width: 22, height: 22,
+            borderRadius: 2,
+            flexShrink: 0,
+            position: 'relative',
+            backgroundColor: '#5a5c5d',
+            backgroundImage: [
+              'linear-gradient(#d4af37, #d4af37)',
+              'linear-gradient(#d4af37, #d4af37)',
+              'linear-gradient(145deg, #7a7c7e, #5a5c5d)',
+            ].join(', '),
+            backgroundSize: '3px 14px, 11px 3px, 100% 100%',
+            backgroundPosition: 'center 4px, center 9px, center center',
+            backgroundRepeat: 'no-repeat',
+            border: '1px solid #4a4a4a',
+            boxShadow: '2px 2px 5px rgba(0,0,0,0.3)',
+          }}
+        >
+          <span style={{ position: 'absolute', width: 3, height: 3, borderRadius: '50%', background: '#a98844', boxShadow: '14px 0 0 #a98844', top: 3, left: 3 }} />
+          <span style={{ position: 'absolute', width: 3, height: 3, borderRadius: '50%', background: '#a98844', boxShadow: '14px 0 0 #a98844', bottom: 3, left: 3 }} />
+        </span>
+        <span>
+          <span className="block text-foreground">Occupied</span>
+          <span className="block font-normal text-[10px]">Full payment received</span>
+        </span>
+      </span>
+    </div>
+  )
+}
+
+// ── Staff Operations Guide ─────────────────────────────────────
+const GUIDE_STEPS = [
+  {
+    icon: UserPlus,
+    title: 'Walk-in Reservation',
+    desc: 'Click any available (dark) slot → "Reserve (Walk-in)" → fill client details → confirm. Slot auto-updates to Reserved.',
+  },
+  {
+    icon: Landmark,
+    title: 'Walk-in Occupation (Full Payment)',
+    desc: 'Click any available or reserved slot → "Mark as Occupied" → fill client + occupant details → confirm. Slot auto-updates to Occupied.',
+  },
+  {
+    icon: Wrench,
+    title: 'Status Manual Override',
+    desc: 'Use the status buttons in the slot panel to manually change any slot status without recording a payment (e.g. cancellations, corrections).',
+  },
+  {
+    icon: Tag,
+    title: 'Pricing',
+    desc: 'Prices are fixed per level and cannot be edited here. Senior/PWD 20% discount is available.',
+  },
+]
+
+function StaffGuide() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <BookOpen className="h-4 w-4 text-primary" />
+          <span className="text-sm font-bold text-foreground">Staff Operations Guide</span>
+        </div>
+        {open
+          ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        }
+      </button>
+
+      {open && (
+        <div className="border-t border-border/60 divide-y divide-border/40">
+          {GUIDE_STEPS.map((step, idx) => {
+            const Icon = step.icon
+            return (
+              <div key={idx} className="flex items-start gap-4 px-5 py-4">
+                <div className="shrink-0 h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary mt-0.5">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">
+                    {idx + 1}. {step.title}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    {step.desc}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -616,28 +1350,25 @@ export function ColumbariumTab() {
   const [rows,    setRows]    = useState<ColumbariumSlot[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Which slot is open in the detail panel
-  const [selected, setSelected]   = useState<ColumbariumSlot | null>(null)
-  // Pending status change — triggers 2-step modal
+  const [selected,      setSelected]      = useState<ColumbariumSlot | null>(null)
   const [pendingStatus, setPendingStatus] = useState<SlotStatus | null>(null)
-  // Walk-in cash modal
-  const [showCash, setShowCash] = useState(false)
 
   const fetchSlots = async () => {
-    const { data } = await supabase.from('columbarium_slots').select('*').order('row_number').order('col_number')
+    const { data } = await supabase
+      .from('columbarium_slots')
+      .select('*')
+      .order('row_number')
+      .order('col_number')
     setRows(data ?? [])
     setLoading(false)
   }
 
   useEffect(() => { fetchSlots() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Called after 2-step confirm — does the actual DB update
+  // Apply the status override (no payment recorded)
   const applyStatusChange = async () => {
     if (!selected || !pendingStatus) return
-    const { data: { user } } = await supabase.auth.getUser()
-    const actorName = user
-      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
-      : 'Staff'
+    const { user, actorName } = await getActorInfo()
 
     const { error } = await supabase
       .from('columbarium_slots')
@@ -649,14 +1380,14 @@ export function ColumbariumTab() {
       setRows(r => r.map(s => s.id === selected.id ? updated : s))
       setSelected(updated)
       await logActivity({
-        category: 'log',
-        event_type: `slot_${pendingStatus}`,
+        category:     'log',
+        event_type:   `slot_${pendingStatus}`,
         entity_table: 'columbarium_slots',
-        entity_id: selected.id,
-        actor_id: user?.id,
-        actor_name: actorName,
-        message: `${actorName} marked slot ${selected.slot_code} as ${pendingStatus}`,
-        metadata: { slot_code: selected.slot_code, status: pendingStatus },
+        entity_id:    selected.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} marked slot ${selected.slot_code} as ${pendingStatus}`,
+        metadata:     { slot_code: selected.slot_code, status: pendingStatus },
       })
     }
     setPendingStatus(null)
@@ -676,19 +1407,14 @@ export function ColumbariumTab() {
 
   return (
     <div className="space-y-5">
-      {/* Header + Record Cash button */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <SectionHeader
-          title="Columbarium"
-          sub={`${rows.length} total · ${counts.available} available · ${counts.reserved} reserved · ${counts.occupied} occupied`}
-        />
-        <button
-          onClick={() => setShowCash(true)}
-          className="shrink-0 inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all shadow-sm"
-        >
-          <Banknote className="h-3.5 w-3.5" /> Record Walk-in Cash
-        </button>
-      </div>
+      {/* Header — no top-level cash button */}
+      <SectionHeader
+        title="Columbarium"
+        sub={`${rows.length} total · ${counts.available} available · ${counts.reserved} reserved · ${counts.occupied} occupied`}
+      />
+
+      {/* Staff guide (collapsed by default) */}
+      <StaffGuide />
 
       {/* Level pricing */}
       <PricingCard />
@@ -696,9 +1422,9 @@ export function ColumbariumTab() {
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Available', count: counts.available, color: 'text-primary',     bg: 'bg-primary/10' },
-          { label: 'Reserved',  count: counts.reserved,  color: 'text-amber-600',   bg: 'bg-amber-500/10' },
-          { label: 'Occupied',  count: counts.occupied,  color: 'text-red-600',     bg: 'bg-red-500/10' },
+          { label: 'Available', count: counts.available, color: 'text-primary',   bg: 'bg-primary/10' },
+          { label: 'Reserved',  count: counts.reserved,  color: 'text-amber-600', bg: 'bg-amber-500/10' },
+          { label: 'Occupied',  count: counts.occupied,  color: 'text-red-600',   bg: 'bg-red-500/10' },
         ].map(s => (
           <div key={s.label} className={`${s.bg} border border-border rounded-2xl p-4 text-center`}>
             <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>
@@ -707,50 +1433,8 @@ export function ColumbariumTab() {
         ))}
       </div>
 
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-5 text-[11px] font-semibold text-muted-foreground">
-        <span className="flex items-center gap-2">
-          <span style={{
-            display: 'inline-block', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
-            backgroundColor: 'color-mix(in srgb, var(--color-background) 60%, #111 40%)',
-            border: '2px solid color-mix(in srgb, var(--color-border) 80%, transparent)',
-            boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.5)',
-          }} />
-          Available
-        </span>
-        <span className="flex items-center gap-2">
-          <span style={{
-            display: 'inline-flex', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
-            background: 'linear-gradient(145deg, #7a7c7e, #4a4c4d)',
-            border: '1px solid rgba(0,0,0,0.4)',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{
-              background: 'linear-gradient(145deg, #d4af37, #aa8222)',
-              color: '#2a1a00', fontSize: 5, fontWeight: 800,
-              padding: '1px 2px', borderRadius: 1, textTransform: 'uppercase',
-              letterSpacing: 0.3, lineHeight: 1.2, userSelect: 'none',
-            }}>RSV</span>
-          </span>
-          Reserved
-        </span>
-        <span className="flex items-center gap-2">
-          <span style={{
-            display: 'inline-block', width: 18, height: 18, borderRadius: 3, flexShrink: 0,
-            backgroundColor: '#5a5c5d',
-            backgroundImage: [
-              'linear-gradient(#d4af37, #d4af37)',
-              'linear-gradient(#d4af37, #d4af37)',
-              'linear-gradient(145deg, #7a7c7e, #4a4c4d)',
-            ].join(', '),
-            backgroundSize: '2px 12px, 8px 2px, 100% 100%',
-            backgroundPosition: 'center 3px, center 7px, center',
-            backgroundRepeat: 'no-repeat',
-            border: '1px solid rgba(0,0,0,0.4)',
-          }} />
-          Occupied
-        </span>
-      </div>
+      {/* Graphical legend */}
+      <NicheLegend />
 
       {/* Grid */}
       {rows.length === 0 ? (
@@ -758,16 +1442,27 @@ export function ColumbariumTab() {
       ) : (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="border-separate border-spacing-0" style={{ minWidth: 160 + 12 * 53 }}>
+            <table
+              className="border-separate border-spacing-0"
+              style={{ minWidth: 160 + 12 * 53 }}
+            >
               <tbody>
                 {rowGroups.map(({ row, slots }) => (
                   <tr key={row}>
                     <td
-                      style={{ position: 'sticky', left: 0, zIndex: 10, width: 148, minWidth: 148, background: 'var(--color-card)' }}
+                      style={{
+                        position: 'sticky', left: 0, zIndex: 10,
+                        width: 148, minWidth: 148,
+                        background: 'var(--color-card)',
+                      }}
                       className={`px-4 py-2 align-middle border-r border-border ${row < 6 ? 'border-b border-border/30' : ''}`}
                     >
-                      <p className="text-[11px] font-bold text-foreground whitespace-nowrap">{ROW_LABELS[row]}</p>
-                      <p className="text-[10px] text-primary font-semibold mt-0.5">{fmtAmt(ROW_PRICES[row])}</p>
+                      <p className="text-[11px] font-bold text-foreground whitespace-nowrap">
+                        {ROW_LABELS[row]}
+                      </p>
+                      <p className="text-[10px] text-primary font-semibold mt-0.5">
+                        {fmtAmt(ROW_PRICES[row])}
+                      </p>
                     </td>
                     <td colSpan={12} className="p-0">
                       <div
@@ -792,32 +1487,26 @@ export function ColumbariumTab() {
         </div>
       )}
 
-      {/* Slot detail panel */}
+      {/* Slot detail panel (with sub-modal support) */}
       {selected && !pendingStatus && (
         <SlotPanel
           slot={selected}
           onClose={() => setSelected(null)}
           onStatusChange={(newStatus) => setPendingStatus(newStatus)}
+          onSlotUpdated={(updated) => {
+            setRows(r => r.map(s => s.id === updated.id ? updated : s))
+            setSelected(null)
+          }}
         />
       )}
 
-      {/* 2-step status change confirm */}
+      {/* 2-step status override confirm */}
       {selected && pendingStatus && (
         <StatusChangeModal
           slot={selected}
           newStatus={pendingStatus}
           onClose={() => setPendingStatus(null)}
           onConfirm={applyStatusChange}
-        />
-      )}
-
-      {/* Walk-in cash modal */}
-      {showCash && (
-        <CashWalkInModal
-          onClose={() => setShowCash(false)}
-          onSuccess={() => {
-            // No slot data to refresh — payment goes to payments table
-          }}
         />
       )}
     </div>

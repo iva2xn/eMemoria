@@ -111,9 +111,9 @@ function Lightbox({ url, label, onClose }: { url: string; label: string; onClose
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+      <div className="flex-1 overflow-y-auto flex items-start justify-center p-4" onClick={e => e.stopPropagation()}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={url} alt={label} className="max-h-full max-w-full object-contain rounded-lg shadow-2xl" />
+        <img src={url} alt={label} className="block max-w-full max-h-[80vh] w-auto h-auto rounded-lg shadow-2xl mx-auto object-contain" />
       </div>
     </div>,
     document.body
@@ -133,6 +133,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
   const [seniorPwd, setSeniorPwd] = useState(false)
   const [rejectMode, setRejectMode] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
+  const [rejectReasonOther, setRejectReasonOther] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -195,7 +196,11 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
   }
 
   const handleReject = async () => {
-    if (!rejectReason.trim()) { setError('Rejection reason is required.'); return }
+    const isOtherReason = rejectReason === 'Other'
+    const finalReason = isOtherReason
+      ? rejectReasonOther.trim()
+      : rejectReason + (rejectReasonOther.trim() ? ` — ${rejectReasonOther.trim()}` : '')
+    if (!finalReason) { setError(isOtherReason ? 'Please describe the rejection reason.' : 'Please select a rejection reason.'); return }
     setLoading(true); setError('')
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -205,7 +210,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
 
       await supabase.from('document_submissions').update({
         status: 'rejected',
-        rejection_reason: rejectReason.trim(),
+        rejection_reason: finalReason,
         reviewed_by: user?.id ?? null,
         reviewed_at: new Date().toISOString(),
       }).eq('id', submission.id)
@@ -221,7 +226,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
             packageLabel: submission.product_label ?? submission.product_type,
             packagePrice: submission.product_price,
             productType: submission.product_type,
-            rejectionReason: rejectReason.trim(),
+            rejectionReason: finalReason,
           }),
         })
       }
@@ -230,11 +235,11 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
         category: 'log', event_type: 'doc_submission_rejected',
         entity_table: 'document_submissions', entity_id: submission.id,
         actor_id: user?.id, actor_name: actorName,
-        message: `${actorName} rejected documents from ${clientName(submission)}: "${rejectReason.trim().slice(0, 80)}"`,
-        metadata: { client: clientName(submission), reason: rejectReason.trim() },
+        message: `${actorName} rejected documents from ${clientName(submission)}: "${finalReason.slice(0, 80)}"`,
+        metadata: { client: clientName(submission), reason: finalReason },
       })
 
-      onRejected(submission.id, rejectReason.trim())
+      onRejected(submission.id, finalReason)
       onClose()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -245,13 +250,12 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
   return createPortal(
     <>
       {lightbox && <Lightbox url={lightbox.url} label={lightbox.label} onClose={() => setLightbox(null)} />}
-      <div className="fixed inset-0 z-[200] overflow-y-auto">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-        <div className="flex min-h-full items-start justify-center p-4 pt-8">
-          <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl my-4 pointer-events-auto">
+        <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl pointer-events-auto flex flex-col max-h-[90vh]">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div className="flex items-center gap-2.5">
                 <Eye className="h-4 w-4 text-primary" />
                 <div>
@@ -264,7 +268,8 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
               </button>
             </div>
 
-            <div className="px-6 py-5 space-y-5">
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {/* Client info */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 {[
@@ -325,20 +330,47 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
 
               {/* Reject reason */}
               {rejectMode && (
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></label>
-                  <textarea rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                    placeholder="e.g. Death certificate is unclear, please resubmit a clearer copy."
-                    className={`${inputCls} h-auto resize-none py-2.5`} />
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></label>
+                    <select
+                      value={rejectReason}
+                      onChange={e => setRejectReason(e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">— Select a reason —</option>
+                      {REJECTION_REASONS.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {rejectReason === 'Other' && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
+                      <textarea rows={3} value={rejectReasonOther} onChange={e => setRejectReasonOther(e.target.value)}
+                        placeholder="Describe the rejection reason in detail…"
+                        className={`${inputCls} h-auto resize-none py-2.5`} />
+                    </div>
+                  )}
+                  {rejectReason && rejectReason !== 'Other' && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Additional Notes (optional)</label>
+                      <textarea rows={2} value={rejectReasonOther} onChange={e => setRejectReasonOther(e.target.value)}
+                        placeholder="Any extra details for the client…"
+                        className={`${inputCls} h-auto resize-none py-2.5`} />
+                    </div>
+                  )}
                   <p className="text-[10px] text-muted-foreground">This will be included in the rejection email sent to the client.</p>
                 </div>
               )}
 
               {error && <p className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
+            </div>
 
-              {/* Actions */}
-              {submission.status === 'pending_review' && (
-                <div className="flex gap-2 pt-1">
+            {/* Sticky action footer */}
+            {submission.status === 'pending_review' && (
+              <div className="px-6 py-4 border-t border-border/60 shrink-0">
+                <div className="flex gap-2">
                   {!rejectMode ? (
                     <>
                       <button onClick={() => setRejectMode(true)}
@@ -352,22 +384,21 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                     </>
                   ) : (
                     <>
-                      <button onClick={() => { setRejectMode(false); setError('') }}
+                      <button onClick={() => { setRejectMode(false); setRejectReason(''); setRejectReasonOther(''); setError('') }}
                         className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">
                         Back
                       </button>
-                      <button onClick={handleReject} disabled={loading || !rejectReason.trim()}
+                      <button onClick={handleReject} disabled={loading || !rejectReason || (rejectReason === 'Other' && !rejectReasonOther.trim())}
                         className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">
                         {loading ? 'Rejecting…' : 'Reject & Notify'}
                       </button>
                     </>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
-      </div>
     </>,
     document.body
   )
@@ -392,9 +423,9 @@ function DocImageCard({ path, label, onLightbox }: {
   return (
     <div className="bg-muted/30 border border-border/60 rounded-xl overflow-hidden">
       {isImage && url ? (
-        <button className="w-full relative group" onClick={() => onLightbox(url, label)}>
+        <button className="w-full relative group block" onClick={() => onLightbox(url, label)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={label} className="w-full h-32 object-cover" />
+          <img src={url} alt={label} className="block w-full h-auto object-contain bg-muted/20" />
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
             <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
@@ -856,12 +887,24 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
 }
 
 
+// ── Rejection reason presets ──────────────────────────────────
+const REJECTION_REASONS = [
+  'Incomplete documents — missing required document(s)',
+  'Unclear/unreadable document — please resubmit a clearer copy',
+  'Invalid ID — submitted ID is expired or not accepted',
+  'Death certificate mismatch — details do not match records',
+  'Incorrect package — submitted documents do not match the selected package',
+  'Duplicate submission — records already exist for this availed service',
+  'Other',
+] as const
+
 // ── Main Tab ──────────────────────────────────────────────────
-export function DocumentSubmissionsTab({ currentRole = 'admin' }: { currentRole?: UserRole }) {
+export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFilter }: { currentRole?: UserRole; initialProductFilter?: string }) {
   const supabase = createClient()
   const [rows,        setRows]        = useState<SubmissionRow[]>([])
   const [loading,     setLoading]     = useState(true)
   const [filter,      setFilter]      = useState<DocumentSubmissionStatus | 'all'>('all')
+  const [productFilter, setProductFilter] = useState<string>(initialProductFilter ?? 'all')
   const [search,      setSearch]      = useState('')
   const [subTab,      setSubTab]      = useState<ActiveSubTab>('active')
   const [detailRow,   setDetailRow]   = useState<SubmissionRow | null>(null)
@@ -914,7 +957,17 @@ export function DocumentSubmissionsTab({ currentRole = 'admin' }: { currentRole?
   const q = search.toLowerCase()
   const filteredActive = activeRows
     .filter(r => filter === 'all' || r.status === filter)
+    .filter(r => productFilter === 'all' || r.product_type === productFilter)
     .filter(r => !q || [clientName(r), clientEmail(r), r.product_label, r.product_type].some(v => v?.toLowerCase().includes(q)))
+
+  const PRODUCT_FILTER_OPTIONS = [
+    { value: 'all',         label: 'All Services' },
+    { value: 'package',     label: 'Burial' },
+    { value: 'cremation',   label: 'Cremation' },
+    { value: 'columbarium', label: 'Columbarium' },
+    { value: 'urn',         label: 'Urn' },
+    { value: 'general',     label: 'General' },
+  ]
 
   const filterOptions = [
     { value: 'all'            as const, label: `All (${activeRows.length})` },
@@ -1008,6 +1061,15 @@ export function DocumentSubmissionsTab({ currentRole = 'admin' }: { currentRole?
         <>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1"><SearchInput value={search} onChange={setSearch} placeholder="Search by name, email, package…" /></div>
+            <select
+              value={productFilter}
+              onChange={e => setProductFilter(e.target.value)}
+              className={`${inputCls} sm:w-44 shrink-0`}
+            >
+              {PRODUCT_FILTER_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
           <FilterPills options={filterOptions} active={filter} onChange={setFilter} />
 

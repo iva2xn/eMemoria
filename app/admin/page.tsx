@@ -110,6 +110,8 @@ export default function AdminPage() {
     setSidebarCollapsed(v)
   }
   const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
+  const [availmentsProductFilter, setAvailmentsProductFilter] = useState<string | undefined>(undefined)
+  const [paymentsStatusFilter, setPaymentsStatusFilter] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -170,14 +172,18 @@ export default function AdminPage() {
   const currentRole = profile.role as UserRole
 
   const tabContent: Record<Tab, React.ReactNode> = {
-    overview:       <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?) => {
+    overview:       <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?, productFilter?, statusFilter?) => {
                       if (paymentId) setHighlightPaymentId(paymentId)
+                      if (tab === 'availments' && productFilter) setAvailmentsProductFilter(productFilter)
+                      else setAvailmentsProductFilter(undefined)
+                      if (tab === 'payments' && statusFilter) setPaymentsStatusFilter(statusFilter)
+                      else setPaymentsStatusFilter(undefined)
                       setTab(tab as Tab)
                     }} />,
-    availments:     <DocumentSubmissionsTab currentRole={currentRole} />,
+    availments:     <DocumentSubmissionsTab currentRole={currentRole} initialProductFilter={availmentsProductFilter} />,
     'wake-schedule': <WakeScheduleTab currentRole={currentRole} />,
     columbarium:    <ColumbariumTab />,
-    payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} />,
+    payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} initialStatusFilter={paymentsStatusFilter as 'all' | 'pending' | 'approved' | 'rejected' | 'voided' | undefined} />,
     transactions:   <TransactionRegisterTab currentRole={currentRole} />,
     obituaries:     <ObituariesTab />,
     profiles:       <ProfilesTab currentRole={currentRole} />,

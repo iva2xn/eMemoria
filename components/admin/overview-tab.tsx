@@ -122,7 +122,7 @@ function MetricCard({
 }
 
 /* ═══════════════════════════════════════════════════════ */
-export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole; onNavigate: (tab: string, paymentId?: string) => void }) {
+export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole; onNavigate: (tab: string, paymentId?: string, productFilter?: string, statusFilter?: string) => void }) {
   const supabase = createClient()
 
   const [stats,            setStats]            = useState({ pending: 0, inquiries: 0, profiles: 0, thisMonthRevenue: 0, totalRevenue: 0, approvedCount: 0 })
@@ -238,7 +238,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             trend={stats.pending > 0 ? `${stats.pending} awaiting` : 'All clear'}
             trendType={stats.pending > 0 ? 'down' : 'up'}
             accent={stats.pending > 0 ? 'amber' : 'default'}
-            onClick={() => onNavigate('payments')}
+            onClick={() => onNavigate('payments', undefined, undefined, 'pending')}
           />
 
           {/* Revenue card with period dropdown */}
@@ -327,7 +327,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
         {/* Col 4 Tall Card: Total Inquiries (With Donut) */}
         <div
-          onClick={() => onNavigate('inquiries')}
+          onClick={() => onNavigate('availments')}
           className="bg-card border border-border/60 rounded-[24px] p-6 flex flex-col justify-between shadow-sm min-h-[280px] cursor-pointer hover:border-primary/50 hover:shadow-md transition-all duration-200"
         >
           <div>
@@ -350,10 +350,15 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <div className="flex-1 space-y-1.5 min-w-0">
               {pieData.slice(0, 3).map((item, i) => {
                 const pct = isPlaceholder ? 33.3 : totalPieRev > 0 ? (item.value / totalPieRev) * 100 : 0
+                // Map display name back to product_type value for filter
+                const LABEL_TO_TYPE: Record<string, string> = {
+                  Burial: 'package', Cremation: 'cremation', Columbarium: 'columbarium', Urn: 'urn', General: 'general',
+                }
+                const productType = LABEL_TO_TYPE[item.name] ?? item.name.toLowerCase()
                 return (
                   <button
                     key={item.name}
-                    onClick={e => { e.stopPropagation(); onNavigate('funeral-services') }}
+                    onClick={e => { e.stopPropagation(); onNavigate('availments', undefined, productType) }}
                     className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
                   >
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ background: isPlaceholder ? G[i] + '88' : G[i % G.length] }} />
