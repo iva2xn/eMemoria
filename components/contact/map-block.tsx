@@ -15,7 +15,7 @@ export function MapBlock() {
           style={{ border: 0 }}
           allowFullScreen loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
-          title="M. P. Gayeta Funeral Services location"
+          title="eMemoria Funeral Services location"
         />
       </div>
       <a

@@ -599,7 +599,7 @@ async function exportReceiptPDF(rows: PaymentRow[], title = 'Payment Receipt') {
     doc.addImage(b64, 'PNG', 8, 4, 20, 20)
   } catch { /* logo optional */ }
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12)
-  doc.text('M. P. GAYETA', 32, 11)
+  doc.text('eMemoria', 32, 11)
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(200,230,210)
   doc.text('Funeral Services', 32, 17)
   doc.setFont('helvetica','bold'); doc.setFontSize(14); doc.setTextColor(255,255,255)
@@ -640,7 +640,7 @@ async function exportReceiptPDF(rows: PaymentRow[], title = 'Payment Receipt') {
     doc.text(`PHP ${Number(r.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, pageW - 14, amtY + 8, { align: 'right' })
     // Footer
     doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,160,155)
-    doc.text('M. P. Gayeta Funeral Services · Sariaya, Quezon · +63 918 901 9978', pageW / 2, pageH - 8, { align: 'center' })
+    doc.text('eMemoria Funeral Services · Sariaya, Quezon · +63 918 901 9978', pageW / 2, pageH - 8, { align: 'center' })
     doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3); doc.line(8, pageH - 10, pageW - 8, pageH - 10)
   } else {
     const approved = rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0)
@@ -658,7 +658,7 @@ async function exportReceiptPDF(rows: PaymentRow[], title = 'Payment Receipt') {
       didDrawPage: (data: { pageNumber: number }) => {
         const pg = doc.getNumberOfPages()
         doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,160,155)
-        doc.text(`M. P. Gayeta Funeral Services · Receipt Register · Page ${data.pageNumber} of ${pg}`, pageW/2, pageH-5, {align:'center'})
+        doc.text(`eMemoria Funeral Services · Receipt Register · Page ${data.pageNumber} of ${pg}`, pageW/2, pageH-5, {align:'center'})
         doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3); doc.line(8, pageH-8, pageW-8, pageH-8)
       },
     })

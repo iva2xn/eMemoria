@@ -229,7 +229,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(13)
-    doc.text('M. P. GAYETA', 32, 12)
+    doc.text('eMemoria', 32, 12)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(8)
     doc.setTextColor(200, 230, 210)
@@ -311,7 +311,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
         doc.setFontSize(7)
         doc.setTextColor(150, 160, 155)
         doc.text(
-          `M. P. Gayeta Funeral Services  ·  Confidential  ·  Page ${data.pageNumber} of ${pg}`,
+          `eMemoria Funeral Services  ·  Confidential  ·  Page ${data.pageNumber} of ${pg}`,
           pageW / 2, pageH - 5, { align: 'center' }
         )
         doc.setDrawColor(...PRIMARY)

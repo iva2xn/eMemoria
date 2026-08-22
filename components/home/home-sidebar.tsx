@@ -13,6 +13,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
+import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
 
 let cachedProfile: Profile | null | undefined = undefined
 
@@ -37,11 +38,11 @@ export function HomeSidebar({
   const { theme, setTheme } = useTheme()
   const supabase = useRef(createClient()).current
 
-  const [mounted,    setMounted]    = useState(false)
-  const [profile,    setProfile]    = useState<Profile | null>(cachedProfile ?? null)
-  const [authReady,  setAuthReady]  = useState(cachedProfile !== undefined)
-  // Bust the browser's image cache whenever the avatar is freshly fetched
+  const [mounted,         setMounted]         = useState(false)
+  const [profile,         setProfile]         = useState<Profile | null>(cachedProfile ?? null)
+  const [authReady,       setAuthReady]       = useState(cachedProfile !== undefined)
   const [avatarCacheBust, setAvatarCacheBust] = useState<number>(Date.now())
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   useEffect(() => setMounted(true), [])
 
@@ -75,11 +76,11 @@ export function HomeSidebar({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, pathname])
 
-  const handleLogout = async () => {
-    if (!window.confirm('Sign out of your account?')) return
+  const doLogout = async () => {
     cachedProfile = null
     await supabase.auth.signOut()
     setProfile(null)
+    setShowLogoutModal(false)
     router.push('/')
     router.refresh()
   }
@@ -88,7 +89,14 @@ export function HomeSidebar({
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
   return (
-    <aside
+    <>
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onConfirm={doLogout}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+      <aside
       className={`hidden lg:flex flex-col fixed top-0 left-0 h-screen bg-card border-r border-border z-40 transition-[width] duration-200 ease-in-out
         ${collapsed ? 'w-[60px]' : 'w-[280px]'}`}
     >
@@ -100,11 +108,11 @@ export function HomeSidebar({
           style={{ padding: collapsed ? '20px 0' : '20px 16px', justifyContent: collapsed ? 'center' : undefined }}
         >
           <div className="h-10 w-10 rounded-xl overflow-hidden shrink-0 border border-border shadow-sm">
-            <Image src="/logo.png" alt="M. P. Gayeta" width={40} height={40} className="object-cover w-full h-full" />
+            <Image src="/logo.png" alt="eMemoria" width={40} height={40} className="object-cover w-full h-full" />
           </div>
           {!collapsed && (
             <div className="ml-3 min-w-0">
-              <p className="text-sm font-bold text-foreground leading-tight tracking-wide truncate">M. P. Gayeta</p>
+              <p className="text-sm font-bold text-foreground leading-tight tracking-wide truncate">eMemoria</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Funeral Services</p>
             </div>
           )}
@@ -232,7 +240,7 @@ export function HomeSidebar({
           {/* Sign out */}
           {authReady && profile && (
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               title={collapsed ? 'Sign Out' : undefined}
               className={`w-full flex items-center gap-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all
                 ${collapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}`}
@@ -276,5 +284,6 @@ export function HomeSidebar({
         }
       </button>
     </aside>
+    </>
   )
 }

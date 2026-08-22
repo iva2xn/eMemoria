@@ -21,9 +21,9 @@ export const CONTACT_ITEMS = [
   {
     icon: Mail,
     label: 'Email',
-    value: 'mgayetafuneralhome@gmail.com',
+    value: 'support@ememoria.site',
     sub: 'We respond within the day',
-    href: 'mailto:mgayetafuneralhome@gmail.com',
+    href: 'mailto:support@ememoria.site',
   },
   {
     icon: MapPin,

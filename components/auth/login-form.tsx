@@ -75,7 +75,7 @@ export function LoginForm() {
         <div className="space-y-6">
           <div className="text-center space-y-2">
             <h1 className="font-serif text-3xl font-bold text-foreground">Welcome Back</h1>
-            <p className="text-sm text-muted-foreground">Access your M.P. Gayeta account to view billing and slots.</p>
+            <p className="text-sm text-muted-foreground">Access your eMemoria account to view billing and slots.</p>
           </div>
 
           {errorMsg && <AlertBanner variant="error" message={errorMsg} />}

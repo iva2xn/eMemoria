@@ -110,13 +110,13 @@ export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...BLACK)
-  doc.text('M. P. GAYETA FUNERAL SERVICES', W / 2, y, { align: 'center' })
+  doc.text('eMemoria FUNERAL SERVICES', W / 2, y, { align: 'center' })
   y += 5.5
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   doc.setTextColor(...GRAY)
-  doc.text('Sariaya, Quezon  |  +63 918 901 9978  |  mpgayetafuneralservices@gmail.com', W / 2, y, { align: 'center' })
+  doc.text('Sariaya, Quezon  |  +63 918 901 9978  |  support@ememoria.site', W / 2, y, { align: 'center' })
   y += 4
 
   // Heavy + thin double rule

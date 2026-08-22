@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
+import { AuthGateModal } from '@/components/billing/auth-gate-modal'
 import { UploadCloud, User, FileText, Info, ShieldCheck, Check } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { PhoneInput } from '@/components/ui/phone-input'
@@ -276,6 +277,9 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+
+      {/* Auth gate — show modal if not logged in */}
+      {authReady === false && <AuthGateModal returnUrl={typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/document-submission'} />}
 
       {/* Package summary */}
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">

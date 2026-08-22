@@ -79,7 +79,7 @@ export function PaymentSidebar({ paymentInfo }: { paymentInfo: PaymentInfo | nul
       <div className="bg-muted/30 border border-border/60 rounded-2xl px-5 py-4 text-xs text-muted-foreground leading-relaxed space-y-1">
         <p className="font-bold text-foreground text-xs">Need help?</p>
         <p>Call us at <a href="tel:+639189019978" className="text-primary font-semibold hover:underline">+63 918 901 9978</a></p>
-        <p>or email <a href="mailto:mgayetafuneralhome@gmail.com" className="text-primary font-semibold hover:underline">mgayetafuneralhome@gmail.com</a></p>
+        <p>or email <a href="mailto:support@ememoria.site" className="text-primary font-semibold hover:underline">support@ememoria.site</a></p>
       </div>
 
     </div>

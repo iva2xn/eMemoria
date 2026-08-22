@@ -11,7 +11,7 @@ const font = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Marcelo P. Gayeta Funeral Services | Dignified Memorials & Tributes",
+  title: "eMemoria Funeral Services | Dignified Memorials & Tributes",
   description: "Providing compassionate, high-quality, and professional funeral, wake setups, and hearse transport services in Sariaya, Quezon Province.",
 }
 

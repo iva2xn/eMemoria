@@ -16,6 +16,7 @@ import { ObituariesTab }  from '@/components/admin/obituaries-tab'
 import { ProfilesTab }    from '@/components/admin/profiles-tab'
 import { DocumentSubmissionsTab } from '@/components/admin/document-submissions-tab'
 import { TransactionRegisterTab } from '@/components/admin/transaction-register-tab'
+import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
 import { WakeScheduleTab } from '@/components/admin/wake-schedule-tab'
 import {
   LayoutDashboard, Mail, CreditCard,
@@ -86,8 +87,9 @@ export default function AdminPage() {
   const supabase = createClient()
   const router   = useRouter()
 
-  const [profile,    setProfile]    = useState<Profile | null | undefined>(undefined)
-  const [activeTab,  setActiveTab]  = useState<Tab>(getTabFromHash)
+  const [profile,         setProfile]         = useState<Profile | null | undefined>(undefined)
+  const [activeTab,       setActiveTab]       = useState<Tab>(getTabFromHash)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
 
   const setTab = (tab: Tab) => {
     window.location.hash = tab
@@ -135,9 +137,9 @@ export default function AdminPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile, activeTab])
 
-  const handleLogout = async () => {
-    if (!window.confirm('Sign out of the admin panel?')) return
+  const doLogout = async () => {
     await supabase.auth.signOut()
+    setShowLogoutModal(false)
     router.push('/')
     router.refresh()
   }
@@ -198,7 +200,13 @@ export default function AdminPage() {
     : TABS.filter(t => t.id !== 'profiles')
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-clip bg-background">
+      {showLogoutModal && (
+        <LogoutConfirmModal
+          onConfirm={doLogout}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
 
       {/* ════════════════════════════════════════
           DESKTOP LEFT SIDEBAR
@@ -213,10 +221,10 @@ export default function AdminPage() {
         <div className={`flex items-center border-b border-border/60 transition-all duration-200
           ${sidebarCollapsed ? 'justify-center px-0 py-4' : 'gap-2.5 px-4 py-5'}`}
         >
-          <Image src="/logo.png" alt="M. P. Gayeta" width={sidebarCollapsed ? 30 : 34} height={sidebarCollapsed ? 30 : 34} className="rounded-full object-cover shrink-0" />
+          <Image src="/logo.png" alt="eMemoria" width={sidebarCollapsed ? 30 : 34} height={sidebarCollapsed ? 30 : 34} className="rounded-full object-cover shrink-0" />
           {!sidebarCollapsed && (
             <div className="flex flex-col min-w-0 flex-1">
-              <span className="font-serif text-sm font-bold leading-tight text-foreground truncate">M. P. GAYETA</span>
+              <span className="font-serif text-sm font-bold leading-tight text-foreground truncate">eMemoria</span>
               <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans truncate">
                 {profile.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
               </span>
@@ -250,7 +258,7 @@ export default function AdminPage() {
             </div>
           )}
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutModal(true)}
             title={sidebarCollapsed ? 'Sign Out' : undefined}
             className={`w-full flex items-center rounded-lg py-2 text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all
               ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}
@@ -283,7 +291,7 @@ export default function AdminPage() {
       {/* ════════════════════════════════════════
           MAIN CONTENT AREA
           ════════════════════════════════════════ */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-clip">
 
         {/* Top bar */}
         <header className="flex items-center justify-between h-14 px-5 border-b border-border bg-card shrink-0">
@@ -310,7 +318,7 @@ export default function AdminPage() {
             {/* Mobile: brand name */}
             <div className="md:hidden flex items-center gap-2">
               <Image src="/logo.png" alt="logo" width={28} height={28} className="rounded-full object-cover" />
-              <span className="font-serif text-sm font-bold text-foreground">M. P. GAYETA</span>
+              <span className="font-serif text-sm font-bold text-foreground">eMemoria</span>
             </div>
           </div>
 
@@ -344,7 +352,7 @@ export default function AdminPage() {
               <div className="flex items-center gap-2.5">
                 <Image src="/logo.png" alt="logo" width={32} height={32} className="rounded-full object-cover" />
                 <div>
-                  <p className="font-serif text-sm font-bold text-foreground">M. P. GAYETA</p>
+                  <p className="font-serif text-sm font-bold text-foreground">eMemoria</p>
                   <p className="text-[9px] uppercase tracking-widest text-muted-foreground">
                     {profile.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
                   </p>
@@ -381,7 +389,7 @@ export default function AdminPage() {
                 <ThemeToggle />
               </div>
               <button
-                onClick={handleLogout}
+                onClick={() => { setSidebarOpen(false); setShowLogoutModal(true) }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
               >
                 <LogOut className="h-4 w-4" />

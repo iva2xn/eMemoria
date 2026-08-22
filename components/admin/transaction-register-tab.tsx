@@ -566,7 +566,7 @@ async function exportPDF(rows: TxRow[], dateFrom: string, dateTo: string) {
 
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
-  doc.text('M. P. GAYETA', 32, 12)
+  doc.text('eMemoria', 32, 12)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8)
   doc.setTextColor(200, 230, 210)
   doc.text('Funeral Services', 32, 18)
@@ -633,7 +633,7 @@ async function exportPDF(rows: TxRow[], dateFrom: string, dateTo: string) {
     didDrawPage: (data: { pageNumber: number }) => {
       const pg = doc.getNumberOfPages()
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 160, 155)
-      doc.text(`M. P. Gayeta Funeral Services  ·  Transaction Register  ·  Page ${data.pageNumber} of ${pg}`, pageW / 2, pageH - 5, { align: 'center' })
+      doc.text(`eMemoria Funeral Services  ·  Transaction Register  ·  Page ${data.pageNumber} of ${pg}`, pageW / 2, pageH - 5, { align: 'center' })
       doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3)
       doc.line(8, pageH - 8, pageW - 8, pageH - 8)
     },
@@ -674,7 +674,7 @@ async function exportXLSX(rows: TxRow[], dateFrom: string, dateTo: string) {
   ])
 
   const txSheet = XLSX.utils.aoa_to_sheet([
-    ['M. P. GAYETA FUNERAL SERVICES — TRANSACTION REGISTER'],
+    ['eMemoria Funeral Services — TRANSACTION REGISTER'],
     [`Period: ${dateFrom} to ${dateTo}    |    Generated: ${new Date().toLocaleString('en-PH')}`],
     [],
     txHeaders,
@@ -788,7 +788,7 @@ async function exportDOCX(rows: TxRow[], dateFrom: string, dateTo: string) {
         new Paragraph({
           heading: HeadingLevel.HEADING_1,
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: 'M. P. GAYETA FUNERAL SERVICES', bold: true, size: 32, color: PRIMARY_HEX, font: 'Calibri' })],
+          children: [new TextRun({ text: 'eMemoria FUNERAL SERVICES', bold: true, size: 32, color: PRIMARY_HEX, font: 'Calibri' })],
         }),
         new Paragraph({
           alignment: AlignmentType.CENTER,
@@ -836,7 +836,7 @@ async function exportDOCX(rows: TxRow[], dateFrom: string, dateTo: string) {
         // Footer
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          children: [new TextRun({ text: 'M. P. Gayeta Funeral Services  ·  Confidential', size: 16, color: '999999', italics: true, font: 'Calibri' })],
+          children: [new TextRun({ text: 'eMemoria Funeral Services  ·  Confidential', size: 16, color: '999999', italics: true, font: 'Calibri' })],
         }),
       ],
     }],
@@ -1137,6 +1137,13 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
   // ── Search ────────────────────────────────────────────────
   const [search, setSearch] = useState('')
 
+  // ── Filters ───────────────────────────────────────────────
+  const [dateFrom,    setDateFrom]    = useState('')
+  const [dateTo,      setDateTo]      = useState('')
+  const [statusFilt,  setStatusFilt]  = useState<'all' | 'approved' | 'pending' | 'rejected'>('all')
+  const [productFilt, setProductFilt] = useState<typeof PRODUCT_TYPES[number]>('all')
+  const [methodFilt,  setMethodFilt]  = useState<typeof PAYMENT_METHODS[number]>('all')
+
   // ── Sort ──────────────────────────────────────────────────
   const [sortField, setSortField] = useState<SortField>('created_at')
   const [sortDir,   setSortDir]   = useState<SortDir>('desc')
@@ -1193,6 +1200,12 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
       .filter(r => r.status !== 'voided')
       .filter(r => {
         if (q && ![clientName(r), clientEmail(r), r.reference_number, r.product_type, r.notes].some(v => v?.toLowerCase().includes(q))) return false
+        const d = r.created_at.slice(0, 10)
+        if (dateFrom && d < dateFrom) return false
+        if (dateTo   && d > dateTo)   return false
+        if (statusFilt  !== 'all' && r.status       !== statusFilt)  return false
+        if (productFilt !== 'all' && r.product_type !== productFilt) return false
+        if (methodFilt  !== 'all' && r.method       !== methodFilt)  return false
         return true
       })
       .sort((a, b) => {
@@ -1202,7 +1215,7 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
         const cmp = av < bv ? -1 : av > bv ? 1 : 0
         return sortDir === 'asc' ? cmp : -cmp
       })
-  }, [allRows, search, sortField, sortDir])
+  }, [allRows, search, dateFrom, dateTo, statusFilt, productFilt, methodFilt, sortField, sortDir])
 
   const voidedRows = useMemo(() =>
     allRows.filter(r => r.status === 'voided').sort((a, b) =>
@@ -1259,6 +1272,79 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
 
       {/* Search bar */}
       <SearchInput value={search} onChange={setSearch} placeholder="Search by name, email, reference, product…" />
+
+      {/* ── Filter bar ── */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <input
+            type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+            className="h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none"
+          />
+          <input
+            type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+            className="h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none"
+          />
+          <select
+            value={statusFilt}
+            onChange={e => setStatusFilt(e.target.value as typeof statusFilt)}
+            className="h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none"
+          >
+            <option value="all">All Statuses</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <select
+            value={productFilt}
+            onChange={e => setProductFilt(e.target.value as typeof productFilt)}
+            className="h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none"
+          >
+            {PRODUCT_TYPES.map(p => (
+              <option key={p} value={p}>{p === 'all' ? 'All Products' : p.charAt(0).toUpperCase() + p.slice(1)}</option>
+            ))}
+          </select>
+          <select
+            value={methodFilt}
+            onChange={e => setMethodFilt(e.target.value as typeof methodFilt)}
+            className="h-9 px-3 rounded-lg bg-background border border-border/70 text-xs text-foreground focus:border-primary/60 outline-none transition-all appearance-none"
+          >
+            {PAYMENT_METHODS.map(m => (
+              <option key={m} value={m}>{m === 'all' ? 'All Methods' : m.replace('_', ' ').toUpperCase()}</option>
+            ))}
+          </select>
+        </div>
+        {/* Date presets */}
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { label: 'Today',      from: fmt(today), to: fmt(today) },
+            { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
+            { label: 'This Month', from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) },
+            { label: 'Last Month', from: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: fmt(new Date(today.getFullYear(), today.getMonth(), 0)) },
+            { label: 'This Year',  from: fmt(firstOfYear), to: fmt(today) },
+            { label: 'All Time',   from: '',              to: '' },
+          ].map(p => (
+            <button
+              key={p.label}
+              onClick={() => { setDateFrom(p.from); setDateTo(p.to) }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                dateFrom === p.from && dateTo === p.to
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+          {(dateFrom || dateTo || statusFilt !== 'all' || productFilt !== 'all' || methodFilt !== 'all') && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); setStatusFilt('all'); setProductFilt('all'); setMethodFilt('all') }}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-red-200 text-red-500 hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-all"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Sub-tab switcher */}
       <div className="flex items-center gap-1 bg-muted/40 border border-border/60 rounded-xl p-1 w-fit">

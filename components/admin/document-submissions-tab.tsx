@@ -674,7 +674,7 @@ async function exportSubmissionsPDF(rows: SubmissionRow[], title: string) {
     doc.addImage(b64, 'PNG', 8, 4, 20, 20)
   } catch { /* logo optional */ }
   doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(13)
-  doc.text('M. P. GAYETA', 32, 12)
+  doc.text('eMemoria', 32, 12)
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(200,230,210)
   doc.text('Funeral Services', 32, 18)
   doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(255,255,255)
@@ -707,7 +707,7 @@ async function exportSubmissionsPDF(rows: SubmissionRow[], title: string) {
     didDrawPage: (data: { pageNumber: number }) => {
       const pg = doc.getNumberOfPages()
       doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,160,155)
-      doc.text(`M. P. Gayeta Funeral Services · Funeral Service Records · Page ${data.pageNumber} of ${pg}`, pageW / 2, pageH - 5, { align: 'center' })
+      doc.text(`eMemoria Funeral Services · Funeral Service Records · Page ${data.pageNumber} of ${pg}`, pageW / 2, pageH - 5, { align: 'center' })
       doc.setDrawColor(...PRIMARY); doc.setLineWidth(0.3)
       doc.line(8, pageH - 8, pageW - 8, pageH - 8)
     },
@@ -736,7 +736,7 @@ async function exportSubmissionsDOCX(rows: SubmissionRow[], title: string) {
 
   const doc = new Document({ sections: [{ children: [
     new Paragraph({ heading: HeadingLevel.HEADING_1, alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: 'M. P. GAYETA FUNERAL SERVICES', bold: true, size: 32, color: PRIMARY_HEX, font: 'Calibri' })] }),
+      children: [new TextRun({ text: 'eMemoria FUNERAL SERVICES', bold: true, size: 32, color: PRIMARY_HEX, font: 'Calibri' })] }),
     new Paragraph({ alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: title, size: 24, color: '666666', font: 'Calibri' })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240 },

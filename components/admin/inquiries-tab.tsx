@@ -18,7 +18,7 @@ function loadDraft(id: string): { body: string; subject: string } | null {
   } catch { return null }
 }
 
-function saveDraft(id: string, body: string, subject: string) {
+function saveDraftLocal(id: string, body: string, subject: string) {
   if (typeof window === 'undefined') return
   if (!body.trim() && !subject.trim()) {
     localStorage.removeItem(DRAFT_KEY(id))
@@ -27,9 +27,32 @@ function saveDraft(id: string, body: string, subject: string) {
   localStorage.setItem(DRAFT_KEY(id), JSON.stringify({ body, subject }))
 }
 
-function clearDraft(id: string) {
+function clearDraftLocal(id: string) {
   if (typeof window === 'undefined') return
   localStorage.removeItem(DRAFT_KEY(id))
+}
+
+// ── DB draft sync helpers ─────────────────────────────────────
+async function saveDraftDB(
+  supabase: ReturnType<typeof import('@/lib/supabase/client').createClient>,
+  id: string,
+  body: string,
+  subject: string,
+) {
+  await supabase
+    .from('inquiries')
+    .update({ draft_body: body || null, draft_subject: subject || null })
+    .eq('id', id)
+}
+
+async function clearDraftDB(
+  supabase: ReturnType<typeof import('@/lib/supabase/client').createClient>,
+  id: string,
+) {
+  await supabase
+    .from('inquiries')
+    .update({ draft_body: null, draft_subject: null })
+    .eq('id', id)
 }
 
 // ── Preset responses ──────────────────────────────────────────
@@ -37,7 +60,7 @@ const PRESETS = [
   {
     label: 'General Acknowledgement',
     body: (inq: Inquiry) =>
-      `Thank you for reaching out to us, ${inq.name.split(' ')[0]}.\n\nWe have received your inquiry and our team will get back to you as soon as possible. We appreciate your patience and trust in M. P. Gayeta Funeral Services.\n\nShould you need immediate assistance, you may contact us directly at +63 918 901 9978 (available 24/7).`,
+      `Thank you for reaching out to us, ${inq.name.split(' ')[0]}.\n\nWe have received your inquiry and our team will get back to you as soon as possible. We appreciate your patience and trust in eMemoria Funeral Services.\n\nShould you need immediate assistance, you may contact us directly at +63 918 901 9978 (available 24/7).`,
   },
   {
     label: 'Service Information Request',
@@ -150,32 +173,36 @@ function StatusTimeline({ inq }: { inq: Inquiry }) {
 }
 
 // ── Compose + Review Modal ────────────────────────────────────
-function ComposeModal({ inquiry, staffName, onClose, onSent }: {
+function ComposeModal({ inquiry, staffName, supabase, onClose, onSent }: {
   inquiry: Inquiry
   staffName: string
+  supabase: ReturnType<typeof createClient>
   onClose: () => void
   onSent: () => void
 }) {
   const CUSTOM_IDX = PRESETS.length - 1
   const [step,         setStep]         = useState<'compose' | 'review'>('compose')
   const [presetIndex,  setPresetIndex]  = useState<number>(() => {
-    // If there's a saved draft, start on custom preset
-    const draft = loadDraft(inquiry.id)
+    // If there's a saved draft (localStorage or DB), start on custom preset
+    const draft = loadDraft(inquiry.id) ?? (inquiry.draft_body ? { body: inquiry.draft_body, subject: inquiry.draft_subject ?? '' } : null)
     return draft ? CUSTOM_IDX : 0
   })
 
   const [customSubject, setCustomSubject] = useState<string>(() => {
-    const draft = loadDraft(inquiry.id)
+    const draft = loadDraft(inquiry.id) ?? (inquiry.draft_body ? { body: inquiry.draft_body, subject: inquiry.draft_subject ?? '' } : null)
     return draft?.subject ?? `Re: ${inquiry.subject}`
   })
 
   const [body, setBody] = useState<string>(() => {
-    const draft = loadDraft(inquiry.id)
+    const draft = loadDraft(inquiry.id) ?? (inquiry.draft_body ? { body: inquiry.draft_body, subject: inquiry.draft_subject ?? '' } : null)
     if (draft) return draft.body
     return PRESETS[0].body(inquiry)
   })
 
-  const [hasDraft, setHasDraft] = useState<boolean>(() => !!loadDraft(inquiry.id))
+  const [hasDraft, setHasDraft] = useState<boolean>(() => {
+    const local = loadDraft(inquiry.id)
+    return !!(local || inquiry.draft_body)
+  })
 
   const isCustom     = presetIndex === CUSTOM_IDX
   const finalSubject = isCustom ? customSubject : `Re: ${inquiry.subject}`
@@ -185,34 +212,36 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
   useEffect(() => {
     if (!isCustom) return
     const t = setTimeout(() => {
-      saveDraft(inquiry.id, body, customSubject)
+      saveDraftLocal(inquiry.id, body, customSubject)
+      saveDraftDB(supabase, inquiry.id, body, customSubject)
       setHasDraft(!!(body.trim() || customSubject.trim()))
     }, 600)
     return () => clearTimeout(t)
-  }, [body, customSubject, isCustom, inquiry.id])
+  }, [body, customSubject, isCustom, inquiry.id, supabase])
 
   const handlePresetChange = (idx: number) => {
     setPresetIndex(idx)
     if (idx < CUSTOM_IDX) {
       setBody(PRESETS[idx].body(inquiry))
     } else {
-      // Restore draft if available
-      const draft = loadDraft(inquiry.id)
+      // Restore draft: prefer localStorage, fall back to DB
+      const draft = loadDraft(inquiry.id) ?? (inquiry.draft_body ? { body: inquiry.draft_body, subject: inquiry.draft_subject ?? '' } : null)
       setBody(draft?.body ?? '')
       setCustomSubject(draft?.subject ?? `Re: ${inquiry.subject}`)
     }
   }
 
   const handleSend = () => {
-    const signature = `\n\n—\n${staffName}\nM. P. Gayeta Funeral Services\n+63 918 901 9978`
+    const signature = `\n\n—\n${staffName}\neMemoria Funeral Services\n+63 918 901 9978`
     const gmailUrl =
       `https://mail.google.com/mail/?view=cm` +
       `&to=${encodeURIComponent(inquiry.email)}` +
       `&su=${encodeURIComponent(finalSubject)}` +
       `&body=${encodeURIComponent(finalBody + signature)}`
     window.open(gmailUrl, '_blank', 'noopener,noreferrer')
-    // Clear draft after sending
-    clearDraft(inquiry.id)
+    // Clear draft after sending (both localStorage and DB)
+    clearDraftLocal(inquiry.id)
+    clearDraftDB(supabase, inquiry.id)
     onSent()
     onClose()
   }
@@ -297,7 +326,7 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
                   </label>
                   {isCustom && hasDraft && (
                     <button
-                      onClick={() => { clearDraft(inquiry.id); setBody(''); setCustomSubject(`Re: ${inquiry.subject}`); setHasDraft(false) }}
+                      onClick={() => { clearDraftLocal(inquiry.id); clearDraftDB(supabase, inquiry.id); setBody(''); setCustomSubject(`Re: ${inquiry.subject}`); setHasDraft(false) }}
                       className="text-[9px] text-muted-foreground hover:text-red-500 transition-colors"
                     >
                       Clear draft
@@ -337,7 +366,7 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="bg-muted/30 border-b border-border px-4 py-3 space-y-1.5">
                   {[
-                    { label: 'From',    value: 'M. P. Gayeta Funeral Services <noreply@ememoria.site>' },
+                    { label: 'From',    value: 'eMemoria Funeral Services <noreply@ememoria.site>' },
                     { label: 'To',      value: `${inquiry.name} <${inquiry.email}>` },
                     { label: 'Subject', value: finalSubject },
                   ].map(f => (
@@ -349,7 +378,7 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
                 </div>
                 <div className="px-5 py-5 bg-card space-y-4">
                   <div style={{ borderLeft: '3px solid #226b42', paddingLeft: '12px' }}>
-                    <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#226b42' }}>M. P. GAYETA FUNERAL SERVICES</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#226b42' }}>eMEMORIA FUNERAL SERVICES</p>
                     <p className="text-[10px] text-muted-foreground">Sariaya, Quezon, Philippines · +63 918 901 9978</p>
                   </div>
                   <p className="text-sm text-foreground">Dear <strong>{inquiry.name.split(' ')[0]}</strong>,</p>
@@ -357,7 +386,7 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
                   <div className="pt-2 border-t border-border/40">
                     <p className="text-sm text-foreground">Respectfully,</p>
                     <p className="text-sm font-semibold text-foreground">{staffName}</p>
-                    <p className="text-[11px] text-muted-foreground">M. P. Gayeta Funeral Services</p>
+                    <p className="text-[11px] text-muted-foreground">eMemoria Funeral Services</p>
                   </div>
                 </div>
               </div>
@@ -386,7 +415,7 @@ function ComposeModal({ inquiry, staffName, onClose, onSent }: {
 }
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function InquiriesTab({ staffName = 'M. P. Gayeta Funeral Services' }: { staffName?: string }) {
+export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staffName?: string }) {
   const supabase = createClient()
   const [rows,     setRows]     = useState<Inquiry[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -406,8 +435,8 @@ export function InquiriesTab({ staffName = 'M. P. Gayeta Funeral Services' }: { 
 
   const markReplied = useCallback(async (id: string) => {
     const now = new Date().toISOString()
-    await supabase.from('inquiries').update({ replied_at: now }).eq('id', id)
-    setRows(r => r.map(x => x.id === id ? { ...x, replied_at: now } : x))
+    await supabase.from('inquiries').update({ replied_at: now, draft_body: null, draft_subject: null }).eq('id', id)
+    setRows(r => r.map(x => x.id === id ? { ...x, replied_at: now, draft_body: null, draft_subject: null } : x))
   }, [supabase])
 
   const unreadCount  = rows.filter(r => !r.is_read).length
@@ -421,6 +450,7 @@ export function InquiriesTab({ staffName = 'M. P. Gayeta Funeral Services' }: { 
         <ComposeModal
           inquiry={compose}
           staffName={staffName}
+          supabase={supabase}
           onClose={() => setCompose(null)}
           onSent={() => {
             markReplied(compose.id)
@@ -437,7 +467,7 @@ export function InquiriesTab({ staffName = 'M. P. Gayeta Funeral Services' }: { 
         <div className="space-y-2">
           {rows.map(inq => {
             const status  = getStatus(inq)
-            const hasDraft = !!loadDraft(inq.id)
+            const hasDraft = !!loadDraft(inq.id) || !!(inq.draft_body)
 
             return (
               <div key={inq.id}

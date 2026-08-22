@@ -8,7 +8,7 @@ export function Footer() {
 
         <div className="md:col-span-1 space-y-4">
           <div>
-            <p className="font-serif text-base font-bold text-foreground tracking-wide">M. P. GAYETA</p>
+            <p className="font-serif text-base font-bold text-foreground tracking-wide">eMemoria</p>
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Funeral Services</p>
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
@@ -59,7 +59,7 @@ export function Footer() {
 
       <div className="mx-auto max-w-6xl px-6 mt-10 pt-6 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} Marcelo P. Gayeta Funeral Services. All rights reserved.
+          &copy; {new Date().getFullYear()} eMemoria Funeral Services. All rights reserved.
         </p>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
