@@ -170,11 +170,12 @@ export function ClientNotificationBell({ userId }: { userId: string }) {
         )}
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown panel — fixed to top-right so it always appears in the right place
+          regardless of where the bell button lives (sidebar, header, etc.) */}
       {open && (
         <div
           ref={panelRef}
-          className="fixed left-1/2 -translate-x-1/2 top-16 w-[calc(100vw-2rem)] max-w-sm sm:absolute sm:left-auto sm:translate-x-0 sm:right-0 sm:top-10 sm:w-96 bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="fixed top-4 right-4 w-[calc(100vw-2rem)] max-w-sm bg-card border border-border rounded-2xl shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border/50">

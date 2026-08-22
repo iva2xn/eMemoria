@@ -12,6 +12,7 @@ import {
   LogOut, Sun, Moon, ShieldAlert,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { ClientNotificationBell } from '@/components/client-notification-bell'
 
 let cachedProfile: Profile | null | undefined = undefined
 
@@ -147,6 +148,20 @@ export function HomeSidebar({
 
         {/* Bottom */}
         <div className={`border-t border-border/60 space-y-1 py-3 ${collapsed ? 'px-1.5' : 'px-2'}`}>
+
+          {/* Notifications — all logged-in users */}
+          {authReady && profile && (
+            collapsed ? (
+              <div className="flex justify-center py-1">
+                <ClientNotificationBell userId={profile.id} />
+              </div>
+            ) : (
+              <div className="px-3 py-1 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Notifications</span>
+                <ClientNotificationBell userId={profile.id} />
+              </div>
+            )
+          )}
 
           {/* Theme toggle */}
           {mounted && (

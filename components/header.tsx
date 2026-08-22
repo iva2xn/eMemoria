@@ -286,10 +286,8 @@ export function HeroHeader() {
           {authReady && (
             profile ? (
               <>
-                {/* Client notification bell — only for non-admin/staff */}
-                {profile.role === 'client' && (
-                  <ClientNotificationBell userId={profile.id} />
-                )}
+                {/* Notification bell — all logged-in users */}
+                <ClientNotificationBell userId={profile.id} />
                 <Button variant="ghost" size="icon" onClick={handleLogout}
                   className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   title="Logout">

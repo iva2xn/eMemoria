@@ -52,6 +52,10 @@ export interface Inquiry {
   subject: string
   message: string
   is_read: boolean
+  read_at: string | null
+  replied_at: string | null
+  draft_body: string | null
+  draft_subject: string | null
   created_at: string
 }
 

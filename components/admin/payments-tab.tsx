@@ -225,6 +225,20 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
     }
 
     await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ${fmtAmt(row.amount)} from ${clientName(row)}`, metadata: { amount: row.amount } })
+
+    // Insert in-app notification for the client
+    if (row.user_id) {
+      await supabase.from('client_notifications').insert({
+        user_id:      row.user_id,
+        event_type:   'payment_approved',
+        entity_table: 'payments',
+        entity_id:    row.id,
+        message:      `Your payment of ${fmtAmt(row.amount)} has been approved. Thank you!`,
+        metadata:     { amount: row.amount, method: row.method, product_type: row.product_type, status: 'approved' },
+        action_url:   '/notifications',
+      })
+    }
+
     setLoading(false); onApproved(row.id)
     onClose()
   }
@@ -236,6 +250,20 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
     const actorName = user ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff' : 'Staff'
     await supabase.from('payments').update({ status: 'rejected' }).eq('id', row.id)
     await logActivity({ category: 'log', event_type: 'payment_rejected', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} rejected payment from ${clientName(row)}: ${rejectReason}`, metadata: { reason: rejectReason } })
+
+    // In-app notification for the client
+    if (row.user_id) {
+      await supabase.from('client_notifications').insert({
+        user_id:      row.user_id,
+        event_type:   'payment_rejected',
+        entity_table: 'payments',
+        entity_id:    row.id,
+        message:      `Your payment of ${fmtAmt(row.amount)} was not approved. Reason: ${rejectReason}`,
+        metadata:     { amount: row.amount, method: row.method, product_type: row.product_type, status: 'rejected', rejection_reason: rejectReason },
+        action_url:   '/notifications',
+      })
+    }
+
     setLoading(false); onRejected(row.id); onClose()
   }
 

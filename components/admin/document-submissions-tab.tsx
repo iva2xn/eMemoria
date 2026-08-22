@@ -164,6 +164,22 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
         discounted_price: seniorPwd ? discountedPrice : null,
       }).eq('id', submission.id)
 
+      // Insert in-app notification if there's a linked user account
+      if (submission.user_id) {
+        const label = submission.product_label ?? submission.product_type
+        const price = seniorPwd ? discountedPrice : submission.product_price
+        const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(label)}&price=${price ?? 0}`
+        await supabase.from('client_notifications').insert({
+          user_id:      submission.user_id,
+          event_type:   'doc_approved',
+          entity_table: 'document_submissions',
+          entity_id:    submission.id,
+          message:      `Your documents for ${label} have been approved. You may now proceed to payment.`,
+          metadata:     { product_label: label, product_type: submission.product_type, status: 'approved' },
+          action_url:   billingUrl,
+        })
+      }
+
       const recipientEmail = clientEmail(submission)
       if (recipientEmail) {
         await fetch('/api/notify-document-submission', {
@@ -214,6 +230,20 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
         reviewed_by: user?.id ?? null,
         reviewed_at: new Date().toISOString(),
       }).eq('id', submission.id)
+
+      // Insert in-app notification if there's a linked user account
+      if (submission.user_id) {
+        const label = submission.product_label ?? submission.product_type
+        await supabase.from('client_notifications').insert({
+          user_id:      submission.user_id,
+          event_type:   'doc_rejected',
+          entity_table: 'document_submissions',
+          entity_id:    submission.id,
+          message:      `Your document submission for ${label} was not approved. Reason: ${finalReason}`,
+          metadata:     { product_label: label, product_type: submission.product_type, status: 'rejected', rejection_reason: finalReason },
+          action_url:   '/notifications',
+        })
+      }
 
       const recipientEmail = clientEmail(submission)
       if (recipientEmail) {
