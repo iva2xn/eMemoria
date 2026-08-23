@@ -20,7 +20,7 @@ const ACTION_META: Record<string, { label: string; confirmLabel: string; confirm
   cancelled: {
     label:        'Cancel',
     confirmLabel: 'Confirm Cancel',
-    confirmCls:   'bg-red-500 text-white hover:bg-red-600',
+    confirmCls:   'bg-destructive text-destructive-foreground hover:bg-destructive/90',
     description:  'Cancel this booking? The client will no longer have an active reservation.',
   },
   completed: {
@@ -259,7 +259,7 @@ export function BookingsTab() {
                       </button>
                       <button
                         onClick={() => setPendingAction({ booking: b, newStatus: 'cancelled' })}
-                        className="h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600"
+                        className="h-7 px-2.5 rounded-lg bg-destructive text-destructive-foreground text-[10px] font-bold hover:bg-destructive/90"
                       >
                         Cancel
                       </button>

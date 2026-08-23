@@ -36,8 +36,8 @@ export function InfoBlocks({ available, reserved, occupied, loading }: InfoBlock
         {!loading && (
           <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-2 text-center text-xs">
             <div><p className="font-bold text-primary text-base">{available}</p><p className="text-muted-foreground">Available</p></div>
-            <div><p className="font-bold text-amber-500 text-base">{reserved}</p><p className="text-muted-foreground">Reserved</p></div>
-            <div><p className="font-bold text-red-500 text-base">{occupied}</p><p className="text-muted-foreground">Occupied</p></div>
+            <div><p className="font-bold text-muted-foreground text-base">{reserved}</p><p className="text-muted-foreground">Reserved</p></div>
+            <div><p className="font-bold text-destructive text-base">{occupied}</p><p className="text-muted-foreground">Occupied</p></div>
           </div>
         )}
       </div>

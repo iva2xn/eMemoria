@@ -50,7 +50,7 @@ export function InquiryFormCard({
                 id="inq-name" type="text" placeholder="Juan Dela Cruz"
                 value={name} onChange={e => setName(e.target.value)}
                 className="w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all"
-                required
+                required maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
@@ -79,8 +79,9 @@ export function InquiryFormCard({
               placeholder="How can we help you? Include any relevant details about your needs..."
               value={message} onChange={e => setMessage(e.target.value)}
               className="w-full p-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all resize-none"
-              required
+              required maxLength={2000}
             />
+            <p className="text-[10px] text-muted-foreground text-right mt-0.5">{message.length}/2000</p>
           </div>
 
           <Button type="submit" disabled={loading} className="w-full h-11 font-semibold rounded-xl">

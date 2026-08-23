@@ -161,7 +161,7 @@ function RegisterContent() {
               </label>
               <input
                 type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                placeholder="Juan" className={inp} />
+                placeholder="Juan" className={inp} maxLength={50} required />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
@@ -177,7 +177,7 @@ function RegisterContent() {
               </label>
               <input
                 type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                placeholder="Dela Cruz" className={inp} />
+                placeholder="Dela Cruz" className={inp} maxLength={50} required />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
@@ -185,7 +185,7 @@ function RegisterContent() {
               </label>
               <input
                 type="text" value={suffix} onChange={e => setSuffix(e.target.value)}
-                placeholder="Jr., Sr., III…" className={inp} />
+                placeholder="Jr., Sr., III…" className={inp} maxLength={10} />
             </div>
           </div>
         </div>
@@ -201,7 +201,7 @@ function RegisterContent() {
             className={emailTaken ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}
           />
           {emailTaken && (
-            <p className="text-[11px] text-red-500 font-semibold mt-1 flex items-center gap-1">
+            <p className="text-[11px] text-destructive font-semibold mt-1 flex items-center gap-1">
               <X className="h-3 w-3" /> This email has already been taken.
             </p>
           )}

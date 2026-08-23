@@ -32,15 +32,15 @@ function dotColor(entry: LogEntry): string {
   if (entry.category === 'notification') {
     if (entry.event_type.includes('payment'))  return 'bg-primary'
     if (entry.event_type.includes('inquiry'))  return 'bg-blue-500'
-    if (entry.event_type.includes('doc'))      return 'bg-amber-500'
+    if (entry.event_type.includes('doc'))      return 'bg-muted-foreground'
     if (entry.event_type.includes('obituary')) return 'bg-purple-500'
     if (entry.event_type.includes('slot'))     return 'bg-green-500'
     return 'bg-primary'
   }
   // log category
-  if (entry.event_type.includes('approved'))  return 'bg-green-500'
-  if (entry.event_type.includes('rejected'))  return 'bg-red-500'
-  if (entry.event_type.includes('occupied'))  return 'bg-red-400'
+  if (entry.event_type.includes('approved'))  return 'bg-primary'
+  if (entry.event_type.includes('rejected'))  return 'bg-destructive'
+  if (entry.event_type.includes('occupied'))  return 'bg-destructive/60'
   if (entry.event_type.includes('role'))      return 'bg-blue-500'
   return 'bg-muted-foreground'
 }
@@ -146,7 +146,7 @@ export function NotificationPanel() {
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none pointer-events-none">
+          <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center leading-none pointer-events-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

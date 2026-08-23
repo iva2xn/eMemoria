@@ -26,7 +26,7 @@ function StatusBadge({ obit }: { obit: Obituary }) {
     </span>
   )
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted border border-border px-2 py-0.5 rounded-full">
       <Clock className="h-2.5 w-2.5" /> Pending Review
     </span>
   )
@@ -62,8 +62,8 @@ function ObituaryCard({ o, getPhotoUrl }: { o: Obituary; getPhotoUrl: (o: Obitua
 
       {/* Status footer */}
       {!o.is_approved && !o.is_published && (
-        <div className="px-5 py-3 bg-amber-500/5 border-t border-amber-500/20">
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+        <div className="px-5 py-3 bg-muted/30 border-t border-border/60">
+          <p className="text-xs text-muted-foreground">
             Your obituary is under review. Our staff will notify you once it&apos;s approved.
           </p>
         </div>

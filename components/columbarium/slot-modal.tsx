@@ -44,13 +44,13 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
             slot.status === 'available'
               ? 'bg-primary/10 border-primary/25 text-primary'
               : slot.status === 'reserved'
-              ? 'bg-amber-400/10 border-amber-400/30 text-amber-700 dark:text-amber-400'
-              : 'bg-rose-400/10 border-rose-400/25 text-rose-600'
+              ? 'bg-muted/40 border-border text-muted-foreground'
+              : 'bg-destructive/10 border-destructive/25 text-destructive'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${
               slot.status === 'available' ? 'bg-primary'
-              : slot.status === 'reserved' ? 'bg-amber-400'
-              : 'bg-rose-400'
+              : slot.status === 'reserved' ? 'bg-muted-foreground'
+              : 'bg-destructive'
             }`} />
             {slot.status}
           </span>
@@ -92,7 +92,7 @@ export function SlotModal({ slot, onClose }: SlotModalProps) {
             </p>
           )}
           {slot.status === 'reserved' && (
-            <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-400/8 border border-amber-400/20 rounded-xl p-3 font-medium">
+            <p className="text-[11px] text-muted-foreground bg-muted/40 border border-border rounded-xl p-3 font-medium">
               This slot is reserved and pending confirmation.
             </p>
           )}

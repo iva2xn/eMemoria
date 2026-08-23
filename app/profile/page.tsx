@@ -60,7 +60,7 @@ function DeleteAccountModal({
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
             <div>
               <p className="text-sm font-bold text-foreground">Request Account Deletion</p>
               <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
@@ -73,7 +73,7 @@ function DeleteAccountModal({
         <div className="px-6 py-5 space-y-4">
           {step === 1 ? (
             <>
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
+              <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3">
                 <p className="text-xs text-foreground leading-relaxed">
                   Your account will be scheduled for deletion after a <strong>30-day grace period</strong>. You can cancel the request anytime before then by signing in.
                 </p>
@@ -84,26 +84,27 @@ function DeleteAccountModal({
                 <textarea
                   rows={3} value={reason} onChange={e => { setReason(e.target.value); setError('') }}
                   placeholder="Tell us why you're leaving…"
+                  maxLength={500}
                   className={`${inp} h-auto resize-none py-2.5`}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={lbl}>Type <span className="text-red-500 font-mono">"DELETE"</span> to continue</label>
+                <label className={lbl}>Type <span className="text-destructive font-mono">"DELETE"</span> to continue</label>
                 <input
                   type="text" value={confirm} onChange={e => { setConfirm(e.target.value); setError('') }}
-                  placeholder='DELETE' className={inp} />
+                  placeholder='DELETE' maxLength={6} className={inp} />
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                <Button onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                <Button onClick={handleNext} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                   Next →
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3 space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
+              <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">Final Confirmation</p>
                 <p className="text-sm text-foreground">Submit your account deletion request?</p>
                 <p className="text-[11px] text-muted-foreground">You have 30 days to cancel by signing back in.</p>
               </div>
@@ -112,7 +113,7 @@ function DeleteAccountModal({
                 <Button
                   onClick={async () => { setLoading(true); await onConfirm(reason); setLoading(false) }}
                   disabled={loading}
-                  className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0"
+                  className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0"
                 >
                   {loading ? 'Submitting…' : 'Request Deletion'}
                 </Button>
@@ -413,7 +414,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               {nameMsg && (
-                <p className={`text-xs font-semibold ${nameMsg.startsWith('Error') ? 'text-red-500' : 'text-primary'}`}>
+                <p className={`text-xs font-semibold ${nameMsg.startsWith('Error') ? 'text-destructive' : 'text-primary'}`}>
                   {nameMsg}
                 </p>
               )}
@@ -428,7 +429,7 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <PhoneInput value={phone} onChange={setPhone} className={inp} />
               {phoneMsg && (
-                <p className={`text-xs font-semibold ${phoneMsg.startsWith('Error') ? 'text-red-500' : 'text-primary'}`}>
+                <p className={`text-xs font-semibold ${phoneMsg.startsWith('Error') ? 'text-destructive' : 'text-primary'}`}>
                   {phoneMsg}
                 </p>
               )}
@@ -461,7 +462,7 @@ export default function ProfilePage() {
                   className={`${inp} ${emailTaken ? 'border-red-500' : ''}`}
                 />
                 {emailTaken && (
-                  <p className="text-[11px] text-red-500 font-semibold mt-1 flex items-center gap-1">
+                  <p className="text-[11px] text-destructive font-semibold mt-1 flex items-center gap-1">
                     <X className="h-3 w-3" /> This email has already been taken.
                   </p>
                 )}
@@ -509,11 +510,11 @@ export default function ProfilePage() {
           </Section>
 
           {/* ── Account deletion ── */}
-          <Section title="Account Deletion" icon={<Trash2 className="h-4 w-4 text-red-500" />}>
+          <Section title="Account Deletion" icon={<Trash2 className="h-4 w-4 text-destructive" />}>
             {deleteMsg && (
               <div className={`mb-4 p-3 rounded-xl text-xs leading-relaxed border ${
                 deleteMsg.startsWith('Error') || deleteMsg.startsWith('Your account')
-                  ? 'bg-red-500/5 border-red-500/20 text-foreground'
+                  ? 'bg-destructive/5 border-destructive/20 text-foreground'
                   : 'bg-primary/5 border-primary/20 text-primary font-semibold'
               }`}>
                 {deleteMsg}
@@ -522,8 +523,8 @@ export default function ProfilePage() {
 
             {deletionRequested ? (
               <div className="space-y-4">
-                <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-                  <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                  <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-semibold text-foreground">Deletion scheduled</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -548,7 +549,7 @@ export default function ProfilePage() {
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteModal(true)}
-                  className="h-10 px-6 rounded-xl border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 flex items-center gap-2"
+                  className="h-10 px-6 rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 flex items-center gap-2"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Request Account Deletion

@@ -173,8 +173,8 @@ function StatusChangeModal({
 
   const STATUS_STYLES: Record<SlotStatus, string> = {
     available: 'text-primary bg-primary/10 border-primary/25',
-    reserved:  'text-amber-600 bg-amber-500/10 border-amber-500/25',
-    occupied:  'text-red-600 bg-red-500/10 border-red-500/25',
+    reserved:  'text-muted-foreground bg-muted/40 border-border',
+    occupied:  'text-destructive bg-destructive/10 border-destructive/25',
   }
 
   const handleConfirm = async () => {
@@ -247,8 +247,8 @@ function StatusChangeModal({
             </>
           ) : (
             <>
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+              <div className="bg-muted/30 border border-border/60 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                   Confirm Change
                 </p>
                 <p className="text-sm text-foreground">
@@ -294,7 +294,7 @@ function DiscountBlock({
   const finalAmount = basePrice - discount
 
   return (
-    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
+    <div className="bg-muted/30 border border-border/60 rounded-xl p-3.5 space-y-2">
       <label className="flex items-center gap-3 cursor-pointer select-none">
         <div className="relative">
           <input
@@ -303,9 +303,9 @@ function DiscountBlock({
             onChange={e => onToggle(e.target.checked)}
             className="sr-only peer"
           />
-          <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
+          <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-primary peer-checked:bg-primary transition-all flex items-center justify-center">
             {seniorPwd && (
-              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             )}
@@ -322,7 +322,7 @@ function DiscountBlock({
             <span className="text-muted-foreground">Original</span>
             <span className="font-mono">{fmtAmt(basePrice)}</span>
           </div>
-          <div className="flex justify-between text-amber-600">
+          <div className="flex justify-between text-primary">
             <span>20% Discount</span>
             <span className="font-mono">− {fmtAmt(discount)}</span>
           </div>
@@ -495,7 +495,7 @@ function ReserveWalkInModal({
             <>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Client Name <span className="text-red-500">*</span>
+                  Client Name <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text" value={name} onChange={e => setName(e.target.value)}
@@ -504,7 +504,7 @@ function ReserveWalkInModal({
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="tel" value={phone} onChange={e => setPhone(e.target.value)}
@@ -580,7 +580,7 @@ function ReserveWalkInModal({
                         <span className="text-muted-foreground">Original Price</span>
                         <span className="font-mono text-muted-foreground line-through">{fmtAmt(basePrice)}</span>
                       </div>
-                      <div className="flex justify-between px-4 py-2.5 text-xs text-amber-600">
+                      <div className="flex justify-between px-4 py-2.5 text-xs text-primary">
                         <span>Senior/PWD Discount (20%)</span>
                         <span className="font-mono">− {fmtAmt(discount)}</span>
                       </div>
@@ -594,7 +594,7 @@ function ReserveWalkInModal({
                   </div>
                 </div>
               </div>
-              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+              <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   This will record an approved cash payment and mark slot{' '}
@@ -778,7 +778,7 @@ function OccupyWalkInModal({
               </p>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Client Name <span className="text-red-500">*</span>
+                  Client Name <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text" value={name} onChange={e => setName(e.target.value)}
@@ -787,7 +787,7 @@ function OccupyWalkInModal({
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="tel" value={phone} onChange={e => setPhone(e.target.value)}
@@ -834,7 +834,7 @@ function OccupyWalkInModal({
               </p>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Occupant Name <span className="text-red-500">*</span>
+                  Occupant Name <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text" value={occupantName} onChange={e => setOccupantName(e.target.value)}
@@ -903,7 +903,7 @@ function OccupyWalkInModal({
                         <span className="text-muted-foreground">Original Price</span>
                         <span className="font-mono text-muted-foreground line-through">{fmtAmt(basePrice)}</span>
                       </div>
-                      <div className="flex justify-between px-4 py-2.5 text-xs text-amber-600">
+                      <div className="flex justify-between px-4 py-2.5 text-xs text-primary">
                         <span>Senior/PWD Discount (20%)</span>
                         <span className="font-mono">− {fmtAmt(discount)}</span>
                       </div>
@@ -917,7 +917,7 @@ function OccupyWalkInModal({
                   </div>
                 </div>
               </div>
-              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
+              <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   This will record an approved cash payment and mark slot{' '}
@@ -994,13 +994,13 @@ function SlotPanel({
     },
     {
       value: 'reserved' as SlotStatus, label: 'Reserved',
-      active: 'bg-amber-500 text-white border-amber-500',
-      idle: 'border-amber-400/40 text-amber-600 hover:bg-amber-400/10',
+      active: 'bg-muted-foreground text-background border-muted-foreground',
+      idle: 'border-border text-muted-foreground hover:bg-muted/40',
     },
     {
       value: 'occupied' as SlotStatus, label: 'Occupied',
-      active: 'bg-red-500 text-white border-red-500',
-      idle: 'border-red-400/40 text-red-500 hover:bg-red-400/10',
+      active: 'bg-destructive text-destructive-foreground border-destructive',
+      idle: 'border-destructive/30 text-destructive hover:bg-destructive/10',
     },
   ]
 
@@ -1094,7 +1094,7 @@ function SlotPanel({
               </button>
               <button
                 onClick={() => setMode('occupy')}
-                className="w-full h-10 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 text-sm font-bold hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+              className="w-full h-10 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm font-bold hover:bg-destructive/20 transition-all flex items-center justify-center gap-2"
               >
                 <Landmark className="h-4 w-4" />
                 Mark as Occupied
@@ -1110,7 +1110,7 @@ function SlotPanel({
               </p>
               <button
                 onClick={() => setMode('occupy')}
-                className="w-full h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2"
+                className="w-full h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 transition-all flex items-center justify-center gap-2"
               >
                 <Landmark className="h-4 w-4" />
                 Mark as Occupied (Walk-in)
@@ -1120,10 +1120,10 @@ function SlotPanel({
 
           {/* ── Occupied slot: read-only badge ── */}
           {slot.status === 'occupied' && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-2.5">
-              <Info className="h-4 w-4 text-red-500 shrink-0" />
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3 flex items-center gap-2.5">
+              <Info className="h-4 w-4 text-destructive shrink-0" />
               <p className="text-xs text-foreground">
-                This slot is <span className="font-bold text-red-600">Occupied</span>. Full payment has been received. Use status override below to correct if needed.
+                This slot is <span className="font-bold text-destructive">Occupied</span>. Full payment has been received. Use status override below to correct if needed.
               </p>
             </div>
           )}

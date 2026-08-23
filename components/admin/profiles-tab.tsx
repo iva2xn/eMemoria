@@ -80,7 +80,7 @@ function RoleChangeModal({
                     <span className="font-semibold">{newRole}</span>?
                   </p>
                   {newRole === 'admin' && (
-                    <p className="text-[11px] text-amber-600">This grants full admin access including payment approvals and role management.</p>
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400">This grants full admin access including payment approvals and role management.</p>
                   )}
                 </div>
                 <div className="flex gap-3 pt-1">
@@ -134,7 +134,7 @@ function DeleteAccountModal({
       <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-red-500" />
+              <Trash2 className="h-4 w-4 text-destructive" />
               <h2 className="text-sm font-bold text-foreground">Delete Account</h2>
             </div>
             <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
@@ -145,8 +145,8 @@ function DeleteAccountModal({
           <div className="px-6 py-5 space-y-4">
             {step === 1 ? (
               <>
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Warning — Irreversible Action</p>
+                <div className="bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">Warning — Irreversible Action</p>
                   <p className="text-sm text-muted-foreground">
                     Deleting <span className="font-semibold text-foreground">{target.name}</span>'s account will permanently remove their profile and all associated data.
                   </p>
@@ -154,36 +154,37 @@ function DeleteAccountModal({
                 {error && <AlertBanner variant="error" message={error} />}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Type <span className="text-red-500 font-mono">DELETE</span> to continue
+                    Type <span className="text-destructive font-mono">DELETE</span> to continue
                   </label>
                   <input
                     type="text"
                     value={confirm}
                     onChange={e => { setConfirm(e.target.value); setError('') }}
                     placeholder='DELETE'
-                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-red-500/60 focus:ring-1 focus:ring-red-500/10 outline-none transition-all"
+                    maxLength={6}
+                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-destructive/60 focus:ring-1 focus:ring-destructive/10 outline-none transition-all"
                   />
                 </div>
                 <div className="flex gap-3 pt-1">
                   <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                  <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                     Next →
                   </Button>
                 </div>
               </>
             ) : (
               <>
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
+                <div className="bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">Final Confirmation</p>
                   <p className="text-sm text-foreground">
                     Permanently delete <span className="font-semibold">{target.name}</span>{' '}
                     <span className="text-muted-foreground">({target.email})</span>?
                   </p>
-                  <p className="text-[11px] text-red-600 font-medium">This cannot be undone.</p>
+                  <p className="text-[11px] text-destructive font-medium">This cannot be undone.</p>
                 </div>
                 <div className="flex gap-3 pt-1">
                   <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                  <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                     {loading ? 'Deleting…' : 'Delete Account'}
                   </Button>
                 </div>
@@ -360,7 +361,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
                     {currentRole === 'admin' && u.id !== myId && (
                       <button
                         onClick={() => setDeleteTarget(u)}
-                        className="h-7 w-7 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                        className="h-7 w-7 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
                         title="Delete account"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -420,7 +421,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
                       {u.id !== myId ? (
                         <button
                           onClick={() => setDeleteTarget(u)}
-                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-bold hover:bg-red-500/20 transition-colors"
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
                         >
                           <Trash2 className="h-3 w-3" /> Delete
                         </button>

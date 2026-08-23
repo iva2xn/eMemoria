@@ -221,7 +221,7 @@ export function BillingForm({
                 <div className="px-6 py-5 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Full Name" required>
-                      <input type="text" placeholder="Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} className={inp} />
+                      <input type="text" placeholder="Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} className={inp} maxLength={100} />
                     </Field>
                     <Field label="Contact Number" required>
                       <PhoneInput value={phone} onChange={setPhone} className={inp} required />
@@ -266,7 +266,11 @@ export function BillingForm({
                           method === 'bdo_bank' ? 'BDO transaction reference' :
                           'Receipt / OR number (optional)'
                         }
-                        value={refNum} onChange={e => setRefNum(e.target.value)} className={inp} />
+                        value={refNum} onChange={e => setRefNum(e.target.value)} className={inp}
+                        maxLength={method === 'gcash' ? 13 : 50}
+                        inputMode={method === 'gcash' ? 'numeric' : 'text'}
+                        pattern={method === 'gcash' ? '[0-9]{13}' : undefined}
+                      />
                     </Field>
                     <Field label="Amount (₱)" required>
                       <input type="number" placeholder="e.g. 2500" min="1"
@@ -291,7 +295,9 @@ export function BillingForm({
                   <Field label="Additional Notes">
                     <textarea rows={3} placeholder="Any special instructions or context…"
                       value={notes} onChange={e => setNotes(e.target.value)}
+                      maxLength={500}
                       className="w-full p-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all resize-none placeholder:text-muted-foreground/50" />
+                    <p className="text-[10px] text-muted-foreground text-right mt-0.5">{notes.length}/500</p>
                   </Field>
 
                 </div>

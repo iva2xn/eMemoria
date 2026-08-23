@@ -104,7 +104,7 @@ function VoidModal({ row, onClose, onVoided }: {
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center"><Ban className="h-4 w-4 text-red-500" /></div>
+            <div className="h-8 w-8 rounded-xl bg-destructive/10 flex items-center justify-center"><Ban className="h-4 w-4 text-destructive" /></div>
             <div><h3 className="text-sm font-bold text-foreground">Void Transaction</h3><p className="text-[10px] text-muted-foreground">Auditable and reversible.</p></div>
           </div>
           <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
@@ -118,17 +118,17 @@ function VoidModal({ row, onClose, onVoided }: {
           </div>
           {error && <AlertBanner variant="error" message={error} />}
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Reason <span className="text-red-500">*</span></label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Reason <span className="text-destructive">*</span></label>
             <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
               <option value="">— Select a reason —</option>
               {VOID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          {isOther && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label><textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
-          {!isOther && reason && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comment (optional)</label><textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
+          {isOther && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-destructive">*</span></label><textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
+          {!isOther && reason && <div className="space-y-1.5"><label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comment (optional)</label><textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} /></div>}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
-            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">{loading ? 'Voiding…' : 'Void Transaction'}</button>
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 transition-all">{loading ? 'Voiding…' : 'Void Transaction'}</button>
           </div>
         </div>
       </div>
@@ -334,15 +334,15 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
               )}
               {rejectMode && (
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></label>
-                  <textarea rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Reason for rejection…" className={`${inputCls} h-auto resize-none py-2.5`} />
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-destructive">*</span></label>
+                  <textarea rows={3} value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Reason for rejection…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} />
                 </div>
               )}
               {error && <AlertBanner variant="error" message={error} />}
               <div className="flex gap-2 pt-1">
                 {!rejectMode ? (
                   <>
-                    <button onClick={() => setRejectMode(true)} className="flex-1 h-10 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-all">Reject</button>
+                    <button onClick={() => setRejectMode(true)} className="flex-1 h-10 rounded-xl border border-destructive/30 text-destructive text-sm font-bold hover:bg-destructive/10 transition-all">Reject</button>
                     <button onClick={handleApprove} disabled={loading} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5">
                       <Check className="h-3.5 w-3.5" />{loading ? 'Approving…' : 'Approve Payment'}
                     </button>
@@ -350,7 +350,7 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
                 ) : (
                   <>
                     <button onClick={() => { setRejectMode(false); setError('') }} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Back</button>
-                    <button onClick={handleReject} disabled={loading || !rejectReason.trim()} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">{loading ? 'Rejecting…' : 'Reject Payment'}</button>
+                    <button onClick={handleReject} disabled={loading || !rejectReason.trim()} className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 transition-all">{loading ? 'Rejecting…' : 'Reject Payment'}</button>
                   </>
                 )}
               </div>
@@ -440,12 +440,12 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
             <>
               {/* Client info */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Name <span className="text-red-500">*</span></label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Juan Dela Cruz" className={inputCls} />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Name <span className="text-destructive">*</span></label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Juan Dela Cruz" maxLength={100} className={inputCls} />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number <span className="text-red-500">*</span></label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+63 912 345 6789" className={inputCls} />
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number <span className="text-destructive">*</span></label>
+                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+63 912 345 6789" maxLength={20} className={inputCls} />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email Address <span className="text-muted-foreground/50 font-normal">(optional)</span></label>
@@ -454,7 +454,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
 
               {/* Service */}
               <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Funeral Service <span className="text-red-500">*</span></label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Funeral Service <span className="text-destructive">*</span></label>
                 <select value={serviceIdx} onChange={e => { setServiceIdx(e.target.value === '' ? '' : Number(e.target.value)); setCustomPrice(''); setSeniorPwd(false) }} className={inputCls}>
                   <option value="">— Select a service —</option>
                   <optgroup label="Traditional Packages">
@@ -475,7 +475,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               {/* Custom price for columbarium/general */}
               {needsCustom && (
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Amount (₱) <span className="text-red-500">*</span></label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Amount (₱) <span className="text-destructive">*</span></label>
                   <input type="number" value={customPrice} onChange={e => setCustomPrice(e.target.value)} placeholder="Enter amount" min="1" className={inputCls} />
                 </div>
               )}
@@ -490,12 +490,12 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
 
               {/* Senior/PWD discount */}
               {selectedService && basePrice > 0 && (
-                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3.5 space-y-2">
+                <div className="bg-muted/30 border border-border/60 rounded-xl p-3.5 space-y-2">
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <div className="relative">
                       <input type="checkbox" checked={seniorPwd} onChange={e => setSeniorPwd(e.target.checked)} className="sr-only peer" />
-                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
-                        {seniorPwd && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-primary peer-checked:bg-primary transition-all flex items-center justify-center">
+                        {seniorPwd && <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
                       </div>
                     </div>
                     <div>
@@ -506,7 +506,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                   {seniorPwd && basePrice > 0 && (
                     <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1 text-xs">
                       <div className="flex justify-between"><span className="text-muted-foreground">Original</span><span className="font-mono">{fmtAmt(basePrice)}</span></div>
-                      <div className="flex justify-between text-amber-600"><span>20% Discount</span><span className="font-mono">− {fmtAmt(discount)}</span></div>
+                      <div className="flex justify-between text-primary"><span>20% Discount</span><span className="font-mono">− {fmtAmt(discount)}</span></div>
                       <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1"><span>Amount Payable</span><span className="font-mono">{fmtAmt(finalAmount)}</span></div>
                     </div>
                   )}
@@ -539,7 +539,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                         <span className="text-muted-foreground">Original Price</span>
                         <span className="font-mono text-muted-foreground line-through">{fmtAmt(basePrice)}</span>
                       </div>
-                      <div className="flex justify-between px-4 py-2.5 text-xs text-amber-600">
+                      <div className="flex justify-between px-4 py-2.5 text-xs text-primary">
                         <span>Senior/PWD Discount (20%)</span>
                         <span className="font-mono">− {fmtAmt(discount)}</span>
                       </div>
@@ -551,8 +551,8 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                   </div>
                 </div>
               </div>
-              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">This will be recorded as an approved cash payment immediately. Please verify all details before confirming.</p>
               </div>
             </div>
@@ -732,7 +732,7 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
           )}
           {row.status !== 'voided' && currentRole === 'admin' && (
             <button onClick={() => setVoidOpen(true)}
-              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-destructive/20 text-destructive text-[10px] font-semibold hover:bg-destructive/10 transition-colors">
               <Ban className="h-3 w-3" /> Void
             </button>
           )}
@@ -786,8 +786,8 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
             </div>
           )}
           {row.status === 'voided' && (row.void_reason || row.void_comment) && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-red-500/70 mb-1">Void Reason</p>
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-destructive/70 mb-1">Void Reason</p>
               <p className="text-xs text-foreground">{row.void_reason}{row.void_comment ? ` — ${row.void_comment}` : ''}</p>
             </div>
           )}
@@ -950,8 +950,8 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
             {[
               { label: 'Total',    value: rows.length,                                              color: 'text-foreground' },
               { label: 'Approved', value: rows.filter(r => r.status === 'approved').length,          color: 'text-primary' },
-              { label: 'Pending',  value: rows.filter(r => r.status === 'pending').length,           color: 'text-amber-500' },
-              { label: 'Rejected', value: rows.filter(r => r.status === 'rejected').length,          color: 'text-red-500' },
+              { label: 'Pending',  value: rows.filter(r => r.status === 'pending').length,           color: 'text-muted-foreground' },
+              { label: 'Rejected', value: rows.filter(r => r.status === 'rejected').length,          color: 'text-destructive' },
             ].map((s, i) => (
               <div key={s.label} className="flex items-center gap-4">
                 {i > 0 && <div className="w-px h-3.5 bg-border/60" />}
@@ -985,7 +985,7 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
               <tbody>
                 {filtered.map((p, i) => {
                   const isHighlighted = highlightPaymentId === p.id
-                  const rowBg = isHighlighted ? 'bg-amber-500/10' : selectedIds.has(p.id) ? 'bg-primary/5' : i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'
+                  const rowBg = isHighlighted ? 'bg-primary/10' : selectedIds.has(p.id) ? 'bg-primary/5' : i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'
                   return (
                     <tr key={p.id} ref={isHighlighted ? highlightRef : null}
                       className={`border-b border-border/40 transition-colors hover:bg-primary/[0.03] cursor-pointer ${rowBg}`}

@@ -161,8 +161,8 @@ function VoidModal({ row, onClose, onVoided }: {
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <Ban className="h-4 w-4 text-red-500" />
+            <div className="h-8 w-8 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <Ban className="h-4 w-4 text-destructive" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-foreground">Void Transaction</h3>
@@ -187,7 +187,7 @@ function VoidModal({ row, onClose, onVoided }: {
 
           <div className="space-y-1.5">
             <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-              Void Reason <span className="text-red-500">*</span>
+              Void Reason <span className="text-destructive">*</span>
             </label>
             <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
               <option value="">— Select a reason —</option>
@@ -198,13 +198,14 @@ function VoidModal({ row, onClose, onVoided }: {
           {isOther && (
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Custom Reason <span className="text-red-500">*</span>
+                Custom Reason <span className="text-destructive">*</span>
               </label>
               <textarea
                 rows={3}
                 value={comment}
                 onChange={e => setComment(e.target.value)}
                 placeholder="Describe why this transaction is being voided…"
+                maxLength={300}
                 className={`${inputCls} h-auto resize-none py-2.5`}
               />
             </div>
@@ -213,7 +214,7 @@ function VoidModal({ row, onClose, onVoided }: {
           {!isOther && reason && (
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Additional Comment (optional)</label>
-              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} />
+              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} />
             </div>
           )}
 
@@ -224,7 +225,7 @@ function VoidModal({ row, onClose, onVoided }: {
             <button
               onClick={handleVoid}
               disabled={!canSubmit || loading}
-              className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {loading ? 'Voiding…' : 'Void Transaction'}
             </button>
@@ -296,8 +297,8 @@ function RecoverModal({ row, onClose, onRecovered }: {
           </button>
         </div>
         <div className="px-6 py-5 space-y-4">
-          <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl p-3">
+            <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-foreground leading-relaxed">
               This will restore the transaction for <strong>{clientName(row)}</strong> ({fmtAmt(row.amount)}) and mark it as <strong>Pending</strong> for review. Are you sure?
             </p>
@@ -474,7 +475,7 @@ function ExportPreviewModal({ allRows, onClose, initialDateFrom, initialDateTo }
               {[
                 { label: 'Records',  value: String(exportRows.length),        color: 'text-foreground' },
                 { label: 'Revenue',  value: fmtAmt(totalRevenue),             color: 'text-primary' },
-                { label: 'Pending',  value: String(pendingRows.length),       color: 'text-amber-500' },
+                { label: 'Pending',  value: String(pendingRows.length),       color: 'text-muted-foreground' },
                 { label: 'Voided',   value: String(voidedRows.length),        color: 'text-muted-foreground' },
               ].map((s, i) => (
                 <div key={s.label} className="flex items-center gap-2">
@@ -897,8 +898,8 @@ function RegisterTable({ rows, sortField, sortDir, onSort, onVoid, currentRole, 
         </div>
         <div className="w-px h-4 bg-border/60" />
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-amber-600/70">Pending</span>
-          <span className="text-sm font-bold text-amber-500">{pendingCount}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/70">Pending</span>
+          <span className="text-sm font-bold text-muted-foreground">{pendingCount}</span>
         </div>
         <div className="w-px h-4 bg-border/60" />
         <div className="flex items-center gap-2">
@@ -1048,12 +1049,118 @@ function RegisterTable({ rows, sortField, sortDir, onSort, onVoid, currentRole, 
 // ═══════════════════════════════════════════════════════════
 // VOIDED SUB-TAB
 // ═══════════════════════════════════════════════════════════
-function VoidedTab({ rows, onRecover, currentRole }: {
+// ═══════════════════════════════════════════════════════════
+// BULK RECOVER MODAL
+// ═══════════════════════════════════════════════════════════
+function BulkRecoverModal({ rows, onClose, onBulkRecovered }: {
+  rows: TxRow[]
+  onClose: () => void
+  onBulkRecovered: (ids: string[]) => void
+}) {
+  const supabase  = createClient()
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const handle = async () => {
+    setLoading(true); setError('')
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: prof }    = user
+      ? await supabase.from('profiles').select('name').eq('id', user.id).single()
+      : { data: null }
+    const actorName = prof?.name ?? 'Staff'
+
+    const ids = rows.map(r => r.id)
+
+    const { error: err } = await supabase
+      .from('payments')
+      .update({ status: 'pending', void_reason: null, void_comment: null, voided_by: null, voided_at: null })
+      .in('id', ids)
+
+    if (err) { setError(err.message); setLoading(false); return }
+
+    // Log each recovery
+    await Promise.all(rows.map(row =>
+      logActivity({
+        category: 'log', event_type: 'payment_recovered',
+        entity_table: 'payments', entity_id: row.id,
+        actor_id: user?.id, actor_name: actorName,
+        message: `${actorName} bulk-recovered voided payment from ${clientName(row)}`,
+        metadata: { amount: row.amount, bulk: true },
+      })
+    ))
+
+    setLoading(false)
+    onBulkRecovered(ids)
+    onClose()
+  }
+
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <RotateCcw className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Bulk Recover Transactions</h3>
+              <p className="text-[10px] text-muted-foreground">Restores {rows.length} transaction{rows.length !== 1 ? 's' : ''} to Pending.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl p-3">
+            <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-foreground leading-relaxed">
+              You are about to recover <strong>{rows.length} voided transaction{rows.length !== 1 ? 's' : ''}</strong>. All selected records will be marked as <strong>Pending</strong> and restored to the register.
+            </p>
+          </div>
+          {/* Mini summary */}
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {rows.map(r => (
+              <div key={r.id} className="flex items-center justify-between text-xs px-3 py-1.5 rounded-lg bg-muted/40 border border-border/40">
+                <span className="font-semibold text-foreground truncate max-w-[60%]">{clientName(r)}</span>
+                <span className="font-bold text-primary shrink-0">{fmtAmt(r.amount)}</span>
+              </div>
+            ))}
+          </div>
+          {error && <AlertBanner variant="error" message={error} />}
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
+            <button onClick={handle} disabled={loading} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all">
+              {loading ? 'Recovering…' : `Recover ${rows.length}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// VOIDED TAB
+// ═══════════════════════════════════════════════════════════
+function VoidedTab({ rows, onRecover, onBulkRecover, currentRole }: {
   rows: TxRow[]
   onRecover: (row: TxRow) => void
+  onBulkRecover: (rows: TxRow[]) => void
   currentRole: UserRole
 }) {
-  const [recoverRow, setRecoverRow] = useState<TxRow | null>(null)
+  const [recoverRow,   setRecoverRow]   = useState<TxRow | null>(null)
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set())
+  const [bulkModal,    setBulkModal]    = useState(false)
+
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  const allSelected  = rows.length > 0 && selectedIds.size === rows.length
+  const selectAll    = (v: boolean) => setSelectedIds(v ? new Set(rows.map(r => r.id)) : new Set())
+
+  const selectedRows = rows.filter(r => selectedIds.has(r.id))
 
   if (rows.length === 0) return (
     <div className="py-16 text-center border border-dashed border-border/60 rounded-2xl bg-muted/10">
@@ -1070,11 +1177,49 @@ function VoidedTab({ rows, onRecover, currentRole }: {
           onRecovered={id => { onRecover(rows.find(r => r.id === id)!); setRecoverRow(null) }}
         />
       )}
+      {bulkModal && selectedRows.length > 0 && (
+        <BulkRecoverModal
+          rows={selectedRows}
+          onClose={() => setBulkModal(false)}
+          onBulkRecovered={ids => {
+            onBulkRecover(rows.filter(r => ids.includes(r.id)))
+            setSelectedIds(new Set())
+            setBulkModal(false)
+          }}
+        />
+      )}
+
+      {/* Bulk action bar */}
+      {currentRole === 'admin' && (
+        <div className="flex items-center justify-between gap-3 py-2">
+          <p className="text-[11px] text-muted-foreground">
+            {selectedIds.size > 0
+              ? <><span className="font-bold text-foreground">{selectedIds.size}</span> selected</>
+              : `${rows.length} voided transaction${rows.length !== 1 ? 's' : ''}`
+            }
+          </p>
+          {selectedIds.size > 1 && (
+            <button
+              onClick={() => setBulkModal(true)}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Bulk Recover ({selectedIds.size})
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="overflow-x-auto border border-border rounded-2xl bg-card">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-muted/30 border-b border-border">
+              {currentRole === 'admin' && (
+                <th className="px-4 py-3">
+                  <input type="checkbox" checked={allSelected} onChange={e => selectAll(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                </th>
+              )}
               {['#','Date','Client','Product','Amount','Void Reason','Comment','Voided At', currentRole === 'admin' ? 'Recover' : ''].filter(Boolean).map(h => (
                 <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
               ))}
@@ -1082,7 +1227,13 @@ function VoidedTab({ rows, onRecover, currentRole }: {
           </thead>
           <tbody className="divide-y divide-border/50">
             {rows.map((r, i) => (
-              <tr key={r.id} className="hover:bg-muted/10 transition-colors">
+              <tr key={r.id} className={`hover:bg-muted/10 transition-colors ${selectedIds.has(r.id) ? 'bg-primary/5' : ''}`}>
+                {currentRole === 'admin' && (
+                  <td className="px-4 py-3">
+                    <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSelect(r.id)}
+                      className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                  </td>
+                )}
                 <td className="px-4 py-3 text-[10px] text-muted-foreground font-mono">{i + 1}</td>
                 <td className="px-4 py-3 text-[10px] text-muted-foreground whitespace-nowrap">{fmtDate(r.created_at)}</td>
                 <td className="px-4 py-3">
@@ -1236,6 +1387,13 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
       : r
     ))
   }
+  const onBulkRecovered = (rows: TxRow[]) => {
+    const ids = new Set(rows.map(r => r.id))
+    setAllRows(prev => prev.map(r => ids.has(r.id)
+      ? { ...r, status: 'pending' as PaymentStatus, void_reason: null, void_comment: null, voided_by: null, voided_at: null }
+      : r
+    ))
+  }
 
   if (loading) return <Spinner />
 
@@ -1357,7 +1515,7 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
           <Ban className="h-3 w-3" />
           Voided / Deleted
           {voidedRows.length > 0 && (
-            <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-red-500/10 text-red-500 text-[8px] font-black">{voidedRows.length}</span>
+            <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-destructive/10 text-destructive text-[8px] font-black">{voidedRows.length}</span>
           )}
         </button>
       </div>
@@ -1376,7 +1534,7 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
           onSelectAll={selectAll}
         />
       ) : (
-        <VoidedTab rows={voidedRows} onRecover={onRecovered} currentRole={currentRole} />
+        <VoidedTab rows={voidedRows} onRecover={onRecovered} onBulkRecover={onBulkRecovered} currentRole={currentRole} />
       )}
     </div>
   )

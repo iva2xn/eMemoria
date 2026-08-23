@@ -42,9 +42,9 @@ function NotifIcon({ eventType }: { eventType: string }) {
 
 function iconBg(eventType: string): string {
   if (eventType === 'payment_approved' || eventType === 'doc_approved' || eventType === 'wake_request_approved')  return 'bg-primary text-primary-foreground'
-  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-red-500 text-white'
-  if (eventType === 'payment_voided')                                     return 'bg-red-400 text-white'
-  if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-amber-500 text-white'
+  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-destructive text-destructive-foreground'
+  if (eventType === 'payment_voided')                                     return 'bg-destructive/70 text-destructive-foreground'
+  if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-muted text-muted-foreground'
   return 'bg-muted text-muted-foreground'
 }
 

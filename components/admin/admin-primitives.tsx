@@ -9,8 +9,8 @@ export type BadgeVariant = 'green' | 'amber' | 'red' | 'muted' | 'blue'
 // Pill badge — used in non-table contexts (doc submissions, columbarium, etc.)
 const BADGE_CLS: Record<BadgeVariant, string> = {
   green: 'bg-primary/10 text-primary border-primary/20',
-  amber: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-  red:   'bg-red-500/10 text-red-600 border-red-500/20',
+  amber: 'bg-muted text-muted-foreground border-border',
+  red:   'bg-destructive/10 text-destructive border-destructive/20',
   muted: 'bg-muted text-muted-foreground border-border',
   blue:  'bg-blue-500/10 text-blue-600 border-blue-500/20',
 }
@@ -18,16 +18,16 @@ const BADGE_CLS: Record<BadgeVariant, string> = {
 // Plain text color — used in table cells (payments, transactions, sales report)
 const PLAIN_CLS: Record<BadgeVariant, string> = {
   green: 'text-primary',
-  amber: 'text-amber-500',
-  red:   'text-red-500',
+  amber: 'text-muted-foreground',
+  red:   'text-destructive',
   muted: 'text-muted-foreground',
   blue:  'text-muted-foreground',
 }
 
 const DOT_CLS: Record<BadgeVariant, string> = {
   green: 'bg-primary',
-  amber: 'bg-amber-500',
-  red:   'bg-red-500',
+  amber: 'bg-muted-foreground',
+  red:   'bg-destructive',
   muted: 'bg-muted-foreground/40',
   blue:  'bg-muted-foreground/40',
 }

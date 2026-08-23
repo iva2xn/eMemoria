@@ -230,8 +230,8 @@ function RequestModal({
                   )}
                 </div>
               </div>
-              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   Your request will be reviewed by our staff. You will be notified once a decision has been made.
                 </p>
@@ -291,15 +291,15 @@ function RequestHistoryItem({ req }: { req: WakeExtensionRequest }) {
   return (
     <div className={`rounded-xl border p-4 space-y-2 ${
       isApproved ? 'border-primary/20 bg-primary/[0.03]'
-      : isRejected ? 'border-red-500/20 bg-red-500/[0.03]'
-      : 'border-amber-500/20 bg-amber-500/[0.03]'
+      : isRejected ? 'border-destructive/20 bg-destructive/[0.03]'
+      : 'border-border bg-muted/20'
     }`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isApproved && <CheckCircle2 className="h-4 w-4 text-primary" />}
-          {isRejected && <XCircle      className="h-4 w-4 text-red-500" />}
-          {isPending  && <Clock        className="h-4 w-4 text-amber-500" />}
-          <span className={`text-xs font-bold ${isApproved ? 'text-primary' : isRejected ? 'text-red-500' : 'text-amber-600'}`}>
+          {isRejected && <XCircle      className="h-4 w-4 text-destructive" />}
+          {isPending  && <Clock        className="h-4 w-4 text-muted-foreground" />}
+          <span className={`text-xs font-bold ${isApproved ? 'text-primary' : isRejected ? 'text-destructive' : 'text-muted-foreground'}`}>
             {isApproved ? 'Approved' : isRejected ? 'Rejected' : 'Pending Review'}
           </span>
         </div>
@@ -321,7 +321,7 @@ function RequestHistoryItem({ req }: { req: WakeExtensionRequest }) {
       </p>
 
       {isRejected && req.rejection_reason && (
-        <div className="text-[11px] text-red-600 bg-red-500/5 border border-red-500/10 rounded-lg px-3 py-2 leading-relaxed">
+        <div className="text-[11px] text-destructive bg-destructive/5 border border-destructive/10 rounded-lg px-3 py-2 leading-relaxed">
           <span className="font-bold">Reason: </span>
           {REJECTION_REASON_DISPLAY[req.rejection_reason] ?? req.rejection_reason}
           {req.rejection_comment && req.rejection_reason !== 'Other' && (
@@ -500,8 +500,8 @@ export default function WakeSchedulePage() {
                 <div className="px-6 py-5 space-y-4">
                   {/* Pickup */}
                   <div className="flex items-start gap-4">
-                    <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Clock className="h-4 w-4 text-amber-600" />
+                    <div className="h-9 w-9 rounded-xl bg-muted/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Pickup Date &amp; Time</p>
@@ -589,9 +589,9 @@ export default function WakeSchedulePage() {
 
                 {hasPendingRequest && (
                   <div className="px-6 pb-4">
-                    <div className="flex items-center gap-2 bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2.5">
-                      <Clock className="h-4 w-4 text-amber-500 shrink-0" />
-                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                    <div className="flex items-center gap-2 bg-muted/30 border border-border/60 rounded-xl px-3 py-2.5">
+                      <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <p className="text-xs text-muted-foreground">
                         You have a pending request. You can submit a new one once it has been reviewed.
                       </p>
                     </div>

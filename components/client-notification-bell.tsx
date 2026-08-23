@@ -36,9 +36,9 @@ function NotifIcon({ eventType, className }: { eventType: string; className?: st
 
 function dotColor(eventType: string): string {
   if (eventType === 'payment_approved' || eventType === 'doc_approved' || eventType === 'wake_request_approved')  return 'bg-primary'
-  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-red-500'
-  if (eventType === 'payment_voided')                                     return 'bg-red-400'
-  if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-amber-500'
+  if (eventType === 'payment_rejected' || eventType === 'doc_rejected' || eventType === 'wake_request_rejected')  return 'bg-destructive'
+  if (eventType === 'payment_voided')                                     return 'bg-destructive/60'
+  if (eventType === 'payment_pending'  || eventType === 'doc_pending')   return 'bg-muted-foreground'
   return 'bg-muted-foreground'
 }
 
@@ -164,7 +164,7 @@ export function ClientNotificationBell({ userId }: { userId: string }) {
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none pointer-events-none">
+          <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center leading-none pointer-events-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}

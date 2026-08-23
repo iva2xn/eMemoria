@@ -68,8 +68,8 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center">
-              <Ban className="h-4 w-4 text-red-500" />
+            <div className="h-8 w-8 rounded-xl bg-destructive/10 flex items-center justify-center">
+              <Ban className="h-4 w-4 text-destructive" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-foreground">Void Transaction</h3>
@@ -87,9 +87,9 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
             <div className="flex justify-between text-xs"><span className="text-muted-foreground">Method</span><span className="capitalize">{row.method.replace('_', ' ')}</span></div>
             <div className="flex justify-between text-xs"><span className="text-muted-foreground">Date</span><span>{new Date(row.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}</span></div>
           </div>
-          {error && <div className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</div>}
+          {error && <div className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">{error}</div>}
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Void Reason <span className="text-red-500">*</span></label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Void Reason <span className="text-destructive">*</span></label>
             <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
               <option value="">— Select a reason —</option>
               {VOID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -97,19 +97,19 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
           </div>
           {isOther && (
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
-              <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" className={`${inputCls} h-auto resize-none py-2.5`} />
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-destructive">*</span></label>
+              <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} />
             </div>
           )}
           {!isOther && reason && (
             <div className="space-y-1.5">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Comment (optional)</label>
-              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" className={`${inputCls} h-auto resize-none py-2.5`} />
+              <textarea rows={2} value={comment} onChange={e => setComment(e.target.value)} placeholder="Any extra notes…" maxLength={300} className={`${inputCls} h-auto resize-none py-2.5`} />
             </div>
           )}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
-            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
               {loading ? 'Voiding…' : 'Void Transaction'}
             </button>
           </div>
@@ -472,7 +472,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
                   <div className="w-px h-8 bg-border/60" />
                   <div>
                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Pending</p>
-                    <p className="text-base font-bold text-amber-500">₱{totalPending.toLocaleString('en-PH')}</p>
+                    <p className="text-base font-bold text-muted-foreground">₱{totalPending.toLocaleString('en-PH')}</p>
                     <p className="text-[9px] text-muted-foreground">{pendingCount} awaiting</p>
                   </div>
                   <div className="w-px h-8 bg-border/60" />
@@ -554,7 +554,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
                             <td className="px-4 py-2.5">
                               {r.status !== 'voided' && (
                                 <button onClick={() => setVoidRow(r)}
-                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-destructive/20 text-destructive text-[10px] font-semibold hover:bg-destructive/10 transition-colors">
                                   <Ban className="h-2.5 w-2.5" /> Void
                                 </button>
                               )}

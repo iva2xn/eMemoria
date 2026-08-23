@@ -222,7 +222,7 @@ function EditWakeModal({
               {isOther && (
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Specify Location <span className="text-red-500">*</span>
+                    Specify Location <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
@@ -269,8 +269,8 @@ function EditWakeModal({
                   ))}
                 </div>
               </div>
-              <div className="flex items-start gap-2.5 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   Please verify all details before saving. The client will be able to see this schedule.
                 </p>
@@ -481,8 +481,8 @@ function ReviewRequestModal({
                     onClick={() => setDecision('rejected')}
                     className={`flex-1 h-10 rounded-xl text-sm font-bold border-2 transition-all ${
                       decision === 'rejected'
-                        ? 'bg-red-500 text-white border-red-500'
-                        : 'border-border text-muted-foreground hover:border-red-400/40'
+                        ? 'bg-destructive text-destructive-foreground border-destructive'
+                        : 'border-border text-muted-foreground hover:border-destructive/40'
                     }`}
                   >
                     Reject
@@ -495,7 +495,7 @@ function ReviewRequestModal({
                 <>
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Reason <span className="text-red-500">*</span>
+                      Reason <span className="text-destructive">*</span>
                     </label>
                     <select
                       value={reason}
@@ -511,13 +511,14 @@ function ReviewRequestModal({
                   {isOther && (
                     <div className="space-y-1.5">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        Custom Reason <span className="text-red-500">*</span>
+                        Custom Reason <span className="text-destructive">*</span>
                       </label>
                       <textarea
                         rows={3}
                         value={comment}
                         onChange={e => setComment(e.target.value)}
                         placeholder="Describe the reason…"
+                        maxLength={300}
                         className={`${inputCls} h-auto resize-none py-2.5`}
                       />
                     </div>
@@ -540,8 +541,8 @@ function ReviewRequestModal({
               )}
             </>
           ) : (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+            <div className="bg-muted/30 border border-border/60 rounded-xl p-3">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
                 Final Confirmation
               </p>
               <p className="text-sm text-foreground">
@@ -585,7 +586,7 @@ function ReviewRequestModal({
                 className={`flex-1 h-10 rounded-xl text-sm font-bold disabled:opacity-40 transition-all ${
                   decision === 'approved'
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
                 }`}
               >
                 {loading ? 'Saving…' : decision === 'approved' ? 'Confirm Approve' : 'Confirm Reject'}

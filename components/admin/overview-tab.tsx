@@ -97,7 +97,7 @@ function MetricCard({
   label: string; value: string | number; subtitle?: string; trend?: string; trendType?: 'up' | 'down'
   onClick?: () => void; accent?: 'default' | 'amber' | 'emerald'
 }) {
-  const accentColor = accent === 'amber' ? 'text-amber-500' : accent === 'emerald' ? 'text-emerald-500' : 'text-foreground'
+  const accentColor = accent === 'amber' ? 'text-muted-foreground' : accent === 'emerald' ? 'text-primary' : 'text-foreground'
   return (
     <div
       onClick={onClick}
@@ -309,7 +309,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                 onClick={e => { e.stopPropagation(); onNavigate('profiles') }}
                 className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
               >
-                <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+                <span className="h-2 w-2 rounded-full bg-primary/60 shrink-0" />
                 <span className="text-[10px] text-foreground font-medium">Registered</span>
                 <span className="text-[10px] text-muted-foreground font-mono ml-auto">72%</span>
               </button>
@@ -522,7 +522,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
                     <div className="text-right shrink-0 ml-4">
                       <p className="text-xs font-bold text-foreground">₱{Number(p.amount).toLocaleString('en-PH')}</p>
-                      <span className="inline-flex items-center text-[9px] font-semibold text-amber-500 mt-0.5">
+                      <span className="inline-flex items-center text-[9px] font-semibold text-muted-foreground mt-0.5">
                         ● Pending
                       </span>
                     </div>
