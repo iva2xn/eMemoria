@@ -595,11 +595,11 @@ function ReserveWalkInModal({
                 </div>
               </div>
               <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   This will record an approved cash payment and mark slot{' '}
                   <span className="font-mono font-bold">{slot.slot_code}</span> as{' '}
-                  <span className="font-bold text-amber-600">Reserved</span>.
+                  <span className="font-bold text-muted-foreground">Reserved</span>.
                 </p>
               </div>
             </div>
@@ -918,11 +918,11 @@ function OccupyWalkInModal({
                 </div>
               </div>
               <div className="flex items-start gap-2.5 bg-muted/30 border border-border/60 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground">
                   This will record an approved cash payment and mark slot{' '}
                   <span className="font-mono font-bold">{slot.slot_code}</span> as{' '}
-                  <span className="font-bold text-red-600">Occupied</span>.
+                  <span className="font-bold text-destructive">Occupied</span>.
                 </p>
               </div>
             </div>
@@ -1423,8 +1423,8 @@ export function ColumbariumTab() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Available', count: counts.available, color: 'text-primary',   bg: 'bg-primary/10' },
-          { label: 'Reserved',  count: counts.reserved,  color: 'text-amber-600', bg: 'bg-amber-500/10' },
-          { label: 'Occupied',  count: counts.occupied,  color: 'text-red-600',   bg: 'bg-red-500/10' },
+          { label: 'Reserved',  count: counts.reserved,  color: 'text-muted-foreground', bg: 'bg-muted/20' },
+          { label: 'Occupied',  count: counts.occupied,  color: 'text-destructive',   bg: 'bg-destructive/10' },
         ].map(s => (
           <div key={s.label} className={`${s.bg} border border-border rounded-2xl p-4 text-center`}>
             <p className={`text-2xl font-bold ${s.color}`}>{s.count}</p>

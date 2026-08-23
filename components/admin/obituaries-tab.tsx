@@ -158,7 +158,7 @@ function DeleteConfirmModal({
       <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
             <h2 className="text-sm font-bold text-foreground">Delete Obituary</h2>
           </div>
           <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
@@ -201,7 +201,7 @@ function DeleteConfirmModal({
               )}
               <div className="flex gap-3 pt-1">
                 <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                <Button type="button" onClick={handleNext} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                   Next →
                 </Button>
               </div>
@@ -212,11 +212,11 @@ function DeleteConfirmModal({
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Confirm Deletion</p>
                 <p className="text-sm text-foreground font-semibold">{obituary.full_name}</p>
                 <p className="text-xs text-muted-foreground">Reason: {reason}{reason === 'Other' && comment ? ` — ${comment}` : ''}</p>
-                <p className="text-[11px] text-amber-600 font-medium">This will move the record to Recently Deleted for 30 days.</p>
+                <p className="text-[11px] text-muted-foreground font-medium">This will move the record to Recently Deleted for 30 days.</p>
               </div>
               <div className="flex gap-3 pt-1">
                 <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                   {loading ? 'Deleting…' : 'Confirm Delete'}
                 </Button>
               </div>
@@ -254,7 +254,7 @@ function PermanentDeleteModal({
       <div className="relative w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
             <div>
               <h2 className="text-sm font-bold text-foreground">Delete Forever?</h2>
               <p className="text-[10px] text-muted-foreground">Step {step} of 2</p>
@@ -267,31 +267,31 @@ function PermanentDeleteModal({
         <div className="px-6 py-5 space-y-4">
           {step === 1 ? (
             <>
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 mb-1">Warning — Permanent Deletion</p>
+              <div className="bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-destructive mb-1">Warning — Permanent Deletion</p>
                 <p className="text-sm text-muted-foreground">
                   <span className="font-semibold text-foreground">"{obituary.full_name}"</span> will be permanently deleted and cannot be recovered.
                 </p>
               </div>
               <div className="flex gap-3">
                 <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
-                <Button type="button" onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                <Button type="button" onClick={() => setStep(2)} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                   Next →
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">Final Confirmation</p>
+              <div className="bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3 space-y-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">Final Confirmation</p>
                 <p className="text-sm text-foreground">
                   Permanently delete <span className="font-semibold">"{obituary.full_name}"</span>?
                 </p>
-                <p className="text-[11px] text-red-600 font-medium">This cannot be undone.</p>
+                <p className="text-[11px] text-destructive font-medium">This cannot be undone.</p>
               </div>
               <div className="flex gap-3">
                 <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
-                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white border-0">
+                <Button type="button" onClick={handleConfirm} disabled={loading} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
                   {loading ? 'Deleting…' : 'Delete Forever'}
                 </Button>
               </div>
@@ -666,9 +666,9 @@ function RecentlyDeletedPane() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
-        <Trash2 className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-        <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+      <div className="flex items-start gap-3 bg-muted/30 border border-border/60 rounded-xl px-4 py-3">
+        <Trash2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Records here are permanently removed after 30 days. You can recover them or delete them immediately.
         </p>
       </div>
@@ -709,7 +709,7 @@ function RecentlyDeletedPane() {
                     {o.delete_reason ? ` · Reason: ${o.delete_reason}` : ''}
                     {o.delete_comment ? ` (${o.delete_comment})` : ''}
                   </p>
-                  <p className={`text-[11px] font-bold ${daysLeft <= 3 ? 'text-red-500' : 'text-amber-600'}`}>
+                  <p className={`text-[11px] font-bold ${daysLeft <= 3 ? 'text-destructive' : 'text-muted-foreground'}`}>
                     {daysLeft} day{daysLeft !== 1 ? 's' : ''} until permanent deletion
                   </p>
                 </div>
@@ -724,7 +724,7 @@ function RecentlyDeletedPane() {
                   </button>
                   <button
                     onClick={() => setPermanentTarget(o)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-bold hover:bg-red-500/20 transition-colors"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
                   >
                     <Trash2 className="h-3 w-3" /> Delete Forever
                   </button>
@@ -1004,7 +1004,7 @@ export function ObituariesTab() {
                           onClick={() => o.is_published ? unpublish(o.id) : setApproveTarget(o)}
                           className={`h-7 px-3 rounded-lg text-[10px] font-bold border transition-all ${
                             o.is_published
-                              ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
+                              ? 'bg-muted border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive'
                               : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
                           }`}
                         >
@@ -1012,7 +1012,7 @@ export function ObituariesTab() {
                         </button>
                         <button
                           onClick={() => setDeleteTarget(o)}
-                          className="h-7 px-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 text-[10px] font-bold hover:bg-red-500/20 transition-colors"
+                          className="h-7 px-2.5 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[10px] font-bold hover:bg-destructive/20 transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1074,7 +1074,7 @@ export function ObituariesTab() {
                       onClick={() => selected.is_published ? unpublish(selected.id) : setApproveTarget(selected)}
                       className={`flex-1 h-10 rounded-xl text-sm font-bold border transition-all ${
                         selected.is_published
-                          ? 'bg-muted border-border text-muted-foreground hover:border-red-500/40 hover:text-red-500'
+                          ? 'bg-muted border-border text-muted-foreground hover:border-destructive/40 hover:text-destructive'
                           : 'bg-primary text-primary-foreground border-primary hover:bg-primary/90'
                       }`}
                     >
@@ -1082,7 +1082,7 @@ export function ObituariesTab() {
                     </button>
                     <button
                       onClick={() => setDeleteTarget(selected)}
-                      className="h-10 px-3 rounded-xl text-sm font-bold border border-red-500/20 bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-all"
+                      className="h-10 px-3 rounded-xl text-sm font-bold border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

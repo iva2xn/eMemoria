@@ -334,12 +334,12 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
 
               {/* Senior/PWD discount */}
               {submission.status === 'pending_review' && !rejectMode && (
-                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                <div className="bg-muted/30 border border-border/60 rounded-xl p-4 space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <div className="relative">
                       <input type="checkbox" checked={seniorPwd} onChange={e => setSeniorPwd(e.target.checked)}
                         className="sr-only peer" />
-                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-amber-500 peer-checked:bg-amber-500 transition-all flex items-center justify-center">
+                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-primary peer-checked:bg-primary transition-all flex items-center justify-center">
                         {seniorPwd && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
                       </div>
                     </div>
@@ -351,7 +351,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                   {seniorPwd && basePrice > 0 && (
                     <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1.5 text-xs">
                       <div className="flex justify-between"><span className="text-muted-foreground">Original Price</span><span className="font-mono">₱{basePrice.toLocaleString('en-PH')}</span></div>
-                      <div className="flex justify-between text-amber-600"><span>20% Discount</span><span className="font-mono">− ₱{discountAmount.toLocaleString('en-PH')}</span></div>
+                      <div className="flex justify-between text-primary"><span>20% Discount</span><span className="font-mono">− ₱{discountAmount.toLocaleString('en-PH')}</span></div>
                       <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1.5"><span>Amount Payable</span><span className="font-mono">₱{discountedPrice.toLocaleString('en-PH')}</span></div>
                     </div>
                   )}
@@ -362,7 +362,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
               {rejectMode && (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-red-500">*</span></label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rejection Reason <span className="text-destructive">*</span></label>
                     <select
                       value={rejectReason}
                       onChange={e => setRejectReason(e.target.value)}
@@ -376,7 +376,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                   </div>
                   {rejectReason === 'Other' && (
                     <div className="space-y-1.5">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-destructive">*</span></label>
                       <textarea rows={3} value={rejectReasonOther} onChange={e => setRejectReasonOther(e.target.value)}
                         placeholder="Describe the rejection reason in detail…"
                         className={`${inputCls} h-auto resize-none py-2.5`} />
@@ -394,7 +394,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                 </div>
               )}
 
-              {error && <p className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
+              {error && <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">{error}</p>}
             </div>
 
             {/* Sticky action footer */}
@@ -419,7 +419,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                         Back
                       </button>
                       <button onClick={handleReject} disabled={loading || !rejectReason || (rejectReason === 'Other' && !rejectReasonOther.trim())}
-                        className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">
+                        className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 transition-all">
                         {loading ? 'Rejecting…' : 'Reject & Notify'}
                       </button>
                     </>
@@ -524,7 +524,7 @@ function DeleteModal({ submission, onClose, onDeleted }: {
       <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-red-500/10 flex items-center justify-center"><Trash2 className="h-4 w-4 text-red-500" /></div>
+            <div className="h-8 w-8 rounded-xl bg-destructive/10 flex items-center justify-center"><Trash2 className="h-4 w-4 text-destructive" /></div>
             <div>
               <h3 className="text-sm font-bold text-foreground">Delete Submission</h3>
               <p className="text-[10px] text-muted-foreground">Moves to Recently Deleted. Auto-purges after 30 days.</p>
@@ -538,9 +538,9 @@ function DeleteModal({ submission, onClose, onDeleted }: {
             <div className="flex justify-between"><span className="text-muted-foreground">Package</span><span>{submission.product_label ?? submission.product_type}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Submitted</span><span>{fmtDate(submission.created_at)}</span></div>
           </div>
-          {error && <p className="text-xs text-red-500 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">{error}</p>}
+          {error && <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">{error}</p>}
           <div className="space-y-1.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Reason <span className="text-red-500">*</span></label>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Reason <span className="text-destructive">*</span></label>
             <select value={reason} onChange={e => setReason(e.target.value)} className={inputCls}>
               <option value="">— Select a reason —</option>
               {DELETE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -548,7 +548,7 @@ function DeleteModal({ submission, onClose, onDeleted }: {
           </div>
           {isOther && (
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-red-500">*</span></label>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Custom Reason <span className="text-destructive">*</span></label>
               <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} placeholder="Describe why…" className={`${inputCls} h-auto resize-none py-2.5`} />
             </div>
           )}
@@ -560,7 +560,7 @@ function DeleteModal({ submission, onClose, onDeleted }: {
           )}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
-            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">
+            <button onClick={handle} disabled={!canSubmit || loading} className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 transition-all">
               {loading ? 'Deleting…' : 'Delete'}
             </button>
           </div>
@@ -588,15 +588,15 @@ function PermanentDeleteConfirm({ ids, onClose, onConfirmed }: {
     <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-5 space-y-4">
-          <div className="flex items-start gap-3 bg-red-500/5 border border-red-500/20 rounded-xl p-3">
-            <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 bg-destructive/5 border border-destructive/20 rounded-xl p-3">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
             <p className="text-xs text-foreground leading-relaxed">
               <strong>Delete forever?</strong> This will permanently remove {ids.length === 1 ? 'this record' : `${ids.length} records`} and cannot be undone.
             </p>
           </div>
           <div className="flex gap-2">
             <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all">Cancel</button>
-            <button onClick={handle} disabled={loading} className="flex-1 h-10 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-40 transition-all">
+            <button onClick={handle} disabled={loading} className="flex-1 h-10 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold hover:bg-destructive/90 disabled:opacity-40 transition-all">
               {loading ? 'Deleting…' : 'Delete Forever'}
             </button>
           </div>
@@ -634,8 +634,8 @@ function RecoverConfirm({ submission, onClose, onRecovered }: {
     <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-5 space-y-4">
-          <div className="flex items-start gap-3 bg-amber-500/5 border border-amber-500/20 rounded-xl p-3">
-            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-3 bg-muted/30 border border-border/60 rounded-xl p-3">
+            <AlertTriangle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-foreground leading-relaxed">
               This will restore the submission from <strong>{clientName(submission)}</strong> and set it back to <strong>Pending Review</strong>.
             </p>
@@ -829,7 +829,7 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
           )}
           {submission.status !== 'deleted' && currentRole === 'admin' && (
             <button onClick={() => setDeleteOpen(true)}
-              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl border border-red-200 text-destructive text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           )}
@@ -871,16 +871,16 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
 
           {/* Senior/PWD discount */}
           {submission.senior_pwd_discount && (
-            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex items-center gap-3">
-              <div className="h-6 w-6 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                <span className="text-[10px] font-black text-amber-600">%</span>
+            <div className="bg-muted/30 border border-border/60 rounded-xl p-3 flex items-center gap-3">
+              <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-black text-primary">%</span>
               </div>
               <div>
                 <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Senior/PWD 20% Discount Applied</p>
                 {submission.discounted_price && (
                   <p className="text-[11px] text-muted-foreground">
                     Original: ₱{Number(submission.product_price).toLocaleString('en-PH')} →
-                    Payable: <strong className="text-amber-600">₱{Number(submission.discounted_price).toLocaleString('en-PH')}</strong>
+                    Payable: <strong className="text-primary">₱{Number(submission.discounted_price).toLocaleString('en-PH')}</strong>
                   </p>
                 )}
               </div>
@@ -889,7 +889,7 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
 
           {/* Rejection reason */}
           {submission.rejection_reason && (
-            <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-3">
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-red-500/70 mb-1">Rejection Reason</p>
               <p className="text-xs text-foreground">{submission.rejection_reason}</p>
             </div>
@@ -1194,7 +1194,7 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                             )}
                             {currentRole === 'admin' && (
                               <button onClick={() => setDeleteRow(s)}
-                                className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-destructive text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
                                 <Trash2 className="h-2.5 w-2.5" /> Delete
                               </button>
                             )}
@@ -1214,7 +1214,7 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
       {subTab === 'deleted' && (
         <>
           {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-2.5">
+            <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2.5">
               <span className="text-xs font-semibold text-foreground">{selectedIds.size} selected</span>
               <button onClick={() => setPermDelIds([...selectedIds])}
                 className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-500 text-white text-[10px] font-bold hover:bg-red-600 transition-colors">
@@ -1278,7 +1278,7 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                               )}
                               {currentRole === 'admin' && (
                                 <button onClick={() => setPermDelIds([s.id])}
-                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
+                                  className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-destructive text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
                                   <Trash2 className="h-2.5 w-2.5" />
                                 </button>
                               )}

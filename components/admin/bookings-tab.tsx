@@ -113,7 +113,7 @@ function BookingActionModal({
             </>
           ) : (
             <>
-              <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3">
+              <div className="bg-muted/30 border border-border/60 rounded-xl px-4 py-3">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
                   Confirm Action
                 </p>

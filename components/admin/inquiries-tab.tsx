@@ -117,7 +117,7 @@ function StatusBadge({ inq }: { inq: Inquiry }) {
     </span>
   )
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted text-muted-foreground border border-border">
       <MessageSquare className="h-2.5 w-2.5" /> New
     </span>
   )
@@ -268,7 +268,7 @@ function ComposeModal({ inquiry, staffName, supabase, onClose, onSent }: {
           </div>
           <div className="flex items-center gap-2">
             {isCustom && hasDraft && step === 'compose' && (
-              <span className="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+              <span className="text-[9px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border">
                 Draft saved
               </span>
             )}
@@ -327,7 +327,7 @@ function ComposeModal({ inquiry, staffName, supabase, onClose, onSent }: {
                   {isCustom && hasDraft && (
                     <button
                       onClick={() => { clearDraftLocal(inquiry.id); clearDraftDB(supabase, inquiry.id); setBody(''); setCustomSubject(`Re: ${inquiry.subject}`); setHasDraft(false) }}
-                      className="text-[9px] text-muted-foreground hover:text-red-500 transition-colors"
+                      className="text-[9px] text-muted-foreground hover:text-destructive transition-colors"
                     >
                       Clear draft
                     </button>
@@ -487,9 +487,9 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staf
                 >
                   {/* Avatar */}
                   <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${
-                    status === 'new' ? 'bg-amber-500/10' : 'bg-primary/10'
+                    status === 'new' ? 'bg-muted/40' : 'bg-primary/10'
                   }`}>
-                    <span className={`text-sm font-bold ${status === 'new' ? 'text-amber-600' : 'text-primary'}`}>
+                    <span className={`text-sm font-bold ${status === 'new' ? 'text-muted-foreground' : 'text-primary'}`}>
                       {inq.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
@@ -501,7 +501,7 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staf
                         {inq.name}
                       </p>
                       {hasDraft && status !== 'replied' && (
-                        <span className="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded-full border border-amber-500/20 shrink-0">
+                        <span className="text-[9px] font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full border border-border shrink-0">
                           Draft
                         </span>
                       )}
