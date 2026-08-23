@@ -215,7 +215,7 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
           category:     'log',
           event_type:   'wake_auto_created',
           entity_table: 'wakes',
-          entity_id:    null,
+          entity_id:    undefined,
           actor_id:     user?.id,
           actor_name:   actorName,
           message:      `Wake schedule auto-created for ${clientName(row)} (${deceasedName}) after ${row.product_ref ?? 'package'} payment approval`,
