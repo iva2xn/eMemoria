@@ -130,11 +130,12 @@ export default function AdminPage() {
   }, [profile, router])
 
   // Staff cannot access profiles tab — redirect to overview
+   
   useEffect(() => {
     if (profile?.role === 'staff' && activeTab === 'profiles') {
       setTab('overview')
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [profile, activeTab])
 
   const doLogout = async () => {

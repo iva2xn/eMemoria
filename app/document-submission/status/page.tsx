@@ -18,6 +18,7 @@ function StatusContent() {
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
 
+   
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
 

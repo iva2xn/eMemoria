@@ -12,6 +12,7 @@ export function HeroSection() {
   const router = useRouter()
   const [showToast, setShowToast] = useState(false)
 
+   
   useEffect(() => {
     if (searchParams.get('payment') === 'success') {
       setShowToast(true)
@@ -50,7 +51,7 @@ export function HeroSection() {
                 Dignity, Honour &amp; Peace in Every Farewell
               </h1>
               <p className="mt-4 text-sm sm:text-base text-white/70 leading-relaxed max-w-sm">
-                Compassionate full-service memorial care for Quezon Province families — when it matters most.
+                Compassionate full-service memorial care for Quezon Province families &mdash; when it matters most.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button asChild size="lg" className="rounded-2xl px-7 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">

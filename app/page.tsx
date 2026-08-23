@@ -19,6 +19,7 @@ export default function HomePage() {
   const [mounted,          setMounted]          = useState(false)
   const [isLg,             setIsLg]             = useState(false)
 
+   
   useEffect(() => {
     const stored = localStorage.getItem(SIDEBAR_KEY)
     if (stored !== null) setSidebarCollapsed(stored === 'true')

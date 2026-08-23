@@ -25,6 +25,7 @@ export function usePersistTab<T extends string>(key: string, defaultTab: T): [T,
   }
 
   // Sync from storage on mount (for SSR hydration safety)
+   
   useEffect(() => {
     const stored = sessionStorage.getItem(storageKey)
     if (stored && stored !== activeTab) {

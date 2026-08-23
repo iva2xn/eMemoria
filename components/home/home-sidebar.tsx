@@ -73,7 +73,7 @@ export function HomeSidebar({
     })
     return () => subscription.unsubscribe()
   // Re-run on pathname so navigating back from /profile re-fetches
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [supabase, pathname])
 
   const doLogout = async () => {

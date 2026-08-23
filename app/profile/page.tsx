@@ -89,7 +89,7 @@ function DeleteAccountModal({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className={lbl}>Type <span className="text-destructive font-mono">"DELETE"</span> to continue</label>
+                <label className={lbl}>Type <span className="text-destructive font-mono">&quot;DELETE&quot;</span> to continue</label>
                 <input
                   type="text" value={confirm} onChange={e => { setConfirm(e.target.value); setError('') }}
                   placeholder='DELETE' maxLength={6} className={inp} />
@@ -151,7 +151,6 @@ export default function ProfilePage() {
 
   // ── Email change with OTP ─────────────────────────────────────
   const [newEmail,   setNewEmail]   = useState('')
-  const [emailFocused, setEmailFocused] = useState(false)
   const [emailTaken, setEmailTaken] = useState(false)
   const [otpSent,    setOtpSent]    = useState(false)
   const [otp,        setOtp]        = useState('')
@@ -327,8 +326,9 @@ export default function ProfilePage() {
     profile.name.slice(0, 2).toUpperCase()
 
   const deletionRequested = !!profile.deletion_requested_at
-  const daysLeft = deletionRequested
-    ? Math.max(0, 30 - Math.floor((Date.now() - new Date(profile.deletion_requested_at!).getTime()) / 86_400_000))
+  const deletionRequestedAt = profile.deletion_requested_at
+  const daysLeft = deletionRequested && deletionRequestedAt
+    ? Math.max(0, 30 - Math.floor((Date.now() - new Date(deletionRequestedAt).getTime()) / 86_400_000))
     : null
 
   return (
@@ -456,8 +456,7 @@ export default function ProfilePage() {
                   type="email"
                   value={newEmail}
                   onChange={e => { setNewEmail(e.target.value); setEmailTaken(false); setOtpSent(false); setOtp(''); setEmailErr(''); setEmailMsg('') }}
-                  onFocus={() => setEmailFocused(true)}
-                  onBlur={() => { setEmailFocused(false); checkEmailDuplicate(newEmail) }}
+                  onBlur={() => { checkEmailDuplicate(newEmail) }}
                   placeholder="newemail@example.com"
                   className={`${inp} ${emailTaken ? 'border-red-500' : ''}`}
                 />

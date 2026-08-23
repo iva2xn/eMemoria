@@ -162,6 +162,7 @@ export default function NotificationsPage() {
     setLoading(false)
   }, [supabase])
 
+   
   useEffect(() => {
     if (!userId) return
     load(userId)

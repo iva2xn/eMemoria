@@ -110,6 +110,7 @@ export default function ObituariesPage() {
     setLoading(false)
   }
 
+   
   useEffect(() => {
     fetchObituaries()
   // eslint-disable-next-line react-hooks/exhaustive-deps
