@@ -66,14 +66,16 @@ function LoginContent() {
 
     setRecoveryLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-      // Route through the server-side callback so the one-time PKCE code is
-      // exchanged before any email scanner / prefetcher can consume it.
       redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
     })
     setRecoveryLoading(false)
 
-    if (error) { setRecoveryError(error.message); return }
-    setRecoverySuccess('Password reset email sent. Check your inbox.')
+    if (error) {
+      console.error('Password reset error:', error)
+      setRecoveryError(error.message)
+      return
+    }
+    setRecoverySuccess('Check your inbox (and spam folder) for the reset link.')
   }
 
   return (
