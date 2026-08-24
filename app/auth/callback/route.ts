@@ -29,15 +29,23 @@ export async function GET(request: Request) {
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
     if (!error) {
-      return NextResponse.redirect(new URL(next, origin))
+      const destination = type === 'recovery'
+        ? '/auth/reset-password'
+        : next
+      return NextResponse.redirect(new URL(destination, origin))
     }
   }
 
-  // Flow 2: PKCE code (OAuth / magic link)
+  // Flow 2: PKCE code (OAuth / magic link / recovery via redirectTo)
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(new URL(next, origin))
+      // If the code was for a password recovery, always land on the reset page
+      const destination =
+        data.session?.user?.aud === 'authenticated' && next.includes('reset-password')
+          ? '/auth/reset-password'
+          : next
+      return NextResponse.redirect(new URL(destination, origin))
     }
   }
 

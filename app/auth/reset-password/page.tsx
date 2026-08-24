@@ -44,15 +44,34 @@ function ResetPasswordForm() {
   const [error,    setError]    = useState('')
   const [success,  setSuccess]  = useState(false)
 
-  // If the email link included ?email=..., pre-fill and jump to OTP step
-   
+  // If arriving via the email link the callback already exchanged the code
+  // for a session — detect that and jump straight to the password step.
+  // Also handle ?email=... pre-fill for the OTP step.
   useEffect(() => {
     const emailParam = searchParams.get('email')
-    if (emailParam) {
-      setEmail(emailParam)
-      setStep('otp')
-    }
-  }, [searchParams])
+
+    // Listen for PASSWORD_RECOVERY event — fires when Supabase establishes
+    // a recovery session (either from the link or from verifyOtp)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        setStep('password')
+        if (session.user.email) setEmail(session.user.email)
+      }
+    })
+
+    // Also check immediately in case the session is already present on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setStep('password')
+        if (session.user.email) setEmail(session.user.email)
+      } else if (emailParam) {
+        setEmail(emailParam)
+        setStep('otp')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [supabase, searchParams])
 
   // Step 1: send a 6-digit OTP to the user's email
   const handleSendOtp = async (e: React.FormEvent) => {
