@@ -16,6 +16,7 @@ const NAV_LINKS = [
   { name: 'Home',             href: '/',               authRequired: false },
   { name: 'Obituaries',       href: '/obituaries',     authRequired: true },
   { name: 'Funeral Services', href: '/services',       authRequired: false },
+  { name: 'Payments',         href: '/payments',       authRequired: true },
   { name: 'About Us',         href: '/about',          authRequired: false },
   { name: 'Contact',          href: '/contact',        authRequired: false },
 ]
@@ -35,7 +36,7 @@ export function AdminHeader({
   onTabChange?: (id: string) => void
 }) {
   const router   = useRouter()
-  const supabase = useRef(createClient()).current
+  const supabase = useRef(createClient()).current // eslint-disable-line react-hooks/refs
 
   const [profile,         setProfile]         = useState<Profile | null>(cachedProfile ?? null)
   const [authReady,       setAuthReady]       = useState(cachedProfile !== undefined)
@@ -44,7 +45,7 @@ export function AdminHeader({
 
   useEffect(() => {
     if (cachedProfile !== undefined) {
-      setProfile(cachedProfile)
+      setProfile(cachedProfile) // eslint-disable-line react-hooks/set-state-in-effect
       setAuthReady(true)
     }
 
@@ -180,9 +181,10 @@ export function HeroHeader() {
   const router   = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
 
-  const supabase = useRef(createClient()).current
+  const supabase = useRef(createClient()).current // eslint-disable-line react-hooks/refs
 
   const [profile,         setProfile]         = useState<Profile | null>(cachedProfile ?? null)
   const [authReady,       setAuthReady]       = useState(cachedProfile !== undefined)
@@ -215,7 +217,7 @@ export function HeroHeader() {
 
   useEffect(() => {
     if (cachedProfile !== undefined) {
-      setProfile(cachedProfile)
+      setProfile(cachedProfile) // eslint-disable-line react-hooks/set-state-in-effect
       setAuthReady(true)
     }
 

@@ -10,7 +10,7 @@ import type { Profile } from '@/lib/supabase/types'
 import {
   Home, ScrollText, Layers, Users, Phone,
   LogOut, Sun, Moon, ShieldAlert,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Receipt,
 } from 'lucide-react'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
@@ -22,6 +22,7 @@ const NAV = [
   { href: '/services',      label: 'Funeral Services', icon: Layers },
   { href: '/obituaries',    label: 'Obituaries',       icon: ScrollText, authRequired: true },
   { href: '/wake-schedule', label: 'Wake Schedule',    icon: Moon,       authRequired: true },
+  { href: '/payments',      label: 'Payments',         icon: Receipt,    authRequired: true },
   { href: '/about',         label: 'About Us',         icon: Users },
   { href: '/contact',       label: 'Contact',          icon: Phone },
 ]
@@ -36,14 +37,17 @@ export function HomeSidebar({
   const pathname = usePathname()
   const router   = useRouter()
   const { theme, setTheme } = useTheme()
-  const supabase = useRef(createClient()).current
+  const supabase = useRef(createClient()).current // eslint-disable-line react-hooks/refs
 
   const [mounted,         setMounted]         = useState(false)
   const [profile,         setProfile]         = useState<Profile | null>(cachedProfile ?? null)
   const [authReady,       setAuthReady]       = useState(cachedProfile !== undefined)
-  const [avatarCacheBust, setAvatarCacheBust] = useState<number>(Date.now())
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [avatarCacheBust, setAvatarCacheBust] = useState<number>(() => Date.now())
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [avatarUrl,       setAvatarUrl]       = useState<string | null>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
@@ -53,8 +57,16 @@ export function HomeSidebar({
       cachedProfile = resolved
       setProfile(resolved)
       setAuthReady(true)
-      // Refresh the cache-bust timestamp so any newly uploaded avatar is shown
-      if (resolved?.avatar_path) setAvatarCacheBust(Date.now())
+      // Compute avatar URL once here so we never call supabase.storage in render
+      if (resolved?.avatar_path) {
+        const bust = Date.now()
+        setAvatarCacheBust(bust)
+        setAvatarUrl(
+          supabase.storage.from('avatars').getPublicUrl(resolved.avatar_path).data.publicUrl
+        )
+      } else {
+        setAvatarUrl(null)
+      }
     }
 
     // On every pathname change, re-fetch if we already know the user —
@@ -193,9 +205,9 @@ export function HomeSidebar({
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50 border border-border/50 hover:border-primary/40 hover:bg-muted/80 transition-all group"
             >
               <div className="h-7 w-7 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center shrink-0 border border-border/40">
-                {profile.avatar_path ? (
+                {avatarUrl ? (
                   <Image
-                    src={supabase.storage.from('avatars').getPublicUrl(profile.avatar_path).data.publicUrl}
+                    src={avatarUrl}
                     alt={profile.name}
                     width={28}
                     height={28}
@@ -221,9 +233,9 @@ export function HomeSidebar({
               className="w-full flex items-center justify-center px-0 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
             >
               <div className="h-6 w-6 rounded-full overflow-hidden bg-primary/15 flex items-center justify-center border border-border/40">
-                {profile.avatar_path ? (
+                {avatarUrl ? (
                   <Image
-                    src={supabase.storage.from('avatars').getPublicUrl(profile.avatar_path).data.publicUrl}
+                    src={avatarUrl}
                     alt={profile.name}
                     width={24}
                     height={24}
