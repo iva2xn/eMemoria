@@ -66,7 +66,7 @@ export function BillingForm({
   // Local form state — presentation only, submit logic lives in the page
   const [name,     setName]     = useState(prefillName)
   const [email,    setEmail]    = useState(prefillEmail)
-  const [phone,    setPhone]    = useState('')
+  const [phone,    setPhone]    = useState(prefillPhone)
   const [method,   setMethod]   = useState<MethodId>('gcash')
   const [refNum,   setRefNum]   = useState('')
   const [amount,   setAmount]   = useState(defaultAmount)

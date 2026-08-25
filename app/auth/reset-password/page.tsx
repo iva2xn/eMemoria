@@ -7,7 +7,7 @@ import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import { KeyRound, Mail, ShieldCheck, Check, X } from 'lucide-react'
+import { KeyRound, Mail, MailCheck, Check, X } from 'lucide-react'
 import { checkPassword, isPasswordStrong } from '@/lib/password-strength'
 
 function PasswordChecklist({ password }: { password: string }) {
@@ -25,10 +25,10 @@ function PasswordChecklist({ password }: { password: string }) {
   )
 }
 
-// Step 1 — collect email and send OTP
-// Step 2 — enter OTP to verify identity
-// Step 3 — set new password
-type Step = 'email' | 'otp' | 'password'
+// Step 1 — collect email and send reset link
+// Step 2 — waiting screen: "check your email and click the link"
+// Step 3 — set new password (arrived via the email link; session established by auth callback)
+type Step = 'email' | 'sent' | 'password'
 
 function ResetPasswordForm() {
   const supabase     = createClient()
@@ -37,21 +37,15 @@ function ResetPasswordForm() {
 
   const [step,     setStep]     = useState<Step>('email')
   const [email,    setEmail]    = useState('')
-  const [otp,      setOtp]      = useState('')
   const [password, setPassword] = useState('')
   const [confirm,  setConfirm]  = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [success,  setSuccess]  = useState(false)
 
-  // If arriving via the email link the callback already exchanged the code
-  // for a session — detect that and jump straight to the password step.
-  // Also handle ?email=... pre-fill for the OTP step.
+  // If arriving via the email link, the auth callback already exchanged the
+  // token for a session — detect that and jump straight to the password step.
   useEffect(() => {
-    const emailParam = searchParams.get('email')
-
-    // Listen for PASSWORD_RECOVERY event — fires when Supabase establishes
-    // a recovery session (either from the link or from verifyOtp)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' && session) {
         setStep('password')
@@ -64,60 +58,40 @@ function ResetPasswordForm() {
       if (session?.user) {
         setStep('password')
         if (session.user.email) setEmail(session.user.email)
-      } else if (emailParam) {
-        setEmail(emailParam)
-        setStep('otp')
       }
     })
 
     return () => subscription.unsubscribe()
   }, [supabase, searchParams])
 
-  // Step 1: send a 6-digit OTP to the user's email
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Step 1: send a reset link to the user's email
+  const handleSendLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!email) { setError('Please enter your email address.'); return }
 
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+    })
     setLoading(false)
 
     if (error) { setError(error.message); return }
 
-    setStep('otp')
+    setStep('sent')
   }
 
-  // Step 2: verify the 6-digit OTP the user received
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    if (!otp || otp.length < 6) { setError('Please enter the code from your email.'); return }
-
-    setLoading(true)
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'recovery',
-    })
-    setLoading(false)
-
-    if (error) { setError('Invalid or expired code. Please try again.'); return }
-
-    setStep('password')
-  }
-
-  // Step 3: update the password — session is already set after verifyOtp
+  // Step 3: update the password — session already set from the email link
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    if (!password)            { setError('Please enter a new password.'); return }
+    if (!password) { setError('Please enter a new password.'); return }
     if (!isPasswordStrong(password)) {
       setError('Password does not meet the requirements.')
       return
     }
-    if (password !== confirm)  { setError('Passwords do not match.'); return }
+    if (password !== confirm) { setError('Passwords do not match.'); return }
 
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
@@ -134,12 +108,12 @@ function ResetPasswordForm() {
 
       {/* ── Step indicator ── */}
       <div className="flex items-center justify-center gap-2 mb-6">
-        {(['email', 'otp', 'password'] as Step[]).map((s, i) => (
+        {(['email', 'sent', 'password'] as Step[]).map((s, i) => (
           <div key={s} className="flex items-center gap-2">
             <div className={`h-2 w-2 rounded-full transition-colors ${
               step === s
                 ? 'bg-primary'
-                : (['email', 'otp', 'password'].indexOf(step) > i)
+                : (['email', 'sent', 'password'].indexOf(step) > i)
                   ? 'bg-primary/40'
                   : 'bg-border'
             }`} />
@@ -154,13 +128,13 @@ function ResetPasswordForm() {
           <div className="text-center space-y-2 mb-6">
             <h1 className="font-serif text-3xl font-bold text-foreground">Reset Password</h1>
             <p className="text-sm text-muted-foreground">
-              Enter your email and we&apos;ll send you a 6-digit code.
+              Enter your email and we&apos;ll send you a reset link.
             </p>
           </div>
 
           {error && <AlertBanner variant="error" message={error} />}
 
-          <form onSubmit={handleSendOtp} className="space-y-4 mt-4">
+          <form onSubmit={handleSendLink} className="space-y-4 mt-4">
             <FormField
               id="email" label="Email Address" type="email"
               placeholder="you@example.com" value={email}
@@ -168,42 +142,37 @@ function ResetPasswordForm() {
               icon={<Mail className="h-4.5 w-4.5" />}
             />
             <Button type="submit" disabled={loading} className="w-full h-11 font-semibold mt-2">
-              {loading ? 'Sending…' : 'Send Code'}
+              {loading ? 'Sending…' : 'Send Reset Link'}
             </Button>
           </form>
         </>
       )}
 
-      {/* ── Step 2: OTP ── */}
-      {step === 'otp' && (
-        <>
-          <div className="text-center space-y-2 mb-6">
-            <h1 className="font-serif text-3xl font-bold text-foreground">Check Your Email</h1>
-            <p className="text-sm text-muted-foreground">
-              We sent a reset code to <span className="font-medium text-foreground">{email}</span>.
-              Enter it below.
+      {/* ── Step 2: Link sent — no code entry needed ── */}
+      {step === 'sent' && (
+        <div className="flex flex-col items-center text-center gap-5">
+          <div className="h-16 w-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <MailCheck className="h-8 w-8 text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="font-serif text-2xl font-bold text-foreground">Check Your Email</h1>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              We sent a reset link to{' '}
+              <span className="font-semibold text-foreground">{email}</span>.
+              Click the link in the email to set a new password.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Didn&apos;t get it? Check your spam folder.
             </p>
           </div>
-
-          {error && <AlertBanner variant="error" message={error} />}
-
-          <form onSubmit={handleVerifyOtp} className="space-y-4 mt-4">
-            <FormField
-              id="otp" label="Reset Code" type="text"
-              placeholder="82052410" value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
-              icon={<ShieldCheck className="h-4.5 w-4.5" />}
-            />
-            <Button type="submit" disabled={loading} className="w-full h-11 font-semibold mt-2">
-              {loading ? 'Verifying…' : 'Verify Code'}
-            </Button>
-            <Button type="button" variant="ghost"
-              onClick={() => { setStep('email'); setOtp(''); setError('') }}
-              className="w-full h-11">
-              Use a different email
-            </Button>
-          </form>
-        </>
+          <Button
+            type="button" variant="ghost"
+            onClick={() => { setStep('email'); setError('') }}
+            className="w-full h-11"
+          >
+            Use a different email
+          </Button>
+        </div>
       )}
 
       {/* ── Step 3: New Password ── */}

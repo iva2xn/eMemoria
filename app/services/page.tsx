@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { ServiceCard } from '@/components/ui/service-card'
+import { AuthGateModal } from '@/components/billing/auth-gate-modal'
 
 // SERVICE REGISTRY — static list of all offered services.
 // Each entry maps to a ServiceCard; href is the destination page,
@@ -32,8 +35,22 @@ const SERVICES = [
 ]
 
 export default function ServicesPage() {
+  const supabase  = createClient()
+  const router    = useRouter()
   const sliderRef = useRef<HTMLDivElement>(null)
 
+  // null = still checking, false = guest, true = authed
+  const [authReady, setAuthReady] = useState<boolean | null>(null)
+  // href of the card the user clicked — triggers the gate if not authed
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthReady(!!user)
+    })
+  }, [supabase])
+
+  // Auto-scroll carousel on mobile
   useEffect(() => {
     const el = sliderRef.current
     if (!el) return
@@ -51,8 +68,25 @@ export default function ServicesPage() {
     return () => clearInterval(timer)
   }, [])
 
+  const handleCardClick = (e: React.MouseEvent, href: string) => {
+    // Still loading auth — do nothing and let the link fall through
+    if (authReady === null) return
+
+    if (!authReady) {
+      // Not logged in — block navigation and show the auth gate
+      e.preventDefault()
+      setPendingHref(href)
+    }
+    // Authenticated — allow normal navigation (Link handles it)
+  }
+
   return (
     <ClientLayout>
+
+      {/* Auth gate modal — shown when a guest clicks a service card */}
+      {pendingHref !== null && (
+        <AuthGateModal returnUrl={pendingHref} />
+      )}
 
       <main className="flex-1 bg-background">
         <section className="py-16 md:py-24">
@@ -67,6 +101,7 @@ export default function ServicesPage() {
             </p>
           </div>
 
+          {/* Mobile carousel */}
           <div className="md:hidden">
             <div
               ref={sliderRef}
@@ -74,7 +109,11 @@ export default function ServicesPage() {
               style={{ scrollbarWidth: 'none' }}
             >
               {SERVICES.map(s => (
-                <div key={s.href} className="snap-center shrink-0 w-[80vw]">
+                <div
+                  key={s.href}
+                  className="snap-center shrink-0 w-[80vw]"
+                  onClick={e => handleCardClick(e, s.href)}
+                >
                   <ServiceCard {...s} />
                 </div>
               ))}
@@ -96,8 +135,13 @@ export default function ServicesPage() {
             </div>
           </div>
 
+          {/* Desktop grid */}
           <div className="hidden md:grid md:grid-cols-3 gap-6 max-w-6xl mx-auto px-6">
-            {SERVICES.map(s => <ServiceCard key={s.href} {...s} />)}
+            {SERVICES.map(s => (
+              <div key={s.href} onClick={e => handleCardClick(e, s.href)}>
+                <ServiceCard {...s} />
+              </div>
+            ))}
           </div>
 
         </section>
