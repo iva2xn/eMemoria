@@ -213,8 +213,9 @@ export default function AdminPage() {
           DESKTOP LEFT SIDEBAR
           ════════════════════════════════════════ */}
       <aside
-        className={`hidden md:flex flex-col shrink-0 border-r border-border bg-card transition-all duration-200 relative
+        className={`hidden md:flex flex-col shrink-0 border-r border-border bg-card relative
           ${sidebarCollapsed ? 'w-[60px]' : 'w-[280px]'}`}
+        style={{ transition: 'width 200ms ease' }}
       >
         {/* Inner wrapper clips content during animation without hiding the toggle button */}
         <div className="flex flex-col flex-1 min-h-0 overflow-hidden">

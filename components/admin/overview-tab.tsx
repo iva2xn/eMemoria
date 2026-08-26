@@ -133,9 +133,10 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [productBreakdown, setProductBreakdown] = useState<{ name: string; value: number }[]>([])
   const [loading,          setLoading]          = useState(true)
   const [showReport,       setShowReport]       = useState(false)
-  const [expandedInq,      setExpandedInq]      = useState<string | null>(null)
-  const [periodFilter,     setPeriodFilter]     = useState<PeriodFilter>('month')
-  const [chartDays,        setChartDays]        = useState<7 | 14 | 30 | 90>(14)
+  const [expandedInq,         setExpandedInq]         = useState<string | null>(null)
+  const [periodFilter,        setPeriodFilter]        = useState<PeriodFilter>('month')
+  const [salesChartDays,      setSalesChartDays]      = useState<7 | 14 | 30 | 90>(14)
+  const [activityChartDays,   setActivityChartDays]   = useState<7 | 14 | 30 | 90>(14)
 
   // Dynamic state for percentages
   const [paidInvoicesPct,  setPaidInvoicesPct]  = useState(0)
@@ -198,8 +199,9 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     return approvedPayments.filter(p => p.approved_at?.startsWith(String(now.getFullYear()))).reduce((s, p) => s + Number(p.amount), 0)
   })()
 
-  // Recompute trend whenever chartDays changes (no extra DB call)
-  const chartTrend = buildDailyTrend(approvedPayments, chartDays)
+  // Recompute trends whenever chart day selections change (no extra DB call)
+  const salesChartTrend    = buildDailyTrend(approvedPayments, salesChartDays)
+  const activityChartTrend = buildDailyTrend(approvedPayments, activityChartDays)
 
   const CHART_RANGES = [
     { days: 7  as const, label: '7d'  },
@@ -387,16 +389,16 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                 <p className="text-[10px] text-muted-foreground mt-0.5">Daily approved revenue</p>
               </div>
               <MiniSelect
-                value={chartDays}
+                value={salesChartDays}
                 options={CHART_RANGES.map(r => ({ value: r.days, label: `Last ${r.label}` }))}
-                onChange={v => setChartDays(v as typeof chartDays)}
+                onChange={v => setSalesChartDays(v as typeof salesChartDays)}
               />
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }} barSize={11}>
+                <BarChart data={salesChartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }} barSize={11}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} opacity={0.5} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(chartDays / 7)} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(salesChartDays / 7)} />
                   <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false}
                     tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : `${v}`} width={32} />
                   <RechartsTooltip content={<BarTip />} cursor={{ fill: 'var(--color-muted)', opacity: 0.3 }} />
@@ -414,14 +416,14 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                 <p className="text-[10px] text-muted-foreground mt-0.5">Active customer submissions &amp; updates</p>
               </div>
               <MiniSelect
-                value={chartDays}
+                value={activityChartDays}
                 options={CHART_RANGES.map(r => ({ value: r.days, label: `Last ${r.label}` }))}
-                onChange={v => setChartDays(v as typeof chartDays)}
+                onChange={v => setActivityChartDays(v as typeof activityChartDays)}
               />
             </div>
             <div className="px-4 py-5" style={{ height: 210 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <AreaChart data={activityChartTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorActivity" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
@@ -429,7 +431,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} opacity={0.5} />
-                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(chartDays / 7)} />
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(activityChartDays / 7)} />
                   <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={32} />
                   <RechartsTooltip />
                   <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorActivity)" />
