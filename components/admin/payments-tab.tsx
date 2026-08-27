@@ -869,6 +869,9 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [supabase, load])
+
+  useEffect(() => {
+    if (!highlightPaymentId || loading) return
     setStatusFilter('all')
     const timer = setTimeout(() => { highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 150)
     return () => clearTimeout(timer)
