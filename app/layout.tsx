@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LastPageTracker } from "@/components/last-page-tracker"
+import { ClientShell } from "@/components/client-shell"
 import "./globals.css"
 
 const font = Inter({
@@ -30,7 +31,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <LastPageTracker />
           <div className="flex flex-col flex-1 min-h-screen">
-            {children}
+            <ClientShell>
+              {children}
+            </ClientShell>
           </div>
         </ThemeProvider>
       </body>
