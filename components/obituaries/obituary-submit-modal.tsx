@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,22 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
   const [loading,        setLoading]        = useState(false)
   const [error,          setError]          = useState('')
   const [done,           setDone]           = useState(false)
+  const [authReady,      setAuthReady]      = useState(false)
+
+  // Prefill submitter name + email from profile if logged in
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAuthReady(true); return }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', user.id)
+        .single()
+      if (profile?.name)  setSubmitterName(profile.name)
+      if (profile?.email) setSubmitterEmail(profile.email)
+      setAuthReady(true)
+    })
+  }, [supabase])
 
   // Auto-computed age — shown in review and tarp preview
   const computedAge = computeAge(birthDate, deathDate)
@@ -247,10 +263,16 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
               {/* Submitter info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-border/60">
                 <Field label="Your Name (optional)">
-                  <input type="text" placeholder="e.g. Maria Dela Cruz" value={submitterName} onChange={e => setSubmitterName(e.target.value)} className={inp} />
+                  <input type="text" placeholder="e.g. Maria Dela Cruz" value={submitterName}
+                    onChange={e => setSubmitterName(e.target.value)}
+                    readOnly={authReady && !!submitterName}
+                    className={`${inp}${authReady && !!submitterName ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                 </Field>
                 <Field label="Your Email (optional)">
-                  <input type="email" placeholder="e.g. maria@example.com" value={submitterEmail} onChange={e => setSubmitterEmail(e.target.value)} className={inp} />
+                  <input type="email" placeholder="e.g. maria@example.com" value={submitterEmail}
+                    onChange={e => setSubmitterEmail(e.target.value)}
+                    readOnly={authReady && !!submitterEmail}
+                    className={`${inp}${authReady && !!submitterEmail ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                 </Field>
               </div>
 

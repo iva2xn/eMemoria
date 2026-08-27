@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { ContactDetailsBar } from '@/components/contact/contact-details-bar'
@@ -18,13 +18,30 @@ export default function ContactPage() {
   const [success, setSuccess] = useState(false)
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
+
+  // Prefill name + email from profile if logged in
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAuthReady(true); return }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', user.id)
+        .single()
+      if (profile?.name)  setName(profile.name)
+      if (profile?.email) setEmail(profile.email)
+      setAuthReady(true)
+    })
+  }, [supabase])
 
   const { clearDraft } = useDraftForm(
     'contact-inquiry-draft',
     { name, email, subject, message },
     (saved) => {
-      if (saved.name)    setName(saved.name)
-      if (saved.email)   setEmail(saved.email)
+      // Only restore draft values for fields that aren't already prefilled from auth
+      if (saved.name    && !name)    setName(saved.name)
+      if (saved.email   && !email)   setEmail(saved.email)
       if (saved.subject) setSubject(saved.subject)
       if (saved.message) setMessage(saved.message)
     },
@@ -49,12 +66,11 @@ export default function ContactPage() {
     setName(''); setEmail(''); setMessage('')
   }
 
-  // FORM PROPS BUNDLE — eto lahat ng staate + handlers 
-  // para magamit parehas ng mobile/desktop layout since magkaiba sila
   const formProps = {
     name, setName, email, setEmail,
     subject, setSubject, message, setMessage,
     success, setSuccess, loading, error,
+    authReady,
     onSubmit: handleSubmit,
   }
 

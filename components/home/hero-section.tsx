@@ -140,8 +140,8 @@ function ToastNotification({ show, onClose }: ToastProps) {
         <CheckCircle2 className="h-4 w-4 text-primary" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-bold text-foreground">Payment Submitted</p>
-        <p className="text-xs text-muted-foreground leading-snug">Our team will verify and reach out to you shortly.</p>
+        <p className="text-sm font-bold text-foreground">Transaction Pending Review</p>
+        <p className="text-xs text-muted-foreground leading-snug">Your payment is under review. We'll notify you once it's approved.</p>
       </div>
       <button 
         onClick={onClose}

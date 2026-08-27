@@ -14,13 +14,15 @@ export interface InquiryFormCardProps {
   success: boolean;   setSuccess: (v: boolean) => void
   loading: boolean
   error: string
+  authReady?: boolean
   onSubmit: (e: React.FormEvent) => void
 }
 
 export function InquiryFormCard({
   name, setName, email, setEmail, subject, setSubject,
-  message, setMessage, success, setSuccess, loading, error, onSubmit,
+  message, setMessage, success, setSuccess, loading, error, authReady, onSubmit,
 }: InquiryFormCardProps) {
+  const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all'
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
       {error && <AlertBanner variant="error" message={error} />}
@@ -49,7 +51,8 @@ export function InquiryFormCard({
               <input
                 id="inq-name" type="text" placeholder="Juan Dela Cruz"
                 value={name} onChange={e => setName(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all"
+                readOnly={authReady === true}
+                className={`${inp}${authReady === true ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
                 required maxLength={100}
               />
             </div>
@@ -58,7 +61,8 @@ export function InquiryFormCard({
               <input
                 id="inq-email" type="email" placeholder="juan@example.com"
                 value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all"
+                readOnly={authReady === true}
+                className={`${inp}${authReady === true ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
                 required
               />
             </div>

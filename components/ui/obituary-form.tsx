@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from './alert-banner'
 import { PhoneInput } from './phone-input'
@@ -33,6 +33,22 @@ export function ObituaryForm() {
   const [contactNumber, setContactNumber]  = useState('')
   const [submitterName, setSubmitterName]  = useState('')
   const [submitterEmail,setSubmitterEmail] = useState('')
+  const [authReady,     setAuthReady]      = useState(false)
+
+  // Prefill submitter name + email from profile if logged in
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { setAuthReady(true); return }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('name, email')
+        .eq('id', user.id)
+        .single()
+      if (profile?.name)  setSubmitterName(profile.name)
+      if (profile?.email) setSubmitterEmail(profile.email)
+      setAuthReady(true)
+    })
+  }, [supabase])
 
   const [photo,      setPhoto]      = useState<File | null>(null)
   const [photoUrl,   setPhotoUrl]   = useState<string | null>(null)
@@ -240,11 +256,15 @@ export function ObituaryForm() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Your Full Name" required>
                 <input type="text" placeholder="Juan Dela Cruz" value={submitterName}
-                  onChange={e => setSubmitterName(e.target.value)} className={inp} />
+                  onChange={e => setSubmitterName(e.target.value)}
+                  readOnly={authReady && !!submitterName}
+                  className={`${inp}${authReady && !!submitterName ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
               </Field>
               <Field label="Your Email Address" required>
                 <input type="email" placeholder="juan@example.com" value={submitterEmail}
-                  onChange={e => setSubmitterEmail(e.target.value)} className={inp} />
+                  onChange={e => setSubmitterEmail(e.target.value)}
+                  readOnly={authReady && !!submitterEmail}
+                  className={`${inp}${authReady && !!submitterEmail ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
               </Field>
             </div>
           </div>

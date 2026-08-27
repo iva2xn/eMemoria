@@ -146,7 +146,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     setLoading(true)
     const [
       { count: pending }, { count: inquiries }, { count: profiles },
-      { data: pendingRows }, { data: recentInq }, { data: approvedRaw },
+      { data: pendingRows }, { data: recentInq }, { data: approvedRaw }, { data: allPendingAmounts },
     ] = await Promise.all([
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('inquiries').select('*', { count: 'exact', head: true }),
@@ -154,14 +154,15 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
       supabase.from('payments').select('id,method,reference_number,amount,user_id,guest_name,product_type,created_at').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       supabase.from('inquiries').select('id,name,email,subject,message,is_read,created_at').order('created_at', { ascending: false }).limit(5),
       supabase.from('payments').select('amount,approved_at,product_type').eq('status', 'approved'),
+      supabase.from('payments').select('amount').eq('status', 'pending'),
     ])
 
     const approved    = (approvedRaw ?? []) as { amount: number; approved_at: string | null; product_type: string }[]
     const pendingList = (pendingRows ?? []) as (Payment & { guest_name?: string })[]
-    const totalRevenue = approved.reduce((s, p) => s + Number(p.amount), 0)
-    const pendingRevenue = pendingList.reduce((s, p) => s + Number(p.amount), 0)
+    const totalRevenue   = approved.reduce((s, p) => s + Number(p.amount), 0)
+    // Use all pending rows (not just the 5 shown) for accurate percentage
+    const pendingRevenue = ((allPendingAmounts ?? []) as { amount: number }[]).reduce((s, p) => s + Number(p.amount), 0)
     const totalPossible  = totalRevenue + pendingRevenue
-
     const now = new Date()
     const mk  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const thisMonthRevenue = approved.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
@@ -179,6 +180,16 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   }, [supabase])
 
   useEffect(() => { load() }, [load])
+
+  // Realtime — re-fetch whenever a payment is inserted or updated
+  useEffect(() => {
+    const channel = supabase
+      .channel('overview-payments-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => { load() })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'inquiries' }, () => { load() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase, load])
 
   // ── Period revenue computation (client-side from stored approvedPayments) ──
   const periodRevenue = (() => {
@@ -299,10 +310,11 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <div className="shrink-0" style={{ width: 84, height: 84 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={[{ value: stats.profiles || 1 }, { value: Math.max(1, stats.profiles * 0.4) }]} cx="50%" cy="50%" innerRadius={24} outerRadius={38} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                  <Pie data={[{ name: 'Registered', value: stats.profiles || 1 }, { name: 'Guest', value: Math.max(1, stats.profiles * 0.4) }]} cx="50%" cy="50%" innerRadius={24} outerRadius={38} paddingAngle={4} dataKey="value" strokeWidth={0}>
                     <Cell fill="#f59e0b" />
                     <Cell fill="var(--color-border)" />
                   </Pie>
+                  <RechartsTooltip content={<DonutTip />} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

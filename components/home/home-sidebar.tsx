@@ -10,7 +10,7 @@ import type { Profile } from '@/lib/supabase/types'
 import {
   Home, ScrollText, Layers, Users, Phone,
   LogOut, Sun, Moon, ShieldAlert,
-  ChevronLeft, ChevronRight, Receipt,
+  ChevronLeft, ChevronRight, Receipt, ClipboardList,
 } from 'lucide-react'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
@@ -22,6 +22,7 @@ const NAV = [
   { href: '/services',      label: 'Funeral Services', icon: Layers },
   { href: '/obituaries',    label: 'Obituaries',       icon: ScrollText, authRequired: true },
   { href: '/wake-schedule', label: 'Wake Schedule',    icon: Moon,       authRequired: true },
+  { href: '/bookings',      label: 'My Bookings',      icon: ClipboardList, authRequired: true },
   { href: '/payments',      label: 'Payments',         icon: Receipt,    authRequired: true },
   { href: '/about',         label: 'About Us',         icon: Users },
   { href: '/contact',       label: 'Contact',          icon: Phone },
@@ -57,7 +58,6 @@ export function HomeSidebar({
       cachedProfile = resolved
       setProfile(resolved)
       setAuthReady(true)
-      // Compute avatar URL once here so we never call supabase.storage in render
       if (resolved?.avatar_path) {
         const bust = Date.now()
         setAvatarCacheBust(bust)
@@ -69,23 +69,47 @@ export function HomeSidebar({
       }
     }
 
-    // On every pathname change, re-fetch if we already know the user —
-    // this ensures avatar / name updates from /profile are reflected immediately
+    // Initial auth check — only runs once on mount
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         fetchProfile(user.id)
-      } else if (cachedProfile !== undefined) {
-        setProfile(cachedProfile); setAuthReady(true)
+      } else {
+        cachedProfile = null
+        setProfile(null)
+        setAuthReady(true)
       }
     })
 
+    // Auth state changes (login/logout)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session?.user) fetchProfile(session.user.id)
       else { cachedProfile = null; setProfile(null); setAuthReady(true) }
     })
     return () => subscription.unsubscribe()
-  // Re-run on pathname so navigating back from /profile re-fetches
-   
+  // Intentionally omit pathname — auth state doesn't need to re-init on navigation.
+  // Profile re-freshes happen via onAuthStateChange (login/logout) only.
+  }, [supabase]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch profile data (name, avatar) when returning to a page after editing
+  // the profile — but only if we already know the user, so no flash.
+  useEffect(() => {
+    if (!cachedProfile) return
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => {
+        if (!data) return
+        cachedProfile = data
+        setProfile(data)
+        if (data.avatar_path) {
+          setAvatarCacheBust(Date.now())
+          setAvatarUrl(
+            supabase.storage.from('avatars').getPublicUrl(data.avatar_path).data.publicUrl
+          )
+        } else {
+          setAvatarUrl(null)
+        }
+      })
+    })
   }, [supabase, pathname])
 
   const doLogout = async () => {

@@ -239,6 +239,30 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
       })
     }
 
+    // Send receipt email to the client (fire-and-forget — don't block UI)
+    const email = clientEmail(row)
+    if (email) {
+      const productRef = row.product_ref ?? null
+      const labelForReceipt = productRef ?? row.product_type
+      fetch('/api/notify-payment-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId:       row.id,
+          recipientEmail:  email,
+          recipientName:   clientName(row),
+          amount:          row.amount,
+          method:          row.method,
+          referenceNumber: row.reference_number ?? null,
+          productLabel:    labelForReceipt,
+          productType:     row.product_type,
+          approvedAt:      new Date().toISOString(),
+          createdAt:       row.created_at,
+          notes:           row.notes ?? null,
+        }),
+      }).catch(e => console.warn('[receipt email]', e))
+    }
+
     setLoading(false); onApproved(row.id)
     onClose()
   }
@@ -837,8 +861,14 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
 
   useEffect(() => { load() }, [load])
 
+  // Realtime — payments table: new submission or status change pushes instantly
   useEffect(() => {
-    if (!highlightPaymentId || loading) return
+    const channel = supabase
+      .channel('payments-tab-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => { load() })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase, load])
     setStatusFilter('all')
     const timer = setTimeout(() => { highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 150)
     return () => clearTimeout(timer)
