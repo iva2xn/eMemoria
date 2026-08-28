@@ -3,14 +3,19 @@
 // ClientShell — mounts the sidebar ONCE at the app level so it never
 // remounts on page navigation, preventing the width transition from
 // replaying every time the user clicks a nav link.
+// On /admin routes the sidebar and margin are suppressed entirely.
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { HomeSidebar } from '@/components/home/home-sidebar'
 
 const SIDEBAR_KEY = 'home:sidebarCollapsed'
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(true) // SSR-safe default
+  const pathname = usePathname()
+  const isAdmin  = pathname?.startsWith('/admin')
+
+  const [collapsed, setCollapsed] = useState(true)
   const [mounted,   setMounted]   = useState(false)
   const [isLg,      setIsLg]      = useState(false)
 
@@ -29,6 +34,11 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
   const handleCollapsedChange = (v: boolean) => {
     localStorage.setItem(SIDEBAR_KEY, String(v))
     setCollapsed(v)
+  }
+
+  // Admin has its own full layout — render children bare
+  if (isAdmin) {
+    return <>{children}</>
   }
 
   return (
