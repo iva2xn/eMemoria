@@ -6,7 +6,6 @@
 
 import { useState, useEffect } from 'react'
 import { HomeSidebar } from '@/components/home/home-sidebar'
-import { HeroHeader } from '@/components/header'
 
 const SIDEBAR_KEY = 'home:sidebarCollapsed'
 
@@ -34,15 +33,10 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Sidebar — fixed, never remounts */}
+      {/* Sidebar — fixed, never remounts across navigations */}
       <HomeSidebar collapsed={collapsed} onCollapsedChange={handleCollapsedChange} />
 
-      {/* Mobile top header */}
-      <div className="lg:hidden">
-        <HeroHeader />
-      </div>
-
-      {/* Main content area — margin tracks sidebar width */}
+      {/* Main content area — margin tracks sidebar width on lg+ */}
       <div
         className="flex flex-col min-w-0 min-h-screen"
         style={mounted && isLg ? {
