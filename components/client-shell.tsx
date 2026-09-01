@@ -14,6 +14,7 @@ const SIDEBAR_KEY = 'home:sidebarCollapsed'
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAdmin  = pathname?.startsWith('/admin')
+  const isAuth   = pathname?.startsWith('/auth')
 
   const [collapsed, setCollapsed] = useState(true)
   const [mounted,   setMounted]   = useState(false)
@@ -36,8 +37,8 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     setCollapsed(v)
   }
 
-  // Admin has its own full layout — render children bare
-  if (isAdmin) {
+  // Admin and auth pages have their own layouts — render children bare
+  if (isAdmin || isAuth) {
     return <>{children}</>
   }
 
