@@ -108,16 +108,24 @@ function DeleteAccountModal({
   onClose: () => void
   onConfirm: () => Promise<void>
 }) {
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step,    setStep]    = useState<1 | 2>(1)
   const [loading, setLoading] = useState(false)
+  const [reason,  setReason]  = useState('')
   const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState('')
+  const [error,   setError]   = useState('')
+
+  const DELETE_REASONS = [
+    'Duplicate account',
+    'Client request',
+    'Spam / fake account',
+    'Inactive account cleanup',
+    'Policy violation',
+    'Other',
+  ] as const
 
   const handleNext = () => {
-    if (confirm.trim() !== 'DELETE') {
-      setError('Type "DELETE" (all caps) to continue.')
-      return
-    }
+    if (!reason)                         { setError('Please select a reason.'); return }
+    if (confirm.trim() !== 'DELETE')     { setError('Type "DELETE" (all caps) to continue.'); return }
     setError('')
     setStep(2)
   }
@@ -154,13 +162,26 @@ function DeleteAccountModal({
                 {error && <AlertBanner variant="error" message={error} />}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Type <span className="text-destructive font-mono">DELETE</span> to continue
+                    Reason <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    value={reason}
+                    onChange={e => { setReason(e.target.value); setError('') }}
+                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-destructive/60 focus:ring-1 focus:ring-destructive/10 outline-none transition-all"
+                  >
+                    <option value="">— Select a reason —</option>
+                    {DELETE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Type <span className="text-destructive font-mono">DELETE</span> to confirm <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text"
                     value={confirm}
                     onChange={e => { setConfirm(e.target.value); setError('') }}
-                    placeholder='DELETE'
+                    placeholder="DELETE"
                     maxLength={6}
                     className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-destructive/60 focus:ring-1 focus:ring-destructive/10 outline-none transition-all"
                   />
@@ -200,25 +221,25 @@ function DeleteAccountModal({
 // ── Profiles Tab ──────────────────────────────────────────────
 export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
-  const [rows, setRows]     = useState<Profile[]>([])
-  const [myId, setMyId]     = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+  const [rows,         setRows]         = useState<Profile[]>([])
+  const [myId,         setMyId]         = useState<string | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [search,       setSearch]       = useState('')
+  const [roleFilter,   setRoleFilter]   = useState<UserRole | 'all'>('all')
 
   // Role change modal
   const [roleChangeTarget, setRoleChangeTarget] = useState<Profile | null>(null)
-  const [pendingRole, setPendingRole]           = useState<UserRole | null>(null)
+  const [pendingRole,      setPendingRole]       = useState<UserRole | null>(null)
 
   // Delete modal
-  const [deleteTarget, setDeleteTarget] = useState<Profile | null>(null)
-
-  const [generalError, setGeneralError] = useState('')
+  const [deleteTarget,  setDeleteTarget]  = useState<Profile | null>(null)
+  const [generalError,  setGeneralError]  = useState('')
 
   useEffect(() => {
     const init = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) setMyId(user.id)
-      const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      const { data } = await supabase.from('profiles').select('*').order('name', { ascending: true })
       setRows(data ?? [])
       setLoading(false)
     }
@@ -273,11 +294,8 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
       ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
       : 'Staff'
 
-    // Deleting from auth.users cascades to profiles via FK
     const { error } = await supabase.rpc('admin_delete_user', { target_user_id: deleteTarget.id })
-
     if (error) {
-      // Fallback: delete the profile row directly (profile FK cascade will handle related rows)
       const { error: profileErr } = await supabase.from('profiles').delete().eq('id', deleteTarget.id)
       if (profileErr) {
         setGeneralError(`Failed to delete account: ${profileErr.message}`)
@@ -301,140 +319,218 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
     setDeleteTarget(null)
   }
 
-  // ── Render ────────────────────────────────────────────────
-  const q        = search.toLowerCase()
-  const filtered = rows.filter(p => !q || [p.name, p.email, p.role].some(v => v?.toLowerCase().includes(q)))
+  // ── Filtering + grouping ──────────────────────────────────
+  const q = search.toLowerCase()
+  const filtered = rows.filter(p => {
+    const matchRole   = roleFilter === 'all' || p.role === roleFilter
+    const matchSearch = !q || [p.name, p.email, p.role].some(v => v?.toLowerCase().includes(q))
+    return matchRole && matchSearch
+  })
+
+  // Group: admin first, then staff, then clients — alpha within each group
+  const ROLE_ORDER: UserRole[] = ['admin', 'staff', 'client']
+  const groups = ROLE_ORDER.map(role => ({
+    role,
+    profiles: filtered.filter(p => p.role === role),
+  })).filter(g => g.profiles.length > 0)
 
   const roleBadgeVariant = (role: UserRole): BadgeVariant =>
     role === 'admin' ? 'amber' : role === 'staff' ? 'blue' : 'muted'
 
+  const roleGroupLabel = (role: UserRole) =>
+    role === 'admin' ? 'Administrators' : role === 'staff' ? 'Staff Members' : 'Clients'
+
+  const roleGroupDesc = (role: UserRole) =>
+    role === 'admin' ? 'Full access — can manage roles, approve payments, and all operations'
+    : role === 'staff' ? 'Operational access — can manage bookings, payments, and content'
+    : 'Registered client accounts'
+
+  const counts = {
+    admin:  rows.filter(p => p.role === 'admin').length,
+    staff:  rows.filter(p => p.role === 'staff').length,
+    client: rows.filter(p => p.role === 'client').length,
+  }
+
+  const ProfileRow = ({ u }: { u: Profile }) => (
+    <>
+      {/* Mobile card */}
+      <div className="md:hidden bg-card border border-border rounded-2xl p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground text-sm truncate">{u.name}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+            </div>
+          </div>
+          <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2 flex-wrap">
+          <p className="text-[10px] text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</p>
+          <div className="flex items-center gap-2">
+            {currentRole === 'admin' && (
+              <select value={u.role} onChange={e => openRoleChange(u, e.target.value as UserRole)}
+                className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors">
+                <option value="client">client</option>
+                <option value="staff">staff</option>
+                <option value="admin">admin</option>
+              </select>
+            )}
+            {currentRole === 'admin' && u.id !== myId && (
+              <button onClick={() => setDeleteTarget(u)}
+                className="h-7 w-7 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
+                title="Delete account">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop table row */}
+      <tr className="hidden md:table-row hover:bg-muted/20 transition-colors">
+        <td className="px-5 py-3.5">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground text-sm">{u.name}</p>
+              {u.id === myId && <p className="text-[10px] text-primary font-semibold">You</p>}
+            </div>
+          </div>
+        </td>
+        <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.email}</td>
+        <td className="px-5 py-3.5">
+          <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+        </td>
+        <td className="px-5 py-3.5 text-[11px] text-muted-foreground">
+          {new Date(u.created_at).toLocaleDateString()}
+        </td>
+        {currentRole === 'admin' && (
+          <td className="px-5 py-3.5">
+            <select value={u.role} onChange={e => openRoleChange(u, e.target.value as UserRole)}
+              className="h-8 pl-3 pr-7 rounded-xl bg-background border border-border text-xs font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors">
+              <option value="client">client</option>
+              <option value="staff">staff</option>
+              <option value="admin">admin</option>
+            </select>
+          </td>
+        )}
+        {currentRole === 'admin' && (
+          <td className="px-5 py-3.5">
+            {u.id !== myId ? (
+              <button onClick={() => setDeleteTarget(u)}
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors">
+                <Trash2 className="h-3 w-3" /> Delete
+              </button>
+            ) : (
+              <span className="text-[11px] text-muted-foreground italic">You</span>
+            )}
+          </td>
+        )}
+      </tr>
+    </>
+  )
+
   if (loading) return <Spinner />
 
   return (
-    <div>
+    <div className="space-y-6">
       <SectionHeader title="User Profiles" sub={`${rows.length} registered accounts`} />
 
-      {generalError && (
-        <div className="mb-4">
-          <AlertBanner variant="error" message={generalError} />
-        </div>
-      )}
+      {generalError && <AlertBanner variant="error" message={generalError} />}
 
-      <div className="mb-5 max-w-xs">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" />
+      {/* Summary counts */}
+      <div className="grid grid-cols-3 gap-3">
+        {([
+          { role: 'admin'  as UserRole, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-950/20', border: 'border-amber-200 dark:border-amber-800/40' },
+          { role: 'staff'  as UserRole, color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-950/20',   border: 'border-blue-200 dark:border-blue-800/40' },
+          { role: 'client' as UserRole, color: 'text-muted-foreground',              bg: 'bg-muted/30',                      border: 'border-border' },
+        ]).map(({ role, color, bg, border }) => (
+          <button
+            key={role}
+            onClick={() => setRoleFilter(roleFilter === role ? 'all' : role)}
+            className={`${bg} border ${border} rounded-2xl p-4 text-center transition-all ${roleFilter === role ? 'ring-2 ring-primary/30' : 'hover:opacity-80'}`}
+          >
+            <p className={`text-2xl font-bold ${color}`}>{counts[role]}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 capitalize">{roleGroupLabel(role)}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Search + role filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex-1">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email…" />
+        </div>
+        <div className="flex gap-2">
+          {(['all', 'admin', 'staff', 'client'] as const).map(r => (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                roleFilter === r
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+              }`}
+            >
+              {r === 'all' ? `All (${rows.length})` : `${r} (${counts[r as UserRole]})`}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <EmptyState message="No profiles match your search." />
       ) : (
-        <>
-          {/* ── Mobile cards ── */}
-          <div className="md:hidden space-y-3">
-            {filtered.map(u => (
-              <div key={u.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <span className="text-sm font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">{u.name}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
-                    </div>
-                  </div>
-                  <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+        <div className="space-y-8">
+          {groups.map(({ role, profiles }) => (
+            <div key={role}>
+              {/* Group header */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`h-2 w-2 rounded-full ${
+                  role === 'admin' ? 'bg-amber-500' : role === 'staff' ? 'bg-blue-500' : 'bg-muted-foreground/40'
+                }`} />
+                <div>
+                  <p className="text-xs font-bold text-foreground">{roleGroupLabel(role)}</p>
+                  <p className="text-[10px] text-muted-foreground">{roleGroupDesc(role)}</p>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2 flex-wrap">
-                  <p className="text-[10px] text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</p>
-                  <div className="flex items-center gap-2">
-                    {currentRole === 'admin' && (
-                      <select
-                        value={u.role}
-                        onChange={e => openRoleChange(u, e.target.value as UserRole)}
-                        className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
-                      >
-                        <option value="client">client</option>
-                        <option value="staff">staff</option>
-                        <option value="admin">admin</option>
-                      </select>
-                    )}
-                    {currentRole === 'admin' && u.id !== myId && (
-                      <button
-                        onClick={() => setDeleteTarget(u)}
-                        className="h-7 w-7 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                        title="Delete account"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  role === 'admin' ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400'
+                  : role === 'staff' ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400'
+                  : 'bg-muted/40 text-muted-foreground'
+                }`}>{profiles.length}</span>
               </div>
-            ))}
-          </div>
 
-          {/* ── Desktop table ── */}
-          <TableShell>
-            <thead>
-              <tr>
-                <Th>User</Th>
-                <Th>Email</Th>
-                <Th>Role</Th>
-                <Th>Joined</Th>
-                {currentRole === 'admin' && <Th>Change Role</Th>}
-                {currentRole === 'admin' && <Th>Actions</Th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50 hidden md:table-row-group">
-              {filtered.map(u => (
-                <tr key={u.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
-                      </div>
-                      <span className="font-semibold text-foreground text-sm">{u.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.email}</td>
-                  <td className="px-5 py-3.5">
-                    <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
-                  </td>
-                  <td className="px-5 py-3.5 text-[11px] text-muted-foreground">
-                    {new Date(u.created_at).toLocaleDateString()}
-                  </td>
-                  {currentRole === 'admin' && (
-                    <td className="px-5 py-3.5">
-                      <select
-                        value={u.role}
-                        onChange={e => openRoleChange(u, e.target.value as UserRole)}
-                        className="h-8 pl-3 pr-7 rounded-xl bg-background border border-border text-xs font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors"
-                      >
-                        <option value="client">client</option>
-                        <option value="staff">staff</option>
-                        <option value="admin">admin</option>
-                      </select>
-                    </td>
-                  )}
-                  {currentRole === 'admin' && (
-                    <td className="px-5 py-3.5">
-                      {u.id !== myId ? (
-                        <button
-                          onClick={() => setDeleteTarget(u)}
-                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3" /> Delete
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-muted-foreground italic">You</span>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </TableShell>
-        </>
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-3">
+                {profiles.map(u => <ProfileRow key={u.id} u={u} />)}
+              </div>
+
+              {/* Desktop table */}
+              <div className="hidden md:block">
+                <TableShell>
+                  <thead>
+                    <tr>
+                      <Th>User</Th>
+                      <Th>Email</Th>
+                      <Th>Role</Th>
+                      <Th>Joined</Th>
+                      {currentRole === 'admin' && <Th>Change Role</Th>}
+                      {currentRole === 'admin' && <Th>Actions</Th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {profiles.map(u => <ProfileRow key={u.id} u={u} />)}
+                  </tbody>
+                </TableShell>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Role change modal */}

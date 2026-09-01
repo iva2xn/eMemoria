@@ -130,6 +130,7 @@ export function BillingForm({
     if (!phone.trim()) { setError('Contact number is required.'); return }
     if (method !== 'cash' && !refNum.trim()) { setError('Reference number is required for this payment method.'); return }
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid payment amount.'); return }
+    if (!file) { setError('Payment proof is required. Please upload your receipt.'); return }
 
     setLoading(true)
     try {
@@ -274,13 +275,13 @@ export function BillingForm({
                     </Field>
                     <Field label="Amount (₱)" required>
                       <input type="number" placeholder="e.g. 2500" min="1"
-                        value={amount} onChange={e => setAmount(e.target.value)}
-                        readOnly={isColumbarium || isUrn}
-                        className={`${inp} ${(isColumbarium || isUrn) ? 'bg-muted/30 cursor-not-allowed font-bold text-primary' : ''}`} />
+                        value={amount}
+                        readOnly
+                        className={`${inp} bg-muted/30 cursor-not-allowed font-bold text-primary`} />
                     </Field>
                   </div>
 
-                  <Field label="Payment Proof (PNG / JPG)">
+                  <Field label="Payment Proof (PNG / JPG / PDF)" required>
                     <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-5 text-center transition-all bg-background cursor-pointer group mt-1.5">
                       <input type="file" accept="image/*,application/pdf" onChange={handleFile}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
@@ -292,7 +293,7 @@ export function BillingForm({
                     </div>
                   </Field>
 
-                  <Field label="Additional Notes">
+                  <Field label="Additional Notes (optional)">
                     <textarea rows={3} placeholder="Any special instructions or context…"
                       value={notes} onChange={e => setNotes(e.target.value)}
                       maxLength={500}

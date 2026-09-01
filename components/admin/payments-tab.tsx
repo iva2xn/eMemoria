@@ -389,23 +389,42 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
 // ── Cash Modal — improved 2-step ──────────────────────────────
 function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const supabase = createClient()
-  const [step,       setStep]       = useState<'form' | 'review'>('form')
-  const [name,       setName]       = useState('')
-  const [phone,      setPhone]      = useState('')
-  const [email,      setEmail]      = useState('')
-  const [serviceIdx, setServiceIdx] = useState<number | ''>('')
+  const [step,        setStep]        = useState<'form' | 'review'>('form')
+  const [name,        setName]        = useState('')
+  const [phone,       setPhone]       = useState('')
+  const [email,       setEmail]       = useState('')
+  const [serviceIdx,  setServiceIdx]  = useState<number | ''>('')
   const [customPrice, setCustomPrice] = useState('')
-  const [seniorPwd,  setSeniorPwd]  = useState(false)
-  const [loading,    setLoading]    = useState(false)
-  const [error,      setError]      = useState('')
+  const [seniorPwd,   setSeniorPwd]   = useState(false)
+  const [includeUrn,  setIncludeUrn]  = useState(false)
+  const [urnIdx,      setUrnIdx]      = useState<number | ''>('')
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState('')
 
   const selectedService = typeof serviceIdx === 'number' ? SERVICES[serviceIdx] : null
-  const basePrice = selectedService
+  const isCremation     = selectedService?.type === 'cremation'
+
+  // Urn options — indices 6–11 in SERVICES
+  const URN_SERVICES = SERVICES.slice(6, 12)
+  const selectedUrn  = typeof urnIdx === 'number' ? URN_SERVICES[urnIdx] : null
+
+  const servicePrice = selectedService
     ? (selectedService.price > 0 ? selectedService.price : Number(customPrice) || 0)
     : 0
-  const discount       = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
-  const finalAmount    = basePrice - discount
-  const needsCustom    = selectedService?.price === 0
+  const urnPrice     = (isCremation && includeUrn && selectedUrn) ? selectedUrn.price : 0
+  const basePrice    = servicePrice + urnPrice
+  const discount     = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
+  const finalAmount  = basePrice - discount
+  const needsCustom  = selectedService?.price === 0
+
+  // Reset urn when service changes away from cremation
+  const handleServiceChange = (val: string) => {
+    setServiceIdx(val === '' ? '' : Number(val))
+    setCustomPrice('')
+    setSeniorPwd(false)
+    setIncludeUrn(false)
+    setUrnIdx('')
+  }
 
   const handleNext = () => {
     setError('')
@@ -413,20 +432,32 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     if (!phone.trim())      { setError('Phone number is required.'); return }
     if (serviceIdx === '')  { setError('Please select a service.'); return }
     if (needsCustom && (!customPrice || Number(customPrice) <= 0)) { setError('Please enter the amount.'); return }
+    if (isCremation && includeUrn && urnIdx === '') { setError('Please select an urn.'); return }
     setStep('review')
   }
 
   const handleSubmit = async () => {
     setLoading(true); setError('')
     const { data: profile } = await supabase.from('profiles').select('id').eq('email', email).maybeSingle()
-    const notes = seniorPwd ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}` : null
+
+    const noteParts: string[] = []
+    if (seniorPwd) noteParts.push(`Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`)
+    if (isCremation && includeUrn && selectedUrn) noteParts.push(`Urn: ${selectedUrn.label} (+${fmtAmt(selectedUrn.price)})`)
+    if (isCremation && !includeUrn) noteParts.push('Client using own urn')
+    const notes = noteParts.join(' · ') || null
+
+    // Build product_ref to include urn info
+    const productRef = isCremation && includeUrn && selectedUrn
+      ? `Cremation Service + ${selectedUrn.label}`
+      : selectedService?.label ?? null
+
     const { error: err } = await supabase.from('payments').insert({
       user_id:      profile?.id ?? null,
       guest_name:   profile ? null : name.trim(),
       guest_email:  profile ? null : (email.trim() || null),
       guest_phone:  phone.trim(),
       product_type: selectedService?.type ?? 'general',
-      product_ref:  selectedService?.label ?? null,
+      product_ref:  productRef,
       method:       'cash',
       amount:       finalAmount,
       status:       'approved',
@@ -479,7 +510,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               {/* Service */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Funeral Service <span className="text-destructive">*</span></label>
-                <select value={serviceIdx} onChange={e => { setServiceIdx(e.target.value === '' ? '' : Number(e.target.value)); setCustomPrice(''); setSeniorPwd(false) }} className={inputCls}>
+                <select value={serviceIdx} onChange={e => handleServiceChange(e.target.value)} className={inputCls}>
                   <option value="">— Select a service —</option>
                   <optgroup label="Traditional Packages">
                     {SERVICES.slice(0, 5).map((s, i) => <option key={i} value={i}>{s.label} — {s.price > 0 ? fmtAmt(s.price) : 'Custom'}</option>)}
@@ -496,6 +527,35 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                 </select>
               </div>
 
+              {/* Urn add-on — only for cremation */}
+              {isCremation && (
+                <div className="bg-muted/30 border border-border/60 rounded-xl p-3.5 space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div className="relative">
+                      <input type="checkbox" checked={includeUrn} onChange={e => { setIncludeUrn(e.target.checked); setUrnIdx('') }} className="sr-only peer" />
+                      <div className="h-5 w-5 rounded border-2 border-border peer-checked:border-primary peer-checked:bg-primary transition-all flex items-center justify-center">
+                        {includeUrn && <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">Client availed an urn</p>
+                      <p className="text-[10px] text-muted-foreground">Check if client is purchasing an urn with the cremation service</p>
+                    </div>
+                  </label>
+                  {includeUrn && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Select Urn <span className="text-destructive">*</span></label>
+                      <select value={urnIdx} onChange={e => setUrnIdx(e.target.value === '' ? '' : Number(e.target.value))} className={inputCls}>
+                        <option value="">— Select an urn —</option>
+                        {URN_SERVICES.map((u, i) => (
+                          <option key={i} value={i}>{u.label} — {fmtAmt(u.price)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Custom price for columbarium/general */}
               {needsCustom && (
                 <div className="space-y-1.5">
@@ -504,11 +564,32 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                 </div>
               )}
 
-              {/* Auto-filled price display */}
+              {/* Price display */}
               {selectedService && basePrice > 0 && (
-                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Price</p>
-                  <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
+                <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs space-y-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Price Breakdown</p>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{selectedService.label}</span>
+                    <span className="font-mono font-semibold text-foreground">{fmtAmt(servicePrice)}</span>
+                  </div>
+                  {isCremation && includeUrn && selectedUrn && (
+                    <div className="flex justify-between text-primary">
+                      <span>{selectedUrn.label}</span>
+                      <span className="font-mono">+ {fmtAmt(urnPrice)}</span>
+                    </div>
+                  )}
+                  {(isCremation && includeUrn && selectedUrn) && (
+                    <div className="flex justify-between font-bold text-primary border-t border-primary/20 pt-1 mt-1">
+                      <span>Subtotal</span>
+                      <span className="font-mono">{fmtAmt(basePrice)}</span>
+                    </div>
+                  )}
+                  {!(isCremation && includeUrn && selectedUrn) && (
+                    <div className="flex justify-between font-bold text-primary pt-0.5">
+                      <span>Total</span>
+                      <span className="font-mono text-base">{fmtAmt(basePrice)}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -550,6 +631,8 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                     { label: 'Phone',   value: phone },
                     ...(email ? [{ label: 'Email', value: email }] : []),
                     { label: 'Service', value: selectedService?.label ?? '—' },
+                    ...(isCremation && includeUrn && selectedUrn ? [{ label: 'Urn', value: `${selectedUrn.label} (+${fmtAmt(urnPrice)})` }] : []),
+                    ...(isCremation && !includeUrn ? [{ label: 'Urn', value: 'Client using own urn' }] : []),
                     { label: 'Method',  value: 'Cash' },
                   ].map(f => (
                     <div key={f.label} className="flex justify-between px-4 py-2.5 text-xs">
