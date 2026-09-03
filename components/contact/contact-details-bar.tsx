@@ -67,7 +67,7 @@ export function ContactDetailsBar() {
                   <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${href ? 'text-primary' : 'text-muted-foreground'}`} />
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-                    <p className={`text-sm font-semibold mt-0.5 ${href ? 'text-primary underline-offset-2 group-hover:underline' : 'text-foreground'}`}>{value}</p>
+                    <p className="text-sm font-semibold mt-0.5 text-foreground">{value}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
                   </div>
                 </div>
@@ -92,7 +92,7 @@ export function ContactDetailsBar() {
                 <div className="px-6 py-6 flex flex-col gap-1.5">
                   <Icon className={`h-4 w-4 mb-0.5 ${href ? 'text-primary' : 'text-muted-foreground'}`} />
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-                  <p className={`text-sm font-semibold leading-snug ${href ? 'text-primary group-hover:underline underline-offset-2' : 'text-foreground'}`}>{value}</p>
+                  <p className="text-sm font-semibold leading-snug text-foreground">{value}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{sub}</p>
                   {href && (
                     <p className="text-[10px] text-primary/60 font-semibold mt-0.5">

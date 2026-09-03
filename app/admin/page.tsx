@@ -103,10 +103,7 @@ export default function AdminPage() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile overlay
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('admin:sidebarCollapsed') === 'true'
-  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const setSidebarCollapsedPersist = (v: boolean) => {
     localStorage.setItem('admin:sidebarCollapsed', String(v))
     setSidebarCollapsed(v)

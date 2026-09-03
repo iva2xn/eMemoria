@@ -6,7 +6,7 @@ const STATS = [
   { value: '20+', label: 'Years of Service' },
   { value: '24/7', label: 'Always Available' },
   { value: '100%', label: 'Compassionate Care' },
-  { value: '3',   label: 'Service Branches' },
+  { value: '2',   label: 'Service Branches' },
 ]
 
 const VALUES = [

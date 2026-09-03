@@ -6,7 +6,7 @@ const STATS = [
   { value: '20+',  label: 'Years of Service' },
   { value: '500+', label: 'Families Served' },
   { value: '24/7', label: 'Always Available' },
-  { value: '3',    label: 'Service Branches' },
+  { value: '2',    label: 'Service Branches' },
 ]
 
 const SERVICE_CARDS = [
@@ -110,7 +110,7 @@ export function HomeSections() {
                 </div>
                 <div className="text-right">
                   <span className="text-[9px] font-mono tracking-wider text-muted-foreground/80 block">BRANCHES</span>
-                  <span className="text-xs font-bold text-foreground block mt-1">3 Locations</span>
+                  <span className="text-xs font-bold text-foreground block mt-1">2 Locations</span>
                 </div>
               </div>
             </div>

@@ -109,7 +109,7 @@ function LocationCard() {
             Sariaya, Quezon
           </h4>
           <p className="text-[10px] text-muted-foreground mt-1.5 font-bold uppercase tracking-wider leading-none">
-            Est. 2004 • 3 Branches
+            Est. 2004 • 2 Branches
           </p>
         </div>
       </div>

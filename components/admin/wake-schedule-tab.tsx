@@ -23,15 +23,6 @@ export const SARIAYA_CEMETERIES = [
   'Paradise Memorial Park',
   'Roman Catholic Cemetery',
   'Himlayan Cemetery',
-  'Brgy. Sampaloc Cemetery',
-  'Brgy. Talaan Aplaya Cemetery',
-  'Brgy. Tumbaga Cemetery',
-  'Brgy. Canda Cemetery',
-  'Brgy. Liit Proper Cemetery',
-  'Brgy. Bukal Sur Cemetery',
-  'Brgy. Bukal Norte Cemetery',
-  'Brgy. Manggalang Cemetery',
-  'Brgy. Kalangkang Cemetery',
   'Other Location',
 ] as const
 

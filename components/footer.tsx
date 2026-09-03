@@ -1,25 +1,76 @@
+import React from 'react'
 import Link from 'next/link'
+import { HeartHandshake, Phone, MapPin, Clock } from 'lucide-react'
 
 export function Footer() {
   return (
-    <footer className="w-full border-t border-border/40 bg-card py-8 mt-auto">
-      <div className="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <footer className="w-full border-t border-border/40 bg-card py-10 md:py-12 mt-auto">
+      <div className="mx-auto max-w-6xl px-6 grid grid-cols-1 md:grid-cols-3 gap-10">
 
-        <div>
-          <p className="font-serif text-sm font-bold text-foreground tracking-wide">eMemoria</p>
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Funeral Services</p>
+        {/* Brand */}
+        <div className="md:col-span-2 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <HeartHandshake className="h-4.5 w-4.5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="font-serif text-sm font-bold leading-tight tracking-wide text-foreground">
+                eMemoria
+              </span>
+              <span className="text-[9px] tracking-widest text-muted-foreground uppercase font-sans">
+                Funeral Services
+              </span>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+            Providing compassionate, dignified, and highly professional memorial services to Filipino families in Sariaya, Quezon. We accompany you with care, honouring the beautiful legacy of your loved ones.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2">
+            <Clock className="h-3.5 w-3.5 text-secondary" />
+            <span>Open 24 Hours, 7 Days a Week for Urgent Assistance</span>
+          </div>
         </div>
 
-        <nav className="flex items-center gap-6 text-sm">
-          <Link href="/" className="text-muted-foreground hover:text-primary transition-colors">Home</Link>
-          <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">About Us</Link>
-          <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">Contact</Link>
-        </nav>
+        {/* Contact Info */}
+        <div className="space-y-4">
+          <h3 className="font-serif text-sm font-semibold text-foreground uppercase tracking-wider">
+            Contact Information
+          </h3>
+          <ul className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2.5">
+              <MapPin className="h-4 w-4 text-secondary shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold text-foreground block">Main Branch</span>
+                <span>
+                  Maharlika Highway, Sitio Sta. Clara, Brgy. Sampaloc 2,
+                  <br />Sariaya, Quezon, Philippines
+                </span>
+              </div>
+            </li>
+            <li className="flex items-center gap-2.5">
+              <Phone className="h-4 w-4 text-secondary shrink-0" />
+              <span>+63 918 901 9978</span>
+            </li>
+          </ul>
+        </div>
 
+      </div>
+
+      {/* Bottom bar */}
+      <div className="mx-auto max-w-6xl px-6 mt-6 pt-4 border-t border-border/20
+                      flex flex-col md:flex-row items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           &copy; {new Date().getFullYear()} eMemoria. All rights reserved.
         </p>
-
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <Link href="/terms" className="hover:text-primary transition-colors">
+            Terms of Service
+          </Link>
+          <span>&middot;</span>
+          <Link href="/privacy" className="hover:text-primary transition-colors">
+            Privacy Policy
+          </Link>
+        </div>
       </div>
     </footer>
   )
