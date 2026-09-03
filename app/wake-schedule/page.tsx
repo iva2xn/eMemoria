@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { AlertBanner } from '@/components/ui/alert-banner'
+import { WakeScheduleModal } from '@/components/billing/wake-schedule-modal'
 import {
   Calendar, MapPin, Clock,
   Moon, AlertTriangle, Check, X, ChevronRight, ChevronLeft,
@@ -337,9 +338,10 @@ function RequestHistoryItem({ req }: { req: WakeExtensionRequest }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────
-export default function WakeSchedulePage() {
-  const supabase = createClient()
-  const router   = useRouter()
+function WakeScheduleContent() {
+  const supabase    = createClient()
+  const router      = useRouter()
+  const searchParams = useSearchParams()
 
   const [loading,   setLoading]   = useState(true)
   const [wake,      setWake]      = useState<Wake | null>(null)
@@ -347,6 +349,16 @@ export default function WakeSchedulePage() {
   const [userId,    setUserId]    = useState<string | null>(null)
   const [modalType, setModalType] = useState<'extension' | 'location_change' | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false)
+
+  // Auto-open the preferences modal when redirected from a notification
+  useEffect(() => {
+    if (searchParams.get('action') === 'submit-preferences') {
+      setShowPreferencesModal(true)
+      // Clean the URL so refresh doesn't re-open it
+      window.history.replaceState({}, '', '/wake-schedule')
+    }
+  }, [searchParams])
 
   const load = useCallback(async (uid: string) => {
     setLoading(true)
@@ -426,6 +438,18 @@ export default function WakeSchedulePage() {
             setSuccessMsg('Your request has been submitted. We will notify you once it has been reviewed.')
             if (userId) load(userId)
             setTimeout(() => setSuccessMsg(''), 6000)
+          }}
+        />
+      )}
+
+      {/* Wake preferences modal — triggered by admin notification */}
+      {showPreferencesModal && (
+        <WakeScheduleModal
+          deceasedName={wake?.deceased_name ?? 'your loved one'}
+          onDone={() => {
+            setShowPreferencesModal(false)
+            setSuccessMsg('Your schedule preferences have been submitted. Our staff will be in touch soon.')
+            setTimeout(() => setSuccessMsg(''), 7000)
           }}
         />
       )}
@@ -615,5 +639,19 @@ export default function WakeSchedulePage() {
         </div>
       </main>
     </ClientLayout>
+  )
+}
+
+export default function WakeSchedulePage() {
+  return (
+    <Suspense fallback={
+      <ClientLayout>
+        <main className="flex-1 flex items-center justify-center py-32">
+          <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </main>
+      </ClientLayout>
+    }>
+      <WakeScheduleContent />
+    </Suspense>
   )
 }

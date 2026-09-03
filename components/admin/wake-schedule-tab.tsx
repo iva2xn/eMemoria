@@ -10,7 +10,7 @@ import {
 import { logActivity } from '@/lib/activity-log'
 import {
   X, Calendar, MapPin, Check, ChevronLeft,
-  Edit2, AlertTriangle, Clock, Eye,
+  Edit2, AlertTriangle, Clock, Eye, Bell,
 } from 'lucide-react'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import type { Wake, WakeExtensionRequest, WakeScheduleRequest, UserRole } from '@/lib/supabase/types'
@@ -609,6 +609,22 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
   const [subTab,       setSubTab]       = useState<'schedules' | 'requests' | 'schedule-requests'>('schedules')
   const [editRow,      setEditRow]      = useState<WakeRow | null>(null)
   const [reviewReq,    setReviewReq]    = useState<RequestRow | null>(null)
+  const [notifyingId,  setNotifyingId]  = useState<string | null>(null)
+
+  const sendScheduleNotification = async (w: WakeRow) => {
+    if (!w.user_id) return
+    setNotifyingId(w.id)
+    await supabase.from('client_notifications').insert({
+      user_id:      w.user_id,
+      event_type:   'wake_details_requested',
+      entity_table: 'wakes',
+      entity_id:    w.id,
+      message:      `Our staff needs your wake schedule preferences for ${w.deceased_name}. Please complete the details as soon as possible.`,
+      metadata:     { deceased_name: w.deceased_name, wake_id: w.id },
+      action_url:   '/wake-schedule?action=submit-preferences',
+    })
+    setNotifyingId(null)
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -803,12 +819,25 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                           <span className="text-[11px] text-muted-foreground">{w.bookingPackage ?? '—'}</span>
                         </td>
                         <td className="px-5 py-3.5">
-                          <button
-                            onClick={() => setEditRow(w)}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors"
-                          >
-                            <Edit2 className="h-3 w-3" /> Edit
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setEditRow(w)}
+                              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors"
+                            >
+                              <Edit2 className="h-3 w-3" /> Edit
+                            </button>
+                            {w.user_id && (
+                              <button
+                                onClick={() => sendScheduleNotification(w)}
+                                disabled={notifyingId === w.id}
+                                title="Notify client to submit missing wake details"
+                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-40"
+                              >
+                                <Bell className="h-3 w-3" />
+                                {notifyingId === w.id ? '…' : 'Notify'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -905,7 +934,7 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b-2 border-border bg-muted/40">
-                      {['Client', 'Deceased', 'Preferred Pickup', 'Wake Period', 'Burial Location', 'Notes', 'Submitted', 'Status'].map(h => (
+                      {['Client', 'Deceased', 'Preferred Pickup', 'Wake Period', 'Burial Location', 'Notes', 'Submitted'].map(h => (
                         <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 last:border-r-0">{h}</th>
                       ))}
                     </tr>
@@ -959,14 +988,8 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                             ? <p className="text-muted-foreground text-[11px] truncate" title={r.notes}>{r.notes}</p>
                             : <span className="text-muted-foreground">—</span>}
                         </td>
-                        <td className="px-5 py-3.5 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">
+                        <td className="px-5 py-3.5 text-[10px] text-muted-foreground whitespace-nowrap">
                           {fmtDate(r.created_at)}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <Badge
-                            label={r.status}
-                            variant={r.status === 'converted' ? 'green' : r.status === 'pending' ? 'amber' : 'blue'}
-                          />
                         </td>
                       </tr>
                     ))}
