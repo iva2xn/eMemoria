@@ -17,7 +17,12 @@ import type { Wake, WakeExtensionRequest, UserRole } from '@/lib/supabase/types'
 
 // ── Constants ─────────────────────────────────────────────────
 export const SARIAYA_CEMETERIES = [
-  'Municipal Cemetery of Sariaya',
+  'Sariaya Municipal Cemetery',
+  'Golden Haven Memorial Park - Sariaya',
+  'Mt. Zion Memorial Park',
+  'Paradise Memorial Park',
+  'Roman Catholic Cemetery',
+  'Himlayan Cemetery',
   'Brgy. Sampaloc Cemetery',
   'Brgy. Talaan Aplaya Cemetery',
   'Brgy. Tumbaga Cemetery',
