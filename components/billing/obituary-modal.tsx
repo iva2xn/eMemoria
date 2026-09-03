@@ -26,10 +26,11 @@ interface ObituaryModalProps {
   submitterName: string
   submitterEmail: string
   submitterPhone: string
+  onDeceasedName?: (name: string) => void
   onDone: () => void
 }
 
-export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, onDone }: ObituaryModalProps) {
+export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, onDeceasedName, onDone }: ObituaryModalProps) {
   useLockBodyScroll()
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
@@ -143,6 +144,7 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
 
     setLoading(false)
     if (insertErr) { setError(insertErr.message); return }
+    onDeceasedName?.(fullName)
     setDone(true)
   }
 

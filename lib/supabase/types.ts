@@ -223,6 +223,27 @@ export interface WakeExtensionRequest {
   updated_at: string
 }
 
+export type WakeScheduleRequestStatus = 'pending' | 'reviewed' | 'converted'
+
+export interface WakeScheduleRequest {
+  id: string
+  user_id: string
+  deceased_name: string
+  preferred_pickup_date: string | null
+  preferred_pickup_time: string | null
+  preferred_wake_start: string | null
+  preferred_wake_end: string | null
+  preferred_burial_location: string | null
+  preferred_burial_location_other: string | null
+  notes: string | null
+  status: WakeScheduleRequestStatus
+  wake_id: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // Convenience type for the full DB shape (used by createClient generics)
 export interface Database {
   public: {
@@ -237,6 +258,7 @@ export interface Database {
       payment_info: { Row: PaymentInfo; Insert: never; Update: Partial<Omit<PaymentInfo, 'id' | 'updated_at'>> }
       wakes: { Row: Wake; Insert: Omit<Wake, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Wake> }
       wake_extension_requests: { Row: WakeExtensionRequest; Insert: Omit<WakeExtensionRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeExtensionRequest> }
+      wake_schedule_requests: { Row: WakeScheduleRequest; Insert: Omit<WakeScheduleRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeScheduleRequest> }
     }
     Functions: {
       admin_delete_user: {

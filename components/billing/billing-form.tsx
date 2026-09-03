@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { ObituaryModal } from './obituary-modal'
+import { WakeScheduleModal } from './wake-schedule-modal'
 import { AuthGateModal } from './auth-gate-modal'
 import { PaymentSidebar } from './payment-sidebar'
 import { UploadCloud, Info, User, FileText, ShieldCheck } from 'lucide-react'
@@ -75,7 +76,9 @@ export function BillingForm({
   const [fileName, setFileName] = useState('')
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
-  const [showObituaryModal, setShowObituaryModal] = useState(false)
+  const [showObituaryModal,    setShowObituaryModal]    = useState(false)
+  const [showWakeModal,        setShowWakeModal]         = useState(false)
+  const [obituaryDeceasedName, setObituaryDeceasedName] = useState('')
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null)
 
   // Sync prefill when auth resolves
@@ -153,6 +156,14 @@ export function BillingForm({
           submitterName={name}
           submitterEmail={email}
           submitterPhone={phone}
+          onDeceasedName={n => setObituaryDeceasedName(n)}
+          onDone={() => { setShowObituaryModal(false); setShowWakeModal(true) }}
+        />
+      )}
+
+      {showWakeModal && (
+        <WakeScheduleModal
+          deceasedName={obituaryDeceasedName || 'Deceased'}
           onDone={() => { window.location.href = '/?payment=success' }}
         />
       )}

@@ -13,7 +13,7 @@ import {
   Edit2, AlertTriangle, Clock, Eye,
 } from 'lucide-react'
 import { AlertBanner } from '@/components/ui/alert-banner'
-import type { Wake, WakeExtensionRequest, UserRole } from '@/lib/supabase/types'
+import type { Wake, WakeExtensionRequest, WakeScheduleRequest, UserRole } from '@/lib/supabase/types'
 
 // ── Constants ─────────────────────────────────────────────────
 export const SARIAYA_CEMETERIES = [
@@ -57,6 +57,7 @@ function locationDisplay(w: { burial_location: string | null; burial_location_ot
 
 type WakeRow = Wake & { clientName?: string; clientEmail?: string; bookingPackage?: string }
 type RequestRow = WakeExtensionRequest & { clientName?: string; wakeName?: string }
+type ScheduleReqRow = WakeScheduleRequest & { clientName?: string; clientEmail?: string }
 
 // ── Edit Wake Modal ───────────────────────────────────────────
 function EditWakeModal({
@@ -602,9 +603,10 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
 
   const [wakes,        setWakes]        = useState<WakeRow[]>([])
   const [requests,     setRequests]     = useState<RequestRow[]>([])
+  const [scheduleReqs, setScheduleReqs] = useState<ScheduleReqRow[]>([])
   const [loading,      setLoading]      = useState(true)
   const [search,       setSearch]       = useState('')
-  const [subTab,       setSubTab]       = useState<'schedules' | 'requests'>('schedules')
+  const [subTab,       setSubTab]       = useState<'schedules' | 'requests' | 'schedule-requests'>('schedules')
   const [editRow,      setEditRow]      = useState<WakeRow | null>(null)
   const [reviewReq,    setReviewReq]    = useState<RequestRow | null>(null)
 
@@ -668,6 +670,28 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
       setRequests([])
     }
 
+    // Fetch initial wake schedule requests (from billing onboarding)
+    const { data: rawSched } = await supabase
+      .from('wake_schedule_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (rawSched?.length) {
+      const schedUserIds = [...new Set(rawSched.map(r => r.user_id))]
+      let schedProfileMap: Record<string, { name: string; email: string }> = {}
+      if (schedUserIds.length) {
+        const { data: profiles } = await supabase.from('profiles').select('id,name,email').in('id', schedUserIds)
+        if (profiles) schedProfileMap = Object.fromEntries(profiles.map(p => [p.id, { name: p.name, email: p.email }]))
+      }
+      setScheduleReqs(rawSched.map(r => ({
+        ...r,
+        clientName:  schedProfileMap[r.user_id]?.name,
+        clientEmail: schedProfileMap[r.user_id]?.email,
+      })))
+    } else {
+      setScheduleReqs([])
+    }
+
     setLoading(false)
   }, [supabase])
 
@@ -690,14 +714,19 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
   const filteredReqs = requests.filter(r =>
     !q || [r.clientName, r.wakeName, r.request_type, r.status].some(v => v?.toLowerCase().includes(q))
   )
+  const filteredScheduleReqs = scheduleReqs.filter(r =>
+    !q || [r.clientName, r.clientEmail, r.deceased_name, r.status].some(v => v?.toLowerCase().includes(q))
+  )
 
-  const pendingCount = requests.filter(r => r.status === 'pending').length
+  const pendingCount      = requests.filter(r => r.status === 'pending').length
+  const pendingSchedCount = scheduleReqs.filter(r => r.status === 'pending').length
 
   if (loading) return <Spinner />
 
   const reqFilterOptions = [
-    { value: 'schedules' as const, label: `Schedules (${wakes.length})` },
-    { value: 'requests'  as const, label: `Requests${pendingCount > 0 ? ` · ${pendingCount} pending` : ` (${requests.length})`}` },
+    { value: 'schedules'         as const, label: `Schedules (${wakes.length})` },
+    { value: 'schedule-requests' as const, label: `New Requests${pendingSchedCount > 0 ? ` · ${pendingSchedCount} pending` : ` (${scheduleReqs.length})`}` },
+    { value: 'requests'          as const, label: `Change Requests${pendingCount > 0 ? ` · ${pendingCount} pending` : ` (${requests.length})`}` },
   ]
 
   return (
@@ -715,7 +744,11 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
       <SearchInput
         value={search}
         onChange={setSearch}
-        placeholder={subTab === 'schedules' ? 'Search by deceased, client, location…' : 'Search by client, deceased, type…'}
+        placeholder={
+          subTab === 'schedules'          ? 'Search by deceased, client, location…' :
+          subTab === 'schedule-requests'  ? 'Search by client, deceased, status…' :
+                                           'Search by client, deceased, type…'
+        }
       />
 
       {/* ── Schedules sub-tab ── */}
@@ -852,6 +885,88 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                           ) : (
                             <span className="text-[10px] text-muted-foreground capitalize">{r.status}</span>
                           )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+      )}
+
+      {/* ── Schedule Requests sub-tab (initial client preferences from billing) ── */}
+      {subTab === 'schedule-requests' && (
+        filteredScheduleReqs.length === 0
+          ? <EmptyState message={scheduleReqs.length === 0 ? 'No initial wake schedule requests yet. They appear after a client completes the billing & obituary flow.' : 'No requests match your search.'} />
+          : (
+            <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+              <div className="overflow-x-auto bg-card">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-border bg-muted/40">
+                      {['Client', 'Deceased', 'Preferred Pickup', 'Wake Period', 'Burial Location', 'Notes', 'Submitted', 'Status'].map(h => (
+                        <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 last:border-r-0">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredScheduleReqs.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        className={`border-b border-border/40 transition-colors hover:bg-muted/20 ${i % 2 !== 0 ? 'bg-muted/[0.03]' : 'bg-card'}`}
+                      >
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          <p className="font-semibold text-foreground">{r.clientName ?? '—'}</p>
+                          {r.clientEmail && <p className="text-[10px] text-muted-foreground">{r.clientEmail}</p>}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          <p className="font-bold text-foreground">{r.deceased_name}</p>
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          {r.preferred_pickup_date || r.preferred_pickup_time ? (
+                            <div className="flex items-start gap-1 text-muted-foreground">
+                              <Clock className="h-3 w-3 shrink-0 mt-0.5" />
+                              <span>
+                                {r.preferred_pickup_date ? fmtDate(r.preferred_pickup_date) : '—'}
+                                {r.preferred_pickup_time && <span className="block text-[10px]">{r.preferred_pickup_time}</span>}
+                              </span>
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          {r.preferred_wake_start || r.preferred_wake_end ? (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              <span>{fmtDate(r.preferred_wake_start)} – {fmtDate(r.preferred_wake_end)}</span>
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          {r.preferred_burial_location ? (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <MapPin className="h-3 w-3 shrink-0" />
+                              <span className="max-w-[140px] truncate">
+                                {r.preferred_burial_location === 'Other Location'
+                                  ? (r.preferred_burial_location_other || 'Other')
+                                  : r.preferred_burial_location}
+                              </span>
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30 max-w-[160px]">
+                          {r.notes
+                            ? <p className="text-muted-foreground text-[11px] truncate" title={r.notes}>{r.notes}</p>
+                            : <span className="text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">
+                          {fmtDate(r.created_at)}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <Badge
+                            label={r.status}
+                            variant={r.status === 'converted' ? 'green' : r.status === 'pending' ? 'amber' : 'blue'}
+                          />
                         </td>
                       </tr>
                     ))}
