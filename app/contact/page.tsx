@@ -106,13 +106,15 @@ export default function ContactPage() {
           </div>
         </div>
 
-        <div className="hidden md:grid max-w-6xl mx-auto px-6 py-14 grid-cols-2 gap-12 items-start">
-          <div className="space-y-4">
+        <div className="hidden md:grid max-w-6xl mx-auto px-6 py-14 grid-cols-2 gap-12 items-stretch">
+          <div className="space-y-4 flex flex-col">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Location</p>
               <h2 className="font-serif text-2xl font-bold text-foreground">Find Us</h2>
             </div>
-            <MapBlock />
+            <div className="flex-1">
+              <MapBlock />
+            </div>
           </div>
           <div className="space-y-4">
             <div>

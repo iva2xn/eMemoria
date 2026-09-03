@@ -221,14 +221,7 @@ export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
 
   y += svcLines.length * 5.5 + 3
 
-  if (payment.notes) {
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(7)
-    doc.setTextColor(...LGRAY)
-    const noteLines = doc.splitTextToSize(payment.notes, CW) as string[]
-    noteLines.forEach(line => { doc.text(line, L, y); y += 4 })
-    doc.setTextColor(...BLACK)
-  }
+  // notes field is intentionally omitted — internal staff annotation only
 
   // ── Payment details ──────────────────────────────────────
   y += 5

@@ -117,12 +117,6 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
                 {payment.approved_at ? formatDate(payment.approved_at) : '—'}
               </span>
             </div>
-            {payment.notes && (
-              <div className="flex justify-between px-4 py-2.5">
-                <span className="text-muted-foreground">Notes</span>
-                <span className="text-foreground text-right max-w-[55%]">{payment.notes}</span>
-              </div>
-            )}
           </div>
           {/* Total row */}
           <div className="flex items-center justify-between px-4 py-3 bg-green-600 dark:bg-green-800">
