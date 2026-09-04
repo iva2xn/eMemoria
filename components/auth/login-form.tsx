@@ -59,9 +59,8 @@ export function LoginForm() {
     if (!recoveryEmail) { setRecoveryError('Please enter your email address.'); return }
 
     setRecoveryLoading(true)
-    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-      redirectTo: `${origin}/auth/reset-password`,
+      redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
     })
     setRecoveryLoading(false)
 

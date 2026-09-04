@@ -8,10 +8,11 @@ import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { PhoneInput } from '@/components/ui/phone-input'
+import { checkPassword, isPasswordStrong } from '@/lib/password-strength'
 import {
   User, Mail, Phone, Camera, Check, X,
   ShieldCheck, AlertTriangle, Trash2,
-  Send, KeyRound,
+  Send, KeyRound, MailCheck,
 } from 'lucide-react'
 import type { Profile } from '@/lib/supabase/types'
 
@@ -158,6 +159,16 @@ export default function ProfilePage() {
   const [emailErr,   setEmailErr]   = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
 
+  // ── Password change ───────────────────────────────────────────
+  type PwStep = 'idle' | 'sent' | 'code' | 'password' | 'done'
+  const [pwStep,        setPwStep]        = useState<PwStep>('idle')
+  const [pwLinkLoading, setPwLinkLoading] = useState(false)
+  const [pwLinkErr,     setPwLinkErr]     = useState('')
+  const [pwOtp,         setPwOtp]         = useState('')
+  const [pwNew,         setPwNew]         = useState('')
+  const [pwConfirm,     setPwConfirm]     = useState('')
+  const [pwLoading,     setPwLoading]     = useState(false)
+
   // ── Avatar ────────────────────────────────────────────────────
   const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
@@ -262,6 +273,44 @@ export default function ProfilePage() {
     setOtpSent(false); setOtp(''); setEmailTaken(false)
     setEmailMsg('✓ Email updated successfully.')
     setTimeout(() => setEmailMsg(''), 4000)
+  }
+
+  // ── Password change: send OTP → verify → update ──────────────
+  const sendPasswordOtp = async () => {
+    if (!profile?.email) return
+    setPwLinkErr(''); setPwLinkLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
+      redirectTo: `${window.location.origin}/auth/reset-password?email=${encodeURIComponent(profile.email)}`,
+    })
+    setPwLinkLoading(false)
+    if (error) { setPwLinkErr(error.message); return }
+    setPwStep('sent')
+  }
+
+  const verifyPasswordOtp = async () => {
+    if (!profile?.email) return
+    setPwLinkErr('')
+    if (!pwOtp.trim()) { setPwLinkErr('Enter the code from your email.'); return }
+    setPwLoading(true)
+    const { error } = await supabase.auth.verifyOtp({
+      email: profile.email,
+      token: pwOtp.trim(),
+      type:  'recovery',
+    })
+    setPwLoading(false)
+    if (error) { setPwLinkErr('Invalid or expired code. Try again.'); return }
+    setPwStep('password')
+  }
+
+  const updatePassword = async () => {
+    setPwLinkErr('')
+    if (!isPasswordStrong(pwNew)) { setPwLinkErr('Password does not meet the requirements.'); return }
+    if (pwNew !== pwConfirm)      { setPwLinkErr('Passwords do not match.'); return }
+    setPwLoading(true)
+    const { error } = await supabase.auth.updateUser({ password: pwNew })
+    setPwLoading(false)
+    if (error) { setPwLinkErr(error.message); return }
+    setPwStep('done')
   }
 
   // ── Avatar upload ─────────────────────────────────────────────
@@ -506,6 +555,114 @@ export default function ProfilePage() {
               {emailErr && <AlertBanner variant="error" message={emailErr} />}
               {emailMsg && !emailErr && <p className="text-xs font-semibold text-primary">{emailMsg}</p>}
             </div>
+          </Section>
+
+          {/* ── Password ── */}
+          <Section title="Change Password" icon={<KeyRound className="h-4 w-4" />}>
+            {pwLinkErr && <AlertBanner variant="error" message={pwLinkErr} className="mb-3" />}
+
+            {pwStep === 'idle' && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  We&apos;ll send an 8-digit code to <span className="font-semibold text-foreground">{profile.email}</span>. Enter it here to set a new password.
+                </p>
+                <Button
+                  onClick={sendPasswordOtp}
+                  disabled={pwLinkLoading}
+                  variant="outline"
+                  className="h-10 px-6 rounded-xl flex items-center gap-2"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {pwLinkLoading ? 'Sending…' : 'Send Reset Code'}
+                </Button>
+              </div>
+            )}
+
+            {pwStep === 'sent' && (
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 bg-primary/5 border border-primary/20 rounded-xl p-3">
+                  <MailCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-foreground leading-relaxed">
+                    Code sent to <span className="font-semibold">{profile.email}</span>. Enter the 8-digit code below.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className={lbl}>Reset Code</label>
+                  <input
+                    type="text" inputMode="numeric"
+                    value={pwOtp}
+                    onChange={e => setPwOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    placeholder="12345678"
+                    maxLength={8}
+                    className={`${inp} text-center font-mono tracking-widest`}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => { setPwStep('idle'); setPwOtp(''); setPwLinkErr('') }} className="flex-1 h-10 rounded-xl">
+                    Cancel
+                  </Button>
+                  <Button onClick={verifyPasswordOtp} disabled={pwLoading || pwOtp.length < 6} className="flex-1 h-10 rounded-xl">
+                    {pwLoading ? 'Verifying…' : 'Verify Code →'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {pwStep === 'password' && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className={lbl}>New Password <span className="text-primary">*</span></label>
+                  <input
+                    type="password" value={pwNew}
+                    onChange={e => setPwNew(e.target.value)}
+                    placeholder="••••••••"
+                    className={inp}
+                  />
+                  {pwNew && (
+                    <ul className="mt-1.5 space-y-1">
+                      {checkPassword(pwNew).map(c => (
+                        <li key={c.label} className={`flex items-center gap-1.5 text-[11px] font-medium ${c.pass ? 'text-primary' : 'text-muted-foreground'}`}>
+                          {c.pass ? <Check className="h-3 w-3 shrink-0" /> : <X className="h-3 w-3 shrink-0" />}
+                          {c.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <label className={lbl}>Confirm Password <span className="text-primary">*</span></label>
+                  <input
+                    type="password" value={pwConfirm}
+                    onChange={e => setPwConfirm(e.target.value)}
+                    placeholder="••••••••"
+                    className={inp}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => { setPwStep('idle'); setPwNew(''); setPwConfirm(''); setPwLinkErr('') }} className="flex-1 h-10 rounded-xl">
+                    Cancel
+                  </Button>
+                  <Button onClick={updatePassword} disabled={pwLoading} className="flex-1 h-10 rounded-xl">
+                    {pwLoading ? 'Updating…' : 'Update Password'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {pwStep === 'done' && (
+              <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                <Check className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Password updated</p>
+                  <button
+                    onClick={() => { setPwStep('idle'); setPwNew(''); setPwConfirm(''); setPwOtp(''); setPwLinkErr('') }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+                  >
+                    Change again
+                  </button>
+                </div>
+              </div>
+            )}
           </Section>
 
           {/* ── Account deletion ── */}
