@@ -39,6 +39,12 @@ export function computeAge(
   if (months < 0) { years--; months += 12 }
   if (years < 1) {
     const totalMonths = years * 12 + months
+    if (totalMonths < 1) {
+      const b2 = new Date(birthDate + 'T00:00:00')
+      const d2 = new Date(deathDate + 'T00:00:00')
+      const diffDays = Math.floor((d2.getTime() - b2.getTime()) / (1000 * 60 * 60 * 24))
+      return diffDays <= 1 ? '1 day old' : `${diffDays} days old`
+    }
     return totalMonths === 1 ? '1 month old' : `${totalMonths} months old`
   }
   return years === 1 ? '1 year old' : `${years} years old`

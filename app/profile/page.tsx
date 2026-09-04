@@ -320,15 +320,24 @@ export default function ProfilePage() {
     if (file.size > 10 * 1024 * 1024) { setAvatarMsg('Image must be under 10 MB.'); return }
     setAvatarUploading(true)
     const ext  = file.name.split('.').pop() ?? 'jpg'
-    const path = `${userId}.${ext}`
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    // Use a timestamp-based path so each upload is a unique object —
+    // avoids CDN cache serving the old image when the user swaps their photo.
+    const path = `${userId}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: false })
     if (error) { setAvatarMsg(`Upload failed: ${error.message}`); setAvatarUploading(false); return }
+    // Delete old avatar if one existed
+    if (profile?.avatar_path && profile.avatar_path !== path) {
+      await supabase.storage.from('avatars').remove([profile.avatar_path])
+    }
     await supabase.from('profiles').update({ avatar_path: path }).eq('id', userId)
+    setProfile(p => p ? { ...p, avatar_path: path } : p)
     const url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl
-    setAvatarUrl(`${url}?t=${Date.now()}`)
+    setAvatarUrl(url)
     setAvatarMsg('✓ Photo updated.')
     setAvatarUploading(false)
     setTimeout(() => setAvatarMsg(''), 3000)
+    // Reset the input so the same file can be re-selected if needed
+    e.target.value = ''
   }
 
   // ── Account deletion request ──────────────────────────────────
@@ -447,19 +456,19 @@ export default function ProfilePage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={lbl}>First Name <span className="text-primary">*</span></label>
-                  <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Juan" className={inp} />
+                  <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="" className={inp} />
                 </div>
                 <div>
                   <label className={lbl}>Middle Initial</label>
-                  <input type="text" value={middleInit} onChange={e => setMiddleInit(e.target.value.slice(0, 2))} placeholder="S." className={inp} maxLength={2} />
+                  <input type="text" value={middleInit} onChange={e => setMiddleInit(e.target.value.slice(0, 2))} placeholder="" className={inp} maxLength={2} />
                 </div>
                 <div>
                   <label className={lbl}>Last Name <span className="text-primary">*</span></label>
-                  <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Dela Cruz" className={inp} />
+                  <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="" className={inp} />
                 </div>
                 <div>
                   <label className={lbl}>Suffix</label>
-                  <input type="text" value={suffix} onChange={e => setSuffix(e.target.value)} placeholder="Jr., Sr., III…" className={inp} />
+                  <input type="text" value={suffix} onChange={e => setSuffix(e.target.value)} placeholder="" className={inp} />
                 </div>
               </div>
               {nameMsg && (
