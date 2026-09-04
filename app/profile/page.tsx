@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { checkPassword, isPasswordStrong } from '@/lib/password-strength'
+import { logActivity } from '@/lib/activity-log'
 import {
   User, Mail, Phone, Camera, Check, X,
   ShieldCheck, AlertTriangle, Trash2,
@@ -36,6 +37,15 @@ function Section({ title, icon, children }: {
 }
 
 // ── Deletion confirm modal (2-step) ───────────────────────────
+const DELETION_REASONS = [
+  'No longer need the service',
+  'Privacy concerns',
+  'Too many emails / notifications',
+  'Switching to a different provider',
+  'Service did not meet my expectations',
+  'Other',
+] as const
+
 function DeleteAccountModal({
   onClose,
   onConfirm,
@@ -43,15 +53,20 @@ function DeleteAccountModal({
   onClose: () => void
   onConfirm: (reason: string) => Promise<void>
 }) {
-  const [step,    setStep]    = useState<1 | 2>(1)
-  const [reason,  setReason]  = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+  const [step,        setStep]        = useState<1 | 2>(1)
+  const [reason,      setReason]      = useState('')
+  const [customReason,setCustomReason]= useState('')
+  const [confirm,     setConfirm]     = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState('')
+
+  const isOther      = reason === 'Other'
+  const finalReason  = isOther ? customReason.trim() : reason
 
   const handleNext = () => {
-    if (!reason.trim()) { setError('Please tell us why you want to delete your account.'); return }
-    if (confirm.trim() !== 'DELETE') { setError('Type "DELETE" (all caps) to continue.'); return }
+    if (!reason)                              { setError('Please select a reason.'); return }
+    if (isOther && !customReason.trim())      { setError('Please describe your reason.'); return }
+    if (confirm.trim() !== 'DELETE')          { setError('Type "DELETE" (all caps) to continue.'); return }
     setError('')
     setStep(2)
   }
@@ -82,13 +97,30 @@ function DeleteAccountModal({
               {error && <AlertBanner variant="error" message={error} />}
               <div className="space-y-1.5">
                 <label className={lbl}>Reason for deletion <span className="text-primary">*</span></label>
-                <textarea
-                  rows={3} value={reason} onChange={e => { setReason(e.target.value); setError('') }}
-                  placeholder="Tell us why you're leaving…"
-                  maxLength={500}
-                  className={`${inp} h-auto resize-none py-2.5`}
-                />
+                <select
+                  value={reason}
+                  onChange={e => { setReason(e.target.value); setCustomReason(''); setError('') }}
+                  className={`${inp} appearance-none`}
+                >
+                  <option value="">— Select a reason —</option>
+                  {DELETION_REASONS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
+              {isOther && (
+                <div className="space-y-1.5">
+                  <label className={lbl}>Please describe <span className="text-primary">*</span></label>
+                  <textarea
+                    rows={3}
+                    value={customReason}
+                    onChange={e => { setCustomReason(e.target.value); setError('') }}
+                    placeholder="Tell us more…"
+                    maxLength={500}
+                    className={`${inp} h-auto resize-none py-2.5`}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className={lbl}>Type <span className="text-destructive font-mono">&quot;DELETE&quot;</span> to continue</label>
                 <input
@@ -112,7 +144,7 @@ function DeleteAccountModal({
               <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 h-10 rounded-xl">← Back</Button>
                 <Button
-                  onClick={async () => { setLoading(true); await onConfirm(reason); setLoading(false) }}
+                  onClick={async () => { setLoading(true); await onConfirm(finalReason); setLoading(false) }}
                   disabled={loading}
                   className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0"
                 >
@@ -351,6 +383,17 @@ export default function ProfilePage() {
     if (error) {
       setDeleteMsg(`Error: ${error.message}`)
     } else {
+      // Notify admins via activity_log so it appears in their notification panel
+      await logActivity({
+        category:     'notification',
+        event_type:   'account_deletion_requested',
+        entity_table: 'profiles',
+        entity_id:    userId,
+        actor_id:     userId,
+        actor_name:   profile?.name ?? null,
+        message:      `${profile?.name ?? 'A user'} requested account deletion. Reason: ${reason}`,
+        metadata:     { user_name: profile?.name, user_email: profile?.email, reason },
+      })
       setDeleteMsg('Your account deletion has been requested. It will be permanently removed after 30 days. You can cancel by signing back in and visiting this page.')
       setProfile(p => p ? { ...p, deletion_requested_at: new Date().toISOString() } : p)
     }

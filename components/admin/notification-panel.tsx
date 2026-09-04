@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Bell, CreditCard, Mail, FileText, ScrollText, Grid3X3, Check, Activity, ShieldAlert, UserCircle2, CheckCheck, ExternalLink } from 'lucide-react'
+import { Bell, CreditCard, Mail, FileText, ScrollText, Grid3X3, Check, Activity, ShieldAlert, UserCircle2, CheckCheck, ExternalLink, Trash2 } from 'lucide-react'
 import type { LogEntry } from '@/lib/activity-log'
 
 // ── Icon map by event_type ────────────────────────────────────
@@ -24,6 +24,7 @@ function EventIcon({ eventType }: { eventType: string }) {
     slot_available:          <Grid3X3 className={cls} />,
     booking_updated:         <Activity className={cls} />,
     role_changed:            <UserCircle2 className={cls} />,
+    account_deletion_requested: <Trash2 className={cls} />,
   }
   return <>{icons[eventType] ?? <ShieldAlert className={cls} />}</>
 }
