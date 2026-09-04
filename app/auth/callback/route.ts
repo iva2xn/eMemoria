@@ -18,20 +18,20 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
-  const next       = searchParams.get('next') ?? '/auth/reset-password'
+  const next       = searchParams.get('next') ?? '/'
   const tokenHash  = searchParams.get('token_hash')
   const type       = searchParams.get('type') as 'recovery' | 'signup' | 'magiclink' | 'email' | null
   const code       = searchParams.get('code')
 
   const supabase = await createClient()
 
-  // Flow 1: token_hash (reset-password emails)
+  // Flow 1: token_hash (reset-password emails and email confirmation)
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
     if (!error) {
       const destination = type === 'recovery'
         ? '/auth/reset-password'
-        : next
+        : next           // signup/email_change/magiclink all go to `next`
       return NextResponse.redirect(new URL(destination, origin))
     }
   }
@@ -40,7 +40,6 @@ export async function GET(request: Request) {
   if (code) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // If the code was for a password recovery, always land on the reset page
       const destination =
         data.session?.user?.aud === 'authenticated' && next.includes('reset-password')
           ? '/auth/reset-password'

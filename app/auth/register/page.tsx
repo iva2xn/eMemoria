@@ -96,7 +96,7 @@ function RegisterContent() {
           suffix:         suffix.trim() || null,
           phone:          phone.trim(),
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}&type=signup`,
       },
     })
     setLoading(false)
@@ -168,8 +168,21 @@ function RegisterContent() {
                 Middle Initial
               </label>
               <input
-                type="text" value={middleInit} onChange={e => setMiddleInit(e.target.value.slice(0, 2))}
-                placeholder="S." className={inp} maxLength={2} />
+                type="text" value={middleInit}
+                onChange={e => {
+                  // Take input, extract first letter of each word, append period, uppercase
+                  const raw = e.target.value
+                  // If user is typing a single letter (no space/period yet), show it directly
+                  const letters = raw.replace(/[^a-zA-Z\s]/g, '').trim().split(/\s+/).filter(Boolean)
+                  if (!letters.length) { setMiddleInit(''); return }
+                  // Convert each word to its initial with a period
+                  const initials = letters.map(w => w[0].toUpperCase() + '.').join(' ')
+                  setMiddleInit(initials)
+                }}
+                placeholder="S."
+                className={inp}
+                maxLength={10}
+              />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
