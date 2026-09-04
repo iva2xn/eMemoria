@@ -65,9 +65,8 @@ function BillingContent() {
     method: string; refNum: string; amount: string
     notes: string; file: File | null
     includeServiceFee: boolean
-    isSeniorPwd: boolean; docSeniorPwdProof: File | null
   }) => {
-    const { name, email, phone, method, refNum, amount, notes, file, includeServiceFee, isSeniorPwd, docSeniorPwdProof } = fields
+    const { name, email, phone, method, refNum, amount, notes, file, includeServiceFee } = fields
 
     let receiptPath: string | null = null
     if (file) {
@@ -78,17 +77,6 @@ function BillingContent() {
         .upload(path, file, { upsert: false })
       if (uploadErr) throw new Error('Receipt upload failed: ' + uploadErr.message)
       receiptPath = path
-    }
-
-    let seniorPwdProofPath: string | null = null
-    if (isSeniorPwd && docSeniorPwdProof) {
-      const ext  = docSeniorPwdProof.name.split('.').pop()
-      const path = `senior-pwd-proof/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadErr } = await supabase.storage
-        .from('payments')
-        .upload(path, docSeniorPwdProof, { upsert: false })
-      if (uploadErr) throw new Error('Senior/PWD proof upload failed: ' + uploadErr.message)
-      seniorPwdProofPath = path
     }
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -115,8 +103,6 @@ function BillingContent() {
       notes:                notesArr,
       status:               'pending',
       document_submission_id: documentSubmissionId,
-      senior_pwd_discount:  isSeniorPwd,
-      doc_senior_pwd_proof: seniorPwdProofPath,
     }
 
     const { error: insertErr } = await supabase.from('payments').insert(payload)

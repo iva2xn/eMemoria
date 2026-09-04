@@ -184,7 +184,10 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
   return (
     <div className="space-y-4">
       {submissions.map(sub => {
-        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${sub.product_price ?? 0}`
+        // Use discounted_price when admin approved a Senior/PWD discount, otherwise original price.
+        // No visual indication — the client just sees the effective price.
+        const effectivePrice = sub.discounted_price ?? sub.product_price ?? 0
+        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}`
 
         return (
           <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -206,11 +209,11 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
 
             {/* Details */}
             <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-              {sub.product_price != null && (
+              {effectivePrice > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Price</p>
                   <p className="font-serif font-bold text-primary text-base">
-                    ₱{Number(sub.product_price).toLocaleString('en-PH')}
+                    ₱{Number(effectivePrice).toLocaleString('en-PH')}
                   </p>
                 </div>
               )}

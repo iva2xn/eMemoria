@@ -306,37 +306,48 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <span className="text-[10px] text-muted-foreground">active client accounts</span>
           </div>
 
-          <div className="flex items-center gap-4 mt-4">
-            <div className="shrink-0" style={{ width: 84, height: 84 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={[{ name: 'Registered', value: stats.profiles || 1 }, { name: 'Guest', value: Math.max(1, stats.profiles * 0.4) }]} cx="50%" cy="50%" innerRadius={24} outerRadius={38} paddingAngle={4} dataKey="value" strokeWidth={0}>
-                    <Cell fill="#f59e0b" />
-                    <Cell fill="var(--color-border)" />
-                  </Pie>
-                  <RechartsTooltip content={<DonutTip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex-1 space-y-1.5 min-w-0">
-              <button
-                onClick={e => { e.stopPropagation(); onNavigate('profiles') }}
-                className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
-              >
-                <span className="h-2 w-2 rounded-full bg-primary/60 shrink-0" />
-                <span className="text-[10px] text-foreground font-medium">Registered</span>
-                <span className="text-[10px] text-muted-foreground font-mono ml-auto">72%</span>
-              </button>
-              <button
-                onClick={e => { e.stopPropagation(); onNavigate('inquiries') }}
-                className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
-              >
-                <span className="h-2 w-2 rounded-full bg-border shrink-0" />
-                <span className="text-[10px] text-muted-foreground">Guest inquiries</span>
-                <span className="text-[10px] text-muted-foreground font-mono ml-auto">28%</span>
-              </button>
-            </div>
-          </div>
+          {(() => {
+            const total    = (stats.profiles || 0) + (stats.inquiries || 0)
+            const regPct   = total > 0 ? Math.round(((stats.profiles || 0) / total) * 100) : 0
+            const guestPct = total > 0 ? 100 - regPct : 0
+            const usersPie = [
+              { name: 'Registered',      value: stats.profiles  || 1 },
+              { name: 'Guest inquiries', value: stats.inquiries || 1 },
+            ]
+            return (
+              <div className="flex items-center gap-4 mt-4">
+                <div className="shrink-0" style={{ width: 84, height: 84 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={usersPie} cx="50%" cy="50%" innerRadius={24} outerRadius={38} paddingAngle={4} dataKey="value" strokeWidth={0}>
+                        <Cell fill="#f59e0b" />
+                        <Cell fill="var(--color-border)" />
+                      </Pie>
+                      <RechartsTooltip content={<DonutTip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); onNavigate('profiles') }}
+                    className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-primary/60 shrink-0" />
+                    <span className="text-[10px] text-foreground font-medium">Registered</span>
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">{regPct}%</span>
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onNavigate('inquiries') }}
+                    className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-border shrink-0" />
+                    <span className="text-[10px] text-muted-foreground">Guest inquiries</span>
+                    <span className="text-[10px] text-muted-foreground font-mono ml-auto">{guestPct}%</span>
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Col 4 Tall Card: Total Inquiries (With Donut) */}

@@ -85,7 +85,6 @@ type BillingFormProps = {
     name: string; email: string; phone: string
     method: string; refNum: string; amount: string
     notes: string; file: File | null; includeServiceFee: boolean
-    isSeniorPwd: boolean; docSeniorPwdProof: File | null
   }) => Promise<'obituary' | void>
 }
 
@@ -205,13 +204,9 @@ export function BillingForm({
   const [file,     setFile]     = useState<File | null>(null)
   const [fileName, setFileName] = useState('')
 
-  // Senior/PWD
-  const [isSeniorPwd,       setIsSeniorPwd]       = useState(false)
-  const [docSeniorPwdProof, setDocSeniorPwdProof] = useState<File | null>(null)
-  const [seniorPwdFileName, setSeniorPwdFileName] = useState('')
-
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
+  const [refError, setRefError] = useState('')
   const [showObituaryModal,    setShowObituaryModal]    = useState(false)
   const [showWakeModal,        setShowWakeModal]         = useState(false)
   const [obituaryDeceasedName, setObituaryDeceasedName] = useState('')
@@ -242,7 +237,7 @@ export function BillingForm({
   }, [includeServiceFee, isUrn, prePrice, SERVICE_FEE])
 
   // Clear ref num when method changes (avoids mismatched format)
-  useEffect(() => { setRefNum('') }, [method])
+  useEffect(() => { setRefNum(''); setRefError('') }, [method])
 
   // Fetch payment info for the sidebar
   useEffect(() => {
@@ -262,33 +257,21 @@ export function BillingForm({
     }
   }
 
-  const handleSeniorPwdFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    if (f) {
-      if (f.size > 10 * 1024 * 1024) {
-        alert(`"${f.name}" exceeds the 10 MB limit. Please choose a smaller file.`)
-        e.target.value = ''
-        return
-      }
-      setDocSeniorPwdProof(f); setSeniorPwdFileName(f.name)
-    }
-  }
-
   // ── Step 1 validate → go to review ───────────────────────
   const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setRefError('')
 
     if (!name.trim())  { setError('Full name is required.'); return }
     if (!email.trim()) { setError('Email address is required.'); return }
     if (!phone.trim()) { setError('Contact number is required.'); return }
 
     const refErr = validateRefNum(method, refNum)
-    if (refErr) { setError(refErr); return }
+    if (refErr) { setRefError(refErr); return }
 
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid payment amount.'); return }
     if (!file) { setError('Payment proof is required. Please upload your receipt.'); return }
-    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the discount is selected.'); return }
 
     setStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -299,7 +282,7 @@ export function BillingForm({
     setError('')
     setLoading(true)
     try {
-      const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee, isSeniorPwd, docSeniorPwdProof })
+      const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee })
       if (result === 'obituary') setShowObituaryModal(true)
       else clearDraft()
     } catch (err: unknown) {
@@ -393,22 +376,12 @@ export function BillingForm({
                     label="Amount"
                     value={<span className="text-primary font-bold">₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>}
                   />
-                  <ReviewRow
-                    label="Senior/PWD Discount"
-                    value={isSeniorPwd ? <span className="text-primary font-bold">Yes — proof attached</span> : 'No'}
-                  />
                   {notes && <ReviewRow label="Notes" value={notes} />}
                 </div>
                 {/* Payment proof preview */}
                 {file && (
                   <div className="border-t border-border/40">
                     <DocReviewRow label="Payment Proof" file={file} />
-                  </div>
-                )}
-                {/* Senior/PWD proof preview */}
-                {isSeniorPwd && docSeniorPwdProof && (
-                  <div className="border-t border-border/40">
-                    <DocReviewRow label="Senior/PWD Proof" file={docSeniorPwdProof} />
                   </div>
                 )}
               </div>
@@ -435,7 +408,7 @@ export function BillingForm({
             </div>
 
             {/* RIGHT: SIDEBAR */}
-            <PaymentSidebar paymentInfo={paymentInfo} />
+            <PaymentSidebar paymentInfo={paymentInfo} method={method} />
           </div>
         </section>
       </>
@@ -540,45 +513,16 @@ export function BillingForm({
                       readOnly={authReady === true}
                       className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                   </Field>
-
-                  {/* Senior/PWD */}
-                  <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-                    <label className="flex items-start gap-3 cursor-pointer select-none">
-                      <div className="mt-0.5 shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={isSeniorPwd}
-                          onChange={e => {
-                            setIsSeniorPwd(e.target.checked)
-                            if (!e.target.checked) { setDocSeniorPwdProof(null); setSeniorPwdFileName('') }
-                          }}
-                          className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                        />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Discount</p>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
-                          Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
-                        </p>
-                      </div>
-                    </label>
-
-                    {isSeniorPwd && (
-                      <Field label="Senior / PWD Proof" required hint="Upload a Senior Citizen ID, PWD ID, or equivalent government-issued document">
-                        <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group mt-1">
-                          <input type="file" accept="image/*" onChange={handleSeniorPwdFile}
-                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-                          <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
-                          <p className="text-xs font-semibold text-foreground truncate px-2">
-                            {seniorPwdFileName || 'Click or drag to upload'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">JPEG, PNG · max 10 MB</p>
-                        </div>
-                      </Field>
-                    )}
-                  </div>
                 </div>
               </div>
+
+              {/* Inline ref number error — shown just above Payment Details */}
+              {refError && (
+                <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-destructive/8 border border-destructive/20 text-xs text-destructive font-medium">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  {refError}
+                </div>
+              )}
 
               {/* Payment Details */}
               <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -669,7 +613,7 @@ export function BillingForm({
           </div>
 
           {/* RIGHT: SIDEBAR */}
-          <PaymentSidebar paymentInfo={paymentInfo} />
+          <PaymentSidebar paymentInfo={paymentInfo} method={method} />
 
         </div>
       </section>
