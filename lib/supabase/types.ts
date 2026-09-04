@@ -96,6 +96,9 @@ export interface Payment {
   void_comment: string | null
   voided_by: string | null
   voided_at: string | null
+  // senior/PWD discount (migration 028)
+  senior_pwd_discount: boolean
+  doc_senior_pwd_proof: string | null
   created_at: string
   updated_at: string
 }
@@ -151,6 +154,8 @@ export interface DocumentSubmission {
   // senior/PWD discount (migration 017)
   senior_pwd_discount: boolean
   discounted_price: number | null
+  // senior/PWD proof upload (migration 028)
+  doc_senior_pwd_proof: string | null
   created_at: string
   updated_at: string
 }

@@ -335,6 +335,16 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
                   </div>
                 ))}
               </div>
+              {/* Senior/PWD flag */}
+              {row.senior_pwd_discount && (
+                <div className="flex items-center gap-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
+                  <span className="text-sm font-black text-amber-600 dark:text-amber-400">%</span>
+                  <div>
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Senior Citizen / PWD Discount Requested</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Verify the attached proof before approving.</p>
+                  </div>
+                </div>
+              )}
               {/* Receipt */}
               {receiptUrl && (
                 <div>
@@ -874,6 +884,16 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
               </div>
             ))}
           </div>
+          {/* Senior/PWD flag */}
+          {row.senior_pwd_discount && (
+            <div className="flex items-center gap-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
+              <span className="text-sm font-black text-amber-600 dark:text-amber-400">%</span>
+              <div>
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400">Senior Citizen / PWD Discount Requested</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Verify the attached proof before approving.</p>
+              </div>
+            </div>
+          )}
           {row.notes && (
             <div className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Notes</p>

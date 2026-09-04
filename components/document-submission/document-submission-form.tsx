@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { AuthGateModal } from '@/components/billing/auth-gate-modal'
-import { UploadCloud, User, FileText, Info, ShieldCheck, Check } from 'lucide-react'
+import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { URNS } from '@/app/services/cremation/page'
@@ -125,6 +126,96 @@ function UrnPicker({ value, onChange }: {
   )
 }
 
+// ── Review Step helpers ───────────────────────────────────────
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 px-4 py-2.5 text-xs border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-semibold text-foreground text-right">{value}</span>
+    </div>
+  )
+}
+
+// Shows a thumbnail for image files; filename only for PDFs.
+// Clicking the thumbnail opens a full-screen lightbox.
+function FilePreviewThumb({ file, label }: { file: File; label: string }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [lightbox,  setLightbox]  = useState(false)
+  const isImage = file.type.startsWith('image/')
+
+  useEffect(() => {
+    if (!isImage) return
+    const url = URL.createObjectURL(file)
+    setObjectUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
+
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        {isImage && objectUrl ? (
+          <button
+            type="button"
+            onClick={() => setLightbox(true)}
+            className="shrink-0 h-12 w-12 rounded-lg overflow-hidden border border-border bg-muted/30 hover:border-primary/60 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            title="Click to view full size"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={objectUrl} alt={label} className="h-full w-full object-cover" />
+          </button>
+        ) : (
+          <div className="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted/30 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground truncate">{file.name}</p>
+          {isImage && (
+            <p className="text-[10px] text-primary mt-0.5 cursor-pointer hover:underline" onClick={() => setLightbox(true)}>
+              Click thumbnail to preview
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Lightbox */}
+      {lightbox && objectUrl && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightbox(false)}
+        >
+          <div className="relative max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setLightbox(false)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-semibold flex items-center gap-1"
+            >
+              <X className="h-4 w-4" /> Close
+            </button>
+            <p className="text-white/60 text-[11px] mb-2 font-medium">{label}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={objectUrl}
+              alt={label}
+              className="w-full rounded-xl shadow-2xl max-h-[80vh] object-contain bg-black"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+function DocReviewRow({ label, file }: { label: string; file: File | null }) {
+  if (!file) return null
+  return (
+    <div className="px-4 py-3 border-b border-border/40 last:border-0 space-y-1.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <FilePreviewThumb file={file} label={label} />
+    </div>
+  )
+}
+
 type DocumentSubmissionFormProps = {
   productType:  string
   productRef:   string
@@ -138,6 +229,9 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
 
   const isCremation = productType === 'cremation'
 
+  // ── Step state: 1 = fill, 2 = review ─────────────────────
+  const [step, setStep] = useState<1 | 2>(1)
+
   // Auth pre-fill
   const [authReady,    setAuthReady]    = useState<boolean | null>(null)
   const [prefillName,  setPrefillName]  = useState('')
@@ -148,8 +242,11 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
 
+  // Senior/PWD
+  const [isSeniorPwd,       setIsSeniorPwd]       = useState(false)
+  const [docSeniorPwdProof, setDocSeniorPwdProof] = useState<File | null>(null)
+
   // Urn selection — only relevant for cremation
-  // null = not chosen yet, OWN_URN = own urn, or urn name
   const [urnChoice, setUrnChoice] = useState<string | null>(null)
 
   // Document files
@@ -205,7 +302,8 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   const urnPrice      = selectedUrn?.price ?? 0
   const totalPrice    = productPrice + urnPrice
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // ── Step 1 validation → advance to review ────────────────
+  const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -216,15 +314,31 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     if (!docDeath)     { setError('Death Certificate is required.'); return }
     if (!docBarangay)  { setError('Barangay Indigency is required.'); return }
     if (!docId)        { setError('Valid ID is required.'); return }
+    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the discount is selected.'); return }
+
+    setStep(2)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // ── Final submit ──────────────────────────────────────────
+  const handleSubmit = async () => {
+    setError('')
+    if (!docDeath || !docBarangay || !docId) {
+      setError('Please go back and upload all required documents.')
+      setStep(1)
+      return
+    }
 
     setLoading(true)
     try {
-      const [deathPath, barangayPath, idPath, medicoPath] = await Promise.all([
+      const uploads: Promise<string | null>[] = [
         uploadDoc(docDeath,    'death-cert'),
         uploadDoc(docBarangay, 'barangay-indigency'),
         uploadDoc(docId,       'valid-id'),
-        docMedico ? uploadDoc(docMedico, 'medico-legal') : Promise.resolve(null),
-      ])
+        docMedico        ? uploadDoc(docMedico,        'medico-legal')   : Promise.resolve(null),
+        docSeniorPwdProof ? uploadDoc(docSeniorPwdProof, 'senior-pwd-proof') : Promise.resolve(null),
+      ]
+      const [deathPath, barangayPath, idPath, medicoPath, seniorPwdProofPath] = await Promise.all(uploads)
 
       const { data: { user } } = await supabase.auth.getUser()
 
@@ -255,6 +369,8 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
           doc_barangay_indigency: barangayPath,
           doc_valid_id:           idPath,
           doc_medico_legal:       medicoPath,
+          doc_senior_pwd_proof:   seniorPwdProofPath,
+          senior_pwd_discount:    isSeniorPwd,
           status:                 'pending_review',
         })
         .select('id')
@@ -270,13 +386,113 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
       router.push(`/document-submission/status?id=${submission.id}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setStep(1)
     } finally {
       setLoading(false)
     }
   }
 
+  // ── STEP 2: Review ────────────────────────────────────────
+  if (step === 2) {
+    return (
+      <div className="space-y-6">
+        {/* Back button */}
+        <button
+          onClick={() => { setStep(1); setError('') }}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" /> Edit Details
+        </button>
+
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
+          <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-xs text-primary leading-relaxed font-medium">
+            Please review your submission carefully. Once submitted, you cannot edit these details.
+          </p>
+        </div>
+
+        {error && <AlertBanner variant="error" message={error} />}
+
+        {/* Contact review */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Contact Information</p>
+          </div>
+          <div className="divide-y divide-border/40">
+            <ReviewRow label="Full Name"       value={name} />
+            <ReviewRow label="Email"           value={email} />
+            <ReviewRow label="Contact Number"  value={phone} />
+          </div>
+        </div>
+
+        {/* Package / pricing review */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Package Details</p>
+          </div>
+          <div className="divide-y divide-border/40">
+            <ReviewRow label="Service" value={productLabel || productType} />
+            {isCremation && urnChoice && (
+              <ReviewRow
+                label="Urn"
+                value={urnChoice === OWN_URN ? 'Own urn (no fee)' : `${urnChoice} (+₱${urnPrice.toLocaleString('en-PH')})`}
+              />
+            )}
+            {totalPrice > 0 && (
+              <ReviewRow
+                label="Total"
+                value={<span className="text-primary font-bold">₱{totalPrice.toLocaleString('en-PH')}</span>}
+              />
+            )}
+            <ReviewRow
+              label="Senior/PWD Discount"
+              value={isSeniorPwd ? <span className="text-primary font-bold">Yes — proof attached</span> : 'No'}
+            />
+          </div>
+        </div>
+
+        {/* Documents review */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Uploaded Documents</p>
+          </div>
+          <div className="divide-y divide-border/40">
+            <DocReviewRow label="Death Certificate"       file={docDeath} />
+            <DocReviewRow label="Barangay Indigency"      file={docBarangay} />
+            <DocReviewRow label="Valid ID"                file={docId} />
+            <DocReviewRow label="Medico Legal"            file={docMedico} />
+            {isSeniorPwd && <DocReviewRow label="Senior/PWD Proof" file={docSeniorPwdProof} />}
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 h-12 rounded-xl font-semibold"
+            onClick={() => { setStep(1); setError('') }}
+          >
+            ← Edit
+          </Button>
+          <Button
+            type="button"
+            disabled={loading}
+            className="flex-1 h-12 font-bold rounded-xl text-sm"
+            onClick={handleSubmit}
+          >
+            {loading ? 'Submitting…' : 'Confirm & Submit'}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── STEP 1: Form ──────────────────────────────────────────
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleReview} className="space-y-6">
 
       {/* Auth gate — show modal if not logged in */}
       {authReady === false && <AuthGateModal returnUrl={typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/document-submission'} />}
@@ -340,6 +556,36 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               readOnly={authReady === true}
               className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
           </Field>
+
+          {/* Senior/PWD discount */}
+          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <div className="mt-0.5 shrink-0">
+                <input
+                  type="checkbox"
+                  checked={isSeniorPwd}
+                  onChange={e => { setIsSeniorPwd(e.target.checked); if (!e.target.checked) setDocSeniorPwdProof(null) }}
+                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Discount</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+                  Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
+                </p>
+              </div>
+            </label>
+
+            {isSeniorPwd && (
+              <DocUpload
+                label="Senior / PWD Proof"
+                required
+                hint="Upload a Senior Citizen ID, PWD ID, or equivalent government-issued document"
+                value={docSeniorPwdProof}
+                onChange={setDocSeniorPwdProof}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -388,8 +634,8 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
         </div>
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full h-12 font-bold rounded-xl text-sm">
-        {loading ? 'Submitting…' : 'Submit for Review'}
+      <Button type="submit" className="w-full h-12 font-bold rounded-xl text-sm">
+        Review Submission →
       </Button>
 
     </form>

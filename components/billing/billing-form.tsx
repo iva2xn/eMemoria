@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
@@ -8,7 +9,7 @@ import { ObituaryModal } from './obituary-modal'
 import { WakeScheduleModal } from './wake-schedule-modal'
 import { AuthGateModal } from './auth-gate-modal'
 import { PaymentSidebar } from './payment-sidebar'
-import { UploadCloud, Info, User, FileText, ShieldCheck } from 'lucide-react'
+import { UploadCloud, Info, User, FileText, ShieldCheck, ChevronLeft, AlertTriangle, X } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { PhoneInput } from '@/components/ui/phone-input'
 
@@ -22,13 +23,49 @@ type MethodId = typeof METHODS[number]['id']
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, hint, children }: {
+  label: string; required?: boolean; hint?: string; children: React.ReactNode
+}) {
   return (
     <div>
       <label className={lbl}>{label}{required && <span className="text-primary ml-0.5">*</span>}</label>
       {children}
+      {hint && <p className="text-[10px] text-muted-foreground mt-1">{hint}</p>}
     </div>
   )
+}
+
+// ── Reference number rules per method ─────────────────────────
+// GCash:    numbers only (no spaces, no letters)
+// BDO Bank: capital letters and numbers only
+// Cash:     capital letters and numbers only, OPTIONAL
+function validateRefNum(method: MethodId, value: string): string {
+  if (method === 'cash') {
+    // Optional — if provided, must be capital letters + numbers
+    if (value && !/^[A-Z0-9]+$/.test(value)) {
+      return 'OR Number must contain only capital letters and numbers (e.g. OR12345).'
+    }
+    return ''
+  }
+  if (method === 'gcash') {
+    if (!value) return 'GCash reference number is required.'
+    if (!/^\d+$/.test(value)) return 'GCash reference number must contain numbers only.'
+    return ''
+  }
+  if (method === 'bdo_bank') {
+    if (!value) return 'BDO reference number is required.'
+    if (!/^[A-Z0-9]+$/.test(value)) return 'BDO reference number must contain capital letters and numbers only (e.g. TXN123ABC).'
+    return ''
+  }
+  return ''
+}
+
+// Enforce input rules live while typing
+function filterRefInput(method: MethodId, raw: string): string {
+  if (method === 'gcash')    return raw.replace(/\D/g, '')                    // digits only
+  if (method === 'bdo_bank') return raw.replace(/[^A-Z0-9]/g, '').toUpperCase() // caps + digits
+  if (method === 'cash')     return raw.replace(/[^A-Z0-9]/g, '').toUpperCase() // caps + digits
+  return raw
 }
 
 type PaymentInfo = {
@@ -48,7 +85,97 @@ type BillingFormProps = {
     name: string; email: string; phone: string
     method: string; refNum: string; amount: string
     notes: string; file: File | null; includeServiceFee: boolean
+    isSeniorPwd: boolean; docSeniorPwdProof: File | null
   }) => Promise<'obituary' | void>
+}
+
+// ── Review row helper ─────────────────────────────────────────
+function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 px-4 py-2.5 text-xs border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-semibold text-foreground text-right">{value}</span>
+    </div>
+  )
+}
+
+// Shows a thumbnail for image files; icon+filename for PDFs.
+// Clicking the thumbnail opens a full-screen lightbox.
+function FilePreviewThumb({ file, label }: { file: File; label: string }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [lightbox,  setLightbox]  = useState(false)
+  const isImage = file.type.startsWith('image/')
+
+  useEffect(() => {
+    if (!isImage) return
+    const url = URL.createObjectURL(file)
+    setObjectUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
+
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        {isImage && objectUrl ? (
+          <button
+            type="button"
+            onClick={() => setLightbox(true)}
+            className="shrink-0 h-12 w-12 rounded-lg overflow-hidden border border-border bg-muted/30 hover:border-primary/60 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/40"
+            title="Click to view full size"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={objectUrl} alt={label} className="h-full w-full object-cover" />
+          </button>
+        ) : (
+          <div className="shrink-0 h-12 w-12 rounded-lg border border-border bg-muted/30 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground truncate">{file.name}</p>
+          {isImage && (
+            <p className="text-[10px] text-primary mt-0.5 cursor-pointer hover:underline" onClick={() => setLightbox(true)}>
+              Click thumbnail to preview
+            </p>
+          )}
+        </div>
+      </div>
+
+      {lightbox && objectUrl && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightbox(false)}
+        >
+          <div className="relative max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setLightbox(false)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-semibold flex items-center gap-1"
+            >
+              <X className="h-4 w-4" /> Close
+            </button>
+            <p className="text-white/60 text-[11px] mb-2 font-medium">{label}</p>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={objectUrl}
+              alt={label}
+              className="w-full rounded-xl shadow-2xl max-h-[80vh] object-contain bg-black"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
+function DocReviewRow({ label, file }: { label: string; file: File | null }) {
+  if (!file) return null
+  return (
+    <div className="px-4 py-3 border-b border-border/40 last:border-0 space-y-1.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <FilePreviewThumb file={file} label={label} />
+    </div>
+  )
 }
 
 export function BillingForm({
@@ -64,7 +191,10 @@ export function BillingForm({
     ? String(prePrice)
     : isUrn ? String(prePrice + (isUrn ? SERVICE_FEE : 0)) : prePrice ? String(prePrice) : ''
 
-  // Local form state — presentation only, submit logic lives in the page
+  // ── Step: 1 = fill, 2 = review ───────────────────────────
+  const [step, setStep] = useState<1 | 2>(1)
+
+  // Local form state
   const [name,     setName]     = useState(prefillName)
   const [email,    setEmail]    = useState(prefillEmail)
   const [phone,    setPhone]    = useState(prefillPhone)
@@ -74,6 +204,12 @@ export function BillingForm({
   const [notes,    setNotes]    = useState('')
   const [file,     setFile]     = useState<File | null>(null)
   const [fileName, setFileName] = useState('')
+
+  // Senior/PWD
+  const [isSeniorPwd,       setIsSeniorPwd]       = useState(false)
+  const [docSeniorPwdProof, setDocSeniorPwdProof] = useState<File | null>(null)
+  const [seniorPwdFileName, setSeniorPwdFileName] = useState('')
+
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [showObituaryModal,    setShowObituaryModal]    = useState(false)
@@ -97,7 +233,6 @@ export function BillingForm({
       if (saved.method && METHODS.find(m => m.id === saved.method)) setMethod(saved.method as MethodId)
       if (saved.refNum) setRefNum(saved.refNum)
       if (saved.notes)  setNotes(saved.notes)
-      // Don't restore amount — it's derived from product price
     },
   )
 
@@ -105,6 +240,9 @@ export function BillingForm({
   useEffect(() => {
     if (isUrn) setAmount(String(prePrice + (includeServiceFee ? SERVICE_FEE : 0)))
   }, [includeServiceFee, isUrn, prePrice, SERVICE_FEE])
+
+  // Clear ref num when method changes (avoids mismatched format)
+  useEffect(() => { setRefNum('') }, [method])
 
   // Fetch payment info for the sidebar
   useEffect(() => {
@@ -124,29 +262,187 @@ export function BillingForm({
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSeniorPwdFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) {
+      if (f.size > 10 * 1024 * 1024) {
+        alert(`"${f.name}" exceeds the 10 MB limit. Please choose a smaller file.`)
+        e.target.value = ''
+        return
+      }
+      setDocSeniorPwdProof(f); setSeniorPwdFileName(f.name)
+    }
+  }
+
+  // ── Step 1 validate → go to review ───────────────────────
+  const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
     if (!name.trim())  { setError('Full name is required.'); return }
     if (!email.trim()) { setError('Email address is required.'); return }
     if (!phone.trim()) { setError('Contact number is required.'); return }
-    if (method !== 'cash' && !refNum.trim()) { setError('Reference number is required for this payment method.'); return }
+
+    const refErr = validateRefNum(method, refNum)
+    if (refErr) { setError(refErr); return }
+
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid payment amount.'); return }
     if (!file) { setError('Payment proof is required. Please upload your receipt.'); return }
+    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the discount is selected.'); return }
 
+    setStep(2)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // ── Final submit ──────────────────────────────────────────
+  const handleSubmit = async () => {
+    setError('')
     setLoading(true)
     try {
-      const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee })
+      const result = await onSubmit({ name, email, phone, method, refNum, amount, notes, file, includeServiceFee, isSeniorPwd, docSeniorPwdProof })
       if (result === 'obituary') setShowObituaryModal(true)
       else clearDraft()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
+      setStep(1)
     } finally {
       setLoading(false)
     }
   }
 
+  const methodLabel = (m: MethodId) => METHODS.find(x => x.id === m)?.label ?? m
+
+  // ── STEP 2: Review ────────────────────────────────────────
+  if (step === 2) {
+    return (
+      <>
+        {authReady === false && <AuthGateModal returnUrl={returnUrl} />}
+
+        {showObituaryModal && (
+          <ObituaryModal
+            submitterName={name}
+            submitterEmail={email}
+            submitterPhone={phone}
+            onDeceasedName={n => setObituaryDeceasedName(n)}
+            onDone={() => { setShowObituaryModal(false); setShowWakeModal(true) }}
+          />
+        )}
+
+        {showWakeModal && (
+          <WakeScheduleModal
+            deceasedName={obituaryDeceasedName || 'Deceased'}
+            onDone={() => { window.location.href = '/?payment=success' }}
+          />
+        )}
+
+        <section className="py-10 max-w-5xl mx-auto px-4 md:px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
+            <div className="space-y-6">
+
+              {/* Back */}
+              <button
+                onClick={() => { setStep(1); setError('') }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" /> Edit Payment Details
+              </button>
+
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
+                <AlertTriangle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <p className="text-xs text-primary leading-relaxed font-medium">
+                  Please review your payment details carefully before confirming submission.
+                </p>
+              </div>
+
+              {error && <AlertBanner variant="error" message={error} />}
+
+              {/* Contact review */}
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-bold text-foreground uppercase tracking-wider">Contact Information</p>
+                </div>
+                <div className="divide-y divide-border/40">
+                  <ReviewRow label="Full Name"      value={name} />
+                  <ReviewRow label="Email"          value={email} />
+                  <ReviewRow label="Contact Number" value={phone} />
+                </div>
+              </div>
+
+              {/* Payment review */}
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-bold text-foreground uppercase tracking-wider">Payment Details</p>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {!!preProduct && (
+                    <ReviewRow
+                      label="Service"
+                      value={isColumbarium ? `Columbarium Slot — ${preSlot || preLabel}` : preLabel || preProduct}
+                    />
+                  )}
+                  <ReviewRow label="Payment Method"   value={methodLabel(method)} />
+                  {refNum && (
+                    <ReviewRow label="Reference Number" value={<span className="font-mono">{refNum}</span>} />
+                  )}
+                  {!refNum && method === 'cash' && (
+                    <ReviewRow label="Reference Number" value={<span className="text-muted-foreground italic">Not provided (Cash)</span>} />
+                  )}
+                  <ReviewRow
+                    label="Amount"
+                    value={<span className="text-primary font-bold">₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>}
+                  />
+                  <ReviewRow
+                    label="Senior/PWD Discount"
+                    value={isSeniorPwd ? <span className="text-primary font-bold">Yes — proof attached</span> : 'No'}
+                  />
+                  {notes && <ReviewRow label="Notes" value={notes} />}
+                </div>
+                {/* Payment proof preview */}
+                {file && (
+                  <div className="border-t border-border/40">
+                    <DocReviewRow label="Payment Proof" file={file} />
+                  </div>
+                )}
+                {/* Senior/PWD proof preview */}
+                {isSeniorPwd && docSeniorPwdProof && (
+                  <div className="border-t border-border/40">
+                    <DocReviewRow label="Senior/PWD Proof" file={docSeniorPwdProof} />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 h-12 rounded-xl font-semibold"
+                  onClick={() => { setStep(1); setError('') }}
+                >
+                  ← Edit
+                </Button>
+                <Button
+                  type="button"
+                  disabled={loading}
+                  className="flex-1 h-12 font-bold rounded-xl text-sm"
+                  onClick={handleSubmit}
+                >
+                  {loading ? 'Submitting…' : 'Confirm & Submit Payment'}
+                </Button>
+              </div>
+
+            </div>
+
+            {/* RIGHT: SIDEBAR */}
+            <PaymentSidebar paymentInfo={paymentInfo} />
+          </div>
+        </section>
+      </>
+    )
+  }
+
+  // ── STEP 1: Form ──────────────────────────────────────────
   return (
     <>
       {authReady === false && <AuthGateModal returnUrl={returnUrl} />}
@@ -215,7 +511,7 @@ export function BillingForm({
 
             {error && <AlertBanner variant="error" message={error} />}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleReview} className="space-y-8">
 
               {/* Contact Info */}
               <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -244,6 +540,43 @@ export function BillingForm({
                       readOnly={authReady === true}
                       className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                   </Field>
+
+                  {/* Senior/PWD */}
+                  <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <div className="mt-0.5 shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={isSeniorPwd}
+                          onChange={e => {
+                            setIsSeniorPwd(e.target.checked)
+                            if (!e.target.checked) { setDocSeniorPwdProof(null); setSeniorPwdFileName('') }
+                          }}
+                          className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Discount</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+                          Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
+                        </p>
+                      </div>
+                    </label>
+
+                    {isSeniorPwd && (
+                      <Field label="Senior / PWD Proof" required hint="Upload a Senior Citizen ID, PWD ID, or equivalent government-issued document">
+                        <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group mt-1">
+                          <input type="file" accept="image/*" onChange={handleSeniorPwdFile}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                          <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
+                          <p className="text-xs font-semibold text-foreground truncate px-2">
+                            {seniorPwdFileName || 'Click or drag to upload'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">JPEG, PNG · max 10 MB</p>
+                        </div>
+                      </Field>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -271,17 +604,30 @@ export function BillingForm({
                   </Field>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label={method === 'cash' ? 'OR Number / Notes' : 'Reference Number'} required={method !== 'cash'}>
-                      <input type="text"
+                    <Field
+                      label={method === 'cash' ? 'OR Number (optional)' : 'Reference Number'}
+                      required={method !== 'cash'}
+                      hint={
+                        method === 'gcash'
+                          ? 'GCash: Numbers only (e.g. 1234567890123)'
+                          : method === 'bdo_bank'
+                          ? 'BDO: Capital letters and numbers only (e.g. TXN123ABC)'
+                          : 'Cash: Capital letters and numbers only, optional (e.g. OR12345)'
+                      }
+                    >
+                      <input
+                        type="text"
                         placeholder={
-                          method === 'gcash'    ? '13-digit GCash reference' :
-                          method === 'bdo_bank' ? 'BDO transaction reference' :
-                          'Receipt / OR number (optional)'
+                          method === 'gcash'    ? '1234567890123' :
+                          method === 'bdo_bank' ? 'TXN123ABC' :
+                          'OR12345 (optional)'
                         }
-                        value={refNum} onChange={e => setRefNum(e.target.value)} className={inp}
-                        maxLength={method === 'gcash' ? 13 : 50}
+                        value={refNum}
+                        onChange={e => setRefNum(filterRefInput(method, e.target.value))}
+                        className={inp}
                         inputMode={method === 'gcash' ? 'numeric' : 'text'}
-                        pattern={method === 'gcash' ? '[0-9]{13}' : undefined}
+                        maxLength={method === 'gcash' ? 20 : 50}
+                        required={method !== 'cash'}
                       />
                     </Field>
                     <Field label="Amount (₱)" required>
@@ -315,8 +661,8 @@ export function BillingForm({
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} className="w-full h-12 font-bold rounded-xl text-sm">
-                {loading ? 'Submitting…' : 'Submit Payment'}
+              <Button type="submit" className="w-full h-12 font-bold rounded-xl text-sm">
+                Review Payment →
               </Button>
 
             </form>

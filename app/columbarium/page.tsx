@@ -71,8 +71,8 @@ export default function ColumbariumPage() {
 
         {/* SLOT GRID — eto yung visual nung columbarium 6×12 grid
             clickable para mabuksan yung SlotModal / details about sa slot */}
-        <section className="pb-10 max-w-6xl mx-auto px-4 md:px-6">
-          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <section className="pb-10 px-4 md:px-6 flex justify-center">
+          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden w-fit max-w-full">
             <div className="px-5 py-6 text-center">
               <h2 className="text-xl font-bold uppercase tracking-widest text-foreground">COLUMBARIUM SLOTS</h2>
             </div>

@@ -1440,7 +1440,8 @@ export function ColumbariumTab() {
       {rows.length === 0 ? (
         <EmptyState message="No slots found. Run migration to seed the grid." />
       ) : (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex justify-center">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden w-fit max-w-full">
           <div className="overflow-x-auto">
             <table
               className="border-separate border-spacing-0"
@@ -1483,6 +1484,7 @@ export function ColumbariumTab() {
                 ))}
               </tbody>
             </table>
+          </div>
           </div>
         </div>
       )}

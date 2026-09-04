@@ -1,28 +1,29 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Bell, CreditCard, Mail, FileText, ScrollText, Grid3X3, Check, Activity, ShieldAlert, UserCircle2, CheckCheck } from 'lucide-react'
+import { Bell, CreditCard, Mail, FileText, ScrollText, Grid3X3, Check, Activity, ShieldAlert, UserCircle2, CheckCheck, ExternalLink } from 'lucide-react'
 import type { LogEntry } from '@/lib/activity-log'
 
 // ── Icon map by event_type ────────────────────────────────────
 function EventIcon({ eventType }: { eventType: string }) {
   const cls = 'h-3.5 w-3.5'
   const icons: Record<string, React.ReactNode> = {
-    payment_submitted:      <CreditCard className={cls} />,
-    payment_approved:       <Check className={cls} />,
-    payment_rejected:       <CreditCard className={cls} />,
-    inquiry_received:       <Mail className={cls} />,
-    doc_submission_received:<FileText className={cls} />,
-    doc_submission_approved:<CheckCheck className={cls} />,
-    doc_submission_rejected:<FileText className={cls} />,
-    obituary_submitted:     <ScrollText className={cls} />,
-    obituary_published:     <ScrollText className={cls} />,
-    slot_reserved:          <Grid3X3 className={cls} />,
-    slot_occupied:          <Grid3X3 className={cls} />,
-    slot_available:         <Grid3X3 className={cls} />,
-    booking_updated:        <Activity className={cls} />,
-    role_changed:           <UserCircle2 className={cls} />,
+    payment_submitted:       <CreditCard className={cls} />,
+    payment_approved:        <Check className={cls} />,
+    payment_rejected:        <CreditCard className={cls} />,
+    inquiry_received:        <Mail className={cls} />,
+    doc_submission_received: <FileText className={cls} />,
+    doc_submission_approved: <CheckCheck className={cls} />,
+    doc_submission_rejected: <FileText className={cls} />,
+    obituary_submitted:      <ScrollText className={cls} />,
+    obituary_published:      <ScrollText className={cls} />,
+    slot_reserved:           <Grid3X3 className={cls} />,
+    slot_occupied:           <Grid3X3 className={cls} />,
+    slot_available:          <Grid3X3 className={cls} />,
+    booking_updated:         <Activity className={cls} />,
+    role_changed:            <UserCircle2 className={cls} />,
   }
   return <>{icons[eventType] ?? <ShieldAlert className={cls} />}</>
 }
@@ -32,7 +33,7 @@ function dotColor(entry: LogEntry): string {
   if (entry.category === 'notification') {
     if (entry.event_type.includes('payment'))  return 'bg-primary'
     if (entry.event_type.includes('inquiry'))  return 'bg-blue-500'
-    if (entry.event_type.includes('doc'))      return 'bg-muted-foreground'
+    if (entry.event_type.includes('doc'))      return 'bg-amber-500'
     if (entry.event_type.includes('obituary')) return 'bg-purple-500'
     if (entry.event_type.includes('slot'))     return 'bg-green-500'
     return 'bg-primary'
@@ -55,11 +56,53 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
+// ── Deep-link URL per event type ──────────────────────────────
+// Returns null if there's no meaningful destination.
+function actionUrl(entry: LogEntry): string | null {
+  const id = entry.entity_id
+  switch (entry.event_type) {
+    // Document submissions → Funeral Services tab, auto-open that specific record
+    case 'doc_submission_received':
+    case 'doc_submission_approved':
+    case 'doc_submission_rejected':
+      return id ? `/admin?submission=${id}#availments` : '/admin#availments'
+
+    // Payments → Payments tab
+    case 'payment_submitted':
+    case 'payment_approved':
+    case 'payment_rejected':
+      return '/admin#payments'
+
+    // Inquiries → Inquiries tab
+    case 'inquiry_received':
+      return '/admin#inquiries'
+
+    // Obituaries → Obituaries tab
+    case 'obituary_submitted':
+    case 'obituary_published':
+      return '/admin#obituaries'
+
+    // Columbarium slots → Columbarium tab
+    case 'slot_reserved':
+    case 'slot_occupied':
+    case 'slot_available':
+      return '/admin#columbarium'
+
+    default:
+      return null
+  }
+}
+
 // ── Main component ────────────────────────────────────────────
-export function NotificationPanel() {
-  const supabase   = createClient()
-  const panelRef   = useRef<HTMLDivElement>(null)
-  const buttonRef  = useRef<HTMLButtonElement>(null)
+type NotificationPanelProps = {
+  onNavigate?: (submissionId: string) => void
+}
+
+export function NotificationPanel({ onNavigate }: NotificationPanelProps) {
+  const supabase  = createClient()
+  const router    = useRouter()
+  const panelRef  = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const [open,        setOpen]        = useState(false)
   const [tab,         setTab]         = useState<'notification' | 'log'>('notification')
@@ -70,7 +113,6 @@ export function NotificationPanel() {
   const notifications = entries.filter(e => e.category === 'notification')
   const logs          = entries.filter(e => e.category === 'log')
 
-  // Fetch just the unread count on mount + poll every 30s regardless of panel open state
   const fetchUnreadCount = useCallback(async () => {
     const { count, error } = await supabase
       .from('activity_log')
@@ -99,7 +141,6 @@ export function NotificationPanel() {
     setLoading(false)
   }, [supabase])
 
-  // Full load when panel opens, poll every 30s while open
   useEffect(() => {
     if (!open) return
     load()
@@ -107,7 +148,6 @@ export function NotificationPanel() {
     return () => clearInterval(interval)
   }, [open, load])
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -131,6 +171,27 @@ export function NotificationPanel() {
     await supabase.from('activity_log').update({ is_read: true }).eq('id', id)
     setEntries(prev => prev.map(e => e.id === id ? { ...e, is_read: true } : e))
     setUnreadCount(prev => Math.max(0, prev - 1))
+  }
+
+  const handleEntryClick = async (entry: LogEntry) => {
+    if (!entry.is_read) await markOneRead(entry.id)
+    const url = actionUrl(entry)
+    if (!url) return
+    setOpen(false)
+
+    // Doc submission entries → use the in-page callback so the admin page
+    // doesn't need to remount (we're already on /admin)
+    const isDocSubmission = (
+      entry.event_type === 'doc_submission_received' ||
+      entry.event_type === 'doc_submission_approved' ||
+      entry.event_type === 'doc_submission_rejected'
+    )
+    if (isDocSubmission && entry.entity_id && onNavigate) {
+      onNavigate(entry.entity_id)
+      return
+    }
+
+    router.push(url)
   }
 
   const displayed = tab === 'notification' ? notifications : logs
@@ -200,26 +261,39 @@ export function NotificationPanel() {
               </div>
             ) : (
               <ul className="divide-y divide-border/40">
-                {displayed.map(entry => (
-                  <li
-                    key={entry.id}
-                    onClick={() => { if (!entry.is_read) markOneRead(entry.id) }}
-                    className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors hover:bg-muted/30 ${!entry.is_read ? 'bg-primary/5' : ''}`}
-                  >
-                    <div className={`shrink-0 mt-0.5 h-7 w-7 rounded-full flex items-center justify-center text-white ${dotColor(entry)}`}>
-                      <EventIcon eventType={entry.event_type} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs leading-snug ${!entry.is_read ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
-                        {entry.message}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-0.5">{timeAgo(entry.created_at)}</p>
-                    </div>
-                    {!entry.is_read && (
-                      <div className="shrink-0 mt-2 h-2 w-2 rounded-full bg-primary" />
-                    )}
-                  </li>
-                ))}
+                {displayed.map(entry => {
+                  const url    = actionUrl(entry)
+                  const isLink = !!url
+                  return (
+                    <li
+                      key={entry.id}
+                      onClick={() => handleEntryClick(entry)}
+                      className={`flex gap-3 px-4 py-3 transition-colors hover:bg-muted/30 ${
+                        isLink ? 'cursor-pointer' : 'cursor-default'
+                      } ${!entry.is_read ? 'bg-primary/5' : ''}`}
+                    >
+                      <div className={`shrink-0 mt-0.5 h-7 w-7 rounded-full flex items-center justify-center text-white ${dotColor(entry)}`}>
+                        <EventIcon eventType={entry.event_type} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs leading-snug ${!entry.is_read ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+                          {entry.message}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[10px] text-muted-foreground/70">{timeAgo(entry.created_at)}</p>
+                          {isLink && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-primary">
+                              View <ExternalLink className="h-2.5 w-2.5" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {!entry.is_read && (
+                        <div className="shrink-0 mt-2 h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             )}
           </div>

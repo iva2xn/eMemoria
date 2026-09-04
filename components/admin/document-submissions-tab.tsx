@@ -146,6 +146,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
     { path: submission.doc_barangay_indigency, label: 'Barangay Indigency' },
     { path: submission.doc_valid_id,           label: 'Valid ID' },
     { path: submission.doc_medico_legal,       label: 'Medico Legal' },
+    { path: submission.doc_senior_pwd_proof,   label: 'Senior/PWD Proof' },
   ].filter(d => d.path)
 
   const handleApprove = async () => {
@@ -783,6 +784,7 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
     { path: submission.doc_barangay_indigency, label: 'Barangay Indigency' },
     { path: submission.doc_valid_id,           label: 'Valid ID' },
     { path: submission.doc_medico_legal,       label: 'Medico Legal' },
+    { path: submission.doc_senior_pwd_proof,   label: 'Senior/PWD Proof' },
   ].filter(d => d.path)
 
   return (
@@ -929,7 +931,7 @@ const REJECTION_REASONS = [
 ] as const
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFilter }: { currentRole?: UserRole; initialProductFilter?: string }) {
+export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFilter, initialSubmissionId }: { currentRole?: UserRole; initialProductFilter?: string; initialSubmissionId?: string | null }) {
   const supabase = createClient()
   const [rows,        setRows]        = useState<SubmissionRow[]>([])
   const [loading,     setLoading]     = useState(true)
@@ -958,14 +960,20 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
       const { data: profiles } = await supabase.from('profiles').select('id,name,email,phone').in('id', userIds)
       if (profiles) profileMap = Object.fromEntries(profiles.map(p => [p.id, { name: p.name, email: p.email, phone: p.phone ?? null }]))
     }
-    setRows(submissions.map(s => ({
+    const mapped = submissions.map(s => ({
       ...(s as DocumentSubmission),
       profileName:  s.user_id ? profileMap[s.user_id]?.name  : undefined,
       profileEmail: s.user_id ? profileMap[s.user_id]?.email : undefined,
       profilePhone: s.user_id ? profileMap[s.user_id]?.phone ?? undefined : undefined,
-    })))
+    }))
+    setRows(mapped)
     setLoading(false)
-  }, [supabase])
+    // Auto-open a specific submission when arriving from a notification link
+    if (initialSubmissionId) {
+      const target = mapped.find(r => r.id === initialSubmissionId)
+      if (target) setDetailRow(target)
+    }
+  }, [supabase, initialSubmissionId])
 
   useEffect(() => { load() }, [load])
 

@@ -227,7 +227,7 @@ export function SlotGrid({ slots, selectedId, onSlotClick }: SlotGridProps) {
     <div className="flex flex-col items-center gap-4 px-4 pb-4">
       {/* Cement wall container — uses CSS vars for theme adaptation */}
       <div
-        className="overflow-x-auto w-full"
+        className="overflow-x-auto w-full flex justify-center"
         style={{ maxWidth: '100%' }}
       >
         <div style={{

@@ -2,13 +2,137 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, XCircle, Clock, ArrowRight } from 'lucide-react'
+import { CheckCircle2, XCircle, Clock, ArrowRight, FileText, X, ZoomIn } from 'lucide-react'
 import type { DocumentSubmission } from '@/lib/supabase/types'
 
+// ── Lightbox ──────────────────────────────────────────────────
+function Lightbox({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
+  // Close on Escape key
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 py-3 shrink-0" onClick={e => e.stopPropagation()}>
+        <p className="text-white/70 text-sm font-semibold">{label}</p>
+        <button
+          onClick={onClose}
+          className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+        >
+          <X className="h-4 w-4 text-white" />
+        </button>
+      </div>
+      {/* Image */}
+      <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={onClose}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={label}
+          className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+          onClick={e => e.stopPropagation()}
+        />
+      </div>
+      <p className="text-center text-white/30 text-[10px] pb-3 shrink-0">Click anywhere outside the image to close</p>
+    </div>,
+    document.body
+  )
+}
+
+// ── Single document card ──────────────────────────────────────
+function DocCard({ path, label }: { path: string; label: string }) {
+  const supabase = createClient()
+  const [url,      setUrl]      = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState(false)
+
+  useEffect(() => {
+    supabase.storage
+      .from('document-submissions')
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => setUrl(data?.signedUrl ?? null))
+  }, [path, supabase])
+
+  const ext     = path.split('.').pop()?.toLowerCase() ?? ''
+  const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
+
+  return (
+    <>
+      {lightbox && url && <Lightbox url={url} label={label} onClose={() => setLightbox(false)} />}
+
+      <div className="bg-muted/30 border border-border/60 rounded-xl overflow-hidden">
+        {/* Preview area */}
+        <div className="relative bg-muted/20 aspect-[4/3]">
+          {!url ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : isImage ? (
+            <button
+              className="absolute inset-0 w-full h-full group"
+              onClick={() => setLightbox(true)}
+              title="Click to view full size"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt={label} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+              </div>
+            </button>
+          ) : (
+            /* PDF — open in new tab */
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 hover:bg-muted/40 transition-colors group"
+            >
+              <FileText className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-primary transition-colors">
+                Open PDF
+              </span>
+            </a>
+          )}
+        </div>
+
+        {/* Label */}
+        <div className="px-3 py-2 border-t border-border/40 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</p>
+          {url && isImage && (
+            <button
+              onClick={() => setLightbox(true)}
+              className="text-[10px] font-semibold text-primary hover:underline shrink-0"
+            >
+              View
+            </button>
+          )}
+          {url && !isImage && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-semibold text-primary hover:underline shrink-0"
+            >
+              Open
+            </a>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Main status content ───────────────────────────────────────
 function StatusContent() {
   const supabase = createClient()
   const params   = useSearchParams()
@@ -18,11 +142,9 @@ function StatusContent() {
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
 
-   
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
 
-    // Initial fetch
     supabase
       .from('document_submissions')
       .select('*')
@@ -34,7 +156,7 @@ function StatusContent() {
         setLoading(false)
       })
 
-    // Real-time subscription — updates status live without a page refresh
+    // Real-time: status updates live
     const channel = supabase
       .channel(`doc-submission-status-${id}`)
       .on(
@@ -66,10 +188,19 @@ function StatusContent() {
 
   const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${submission.product_price ?? 0}`
 
+  // Build the list of submitted documents
+  const docs: { path: string; label: string }[] = [
+    { path: submission.doc_death_certificate,  label: 'Death Certificate' },
+    { path: submission.doc_barangay_indigency, label: 'Barangay Indigency' },
+    { path: submission.doc_valid_id,           label: 'Valid ID' },
+    { path: submission.doc_medico_legal,       label: 'Medico Legal' },
+    { path: submission.doc_senior_pwd_proof,   label: 'Senior/PWD Proof' },
+  ].filter((d): d is { path: string; label: string } => !!d.path)
+
   return (
     <div className="max-w-lg mx-auto px-4 py-16 space-y-6">
 
-      {/* Status card */}
+      {/* ── Status card ── */}
       {submission.status === 'pending_review' && (
         <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6 text-center space-y-3">
           <Clock className="h-10 w-10 text-amber-500 mx-auto" />
@@ -127,7 +258,7 @@ function StatusContent() {
         </div>
       )}
 
-      {/* Submission details */}
+      {/* ── Submission details ── */}
       <div className="bg-card border border-border rounded-2xl p-5 space-y-2 text-sm">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Submission Details</p>
         <div className="flex justify-between">
@@ -150,6 +281,20 @@ function StatusContent() {
         </div>
       </div>
 
+      {/* ── Submitted documents ── */}
+      {docs.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/60">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Submitted Documents</p>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-3">
+            {docs.map(d => (
+              <DocCard key={d.label} path={d.path} label={d.label} />
+            ))}
+          </div>
+        </div>
+      )}
+
       <p className="text-center text-xs text-muted-foreground">
         Questions? Call us at <strong>+63 918 901 9978</strong> (24/7)
       </p>
@@ -160,7 +305,6 @@ function StatusContent() {
 export default function DocumentSubmissionStatusPage() {
   return (
     <ClientLayout>
-
       <main className="flex-1 bg-background">
         <Suspense fallback={
           <div className="py-32 flex justify-center">

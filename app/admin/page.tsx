@@ -91,9 +91,20 @@ export default function AdminPage() {
   const [activeTab,       setActiveTab]       = useState<Tab>(getTabFromHash)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
+  // Deep-link from notification panel: jump to availments and open a specific submission
+  const [initialSubmissionId, setInitialSubmissionId] = useState<string | null>(null)
+
+  const handleNotifNavigate = (submissionId: string) => {
+    setInitialSubmissionId(submissionId)
+    setActiveTab('availments')
+    window.location.hash = 'availments'
+  }
+
   const setTab = (tab: Tab) => {
     window.location.hash = tab
     setActiveTab(tab)
+    // Clear any deep-linked submission when manually switching tabs
+    if (tab !== 'availments') setInitialSubmissionId(null)
   }
 
   // Keep activeTab in sync if the user navigates with browser back/forward
@@ -180,7 +191,7 @@ export default function AdminPage() {
                       else setPaymentsStatusFilter(undefined)
                       setTab(tab as Tab)
                     }} />,
-    availments:     <DocumentSubmissionsTab currentRole={currentRole} initialProductFilter={availmentsProductFilter} />,
+    availments:     <DocumentSubmissionsTab currentRole={currentRole} initialProductFilter={availmentsProductFilter} initialSubmissionId={initialSubmissionId} />,
     'wake-schedule': <WakeScheduleTab currentRole={currentRole} />,
     columbarium:    <ColumbariumTab />,
     payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} initialStatusFilter={paymentsStatusFilter as 'all' | 'pending' | 'approved' | 'rejected' | 'voided' | undefined} />,
@@ -322,7 +333,7 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <NotificationPanel />
+            <NotificationPanel onNavigate={handleNotifNavigate} />
             <div className="md:hidden">
               <ThemeToggle />
             </div>

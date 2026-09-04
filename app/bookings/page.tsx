@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import {
   ClipboardList, FileText, Clock, CheckCircle2, XCircle,
-  ArrowRight, ExternalLink, Layers,
+  ArrowRight, Layers, X, ZoomIn,
 } from 'lucide-react'
 import type { DocumentSubmission } from '@/lib/supabase/types'
 
@@ -56,24 +57,111 @@ function StatusBadge({ status }: { status: DocumentSubmission['status'] }) {
   )
 }
 
-// ── Document file link ────────────────────────────────────────
-function DocLink({ label, path }: { label: string; path: string | null }) {
-  const supabase = createClient()
-  if (!path) return null
-  const url = supabase.storage.from('document-submissions').getPublicUrl(path).data.publicUrl
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center justify-between px-4 py-3 bg-background border border-border rounded-xl hover:border-primary/40 hover:bg-primary/5 transition-all group"
+// ── Lightbox ──────────────────────────────────────────────────
+function Lightbox({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-sm"
+      onClick={onClose}
     >
-      <div className="flex items-center gap-2.5 min-w-0">
-        <FileText className="h-4 w-4 text-primary shrink-0" />
-        <span className="text-xs font-semibold text-foreground truncate">{label}</span>
+      <div className="flex items-center justify-between px-5 py-3 shrink-0" onClick={e => e.stopPropagation()}>
+        <p className="text-white/70 text-sm font-semibold">{label}</p>
+        <button
+          onClick={onClose}
+          className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+        >
+          <X className="h-4 w-4 text-white" />
+        </button>
       </div>
-      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 ml-2" />
-    </a>
+      <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={onClose}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={url}
+          alt={label}
+          className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+          onClick={e => e.stopPropagation()}
+        />
+      </div>
+      <p className="text-center text-white/30 text-[10px] pb-3 shrink-0">Click anywhere outside to close · Esc to dismiss</p>
+    </div>,
+    document.body
+  )
+}
+
+// ── Document card with preview + lightbox ─────────────────────
+function DocCard({ label, path }: { label: string; path: string }) {
+  const supabase = createClient()
+  const [url,      setUrl]      = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState(false)
+
+  useEffect(() => {
+    supabase.storage
+      .from('document-submissions')
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => setUrl(data?.signedUrl ?? null))
+  }, [path, supabase])
+
+  const ext     = path.split('.').pop()?.toLowerCase() ?? ''
+  const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
+
+  return (
+    <>
+      {lightbox && url && <Lightbox url={url} label={label} onClose={() => setLightbox(false)} />}
+
+      <div className="bg-background border border-border/70 rounded-xl overflow-hidden">
+        {/* Thumbnail / preview area */}
+        <div className="relative aspect-[4/3] bg-muted/20">
+          {!url ? (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : isImage ? (
+            <button
+              className="absolute inset-0 w-full h-full group"
+              onClick={() => setLightbox(true)}
+              title="Click to view full size"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt={label} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+              </div>
+            </button>
+          ) : (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 hover:bg-muted/40 transition-colors group"
+            >
+              <FileText className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-[10px] font-semibold text-muted-foreground group-hover:text-primary transition-colors">Open PDF</span>
+            </a>
+          )}
+        </div>
+
+        {/* Label row */}
+        <div className="px-3 py-2 border-t border-border/40 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</p>
+          {url && isImage && (
+            <button onClick={() => setLightbox(true)} className="text-[10px] font-semibold text-primary hover:underline shrink-0">
+              View
+            </button>
+          )}
+          {url && !isImage && (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold text-primary hover:underline shrink-0">
+              Open
+            </a>
+          )}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -185,17 +273,18 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
     <div className="space-y-6">
       {submissions.map(sub => {
         const docs = [
-          { label: 'Death Certificate',           path: sub.doc_death_certificate },
-          { label: 'Barangay Indigency',           path: sub.doc_barangay_indigency },
-          { label: 'Valid ID of Next of Kin',      path: sub.doc_valid_id },
-          { label: 'Medico Legal Certificate',     path: sub.doc_medico_legal },
-        ].filter(d => !!d.path)
+          { label: 'Death Certificate',       path: sub.doc_death_certificate },
+          { label: 'Barangay Indigency',       path: sub.doc_barangay_indigency },
+          { label: 'Valid ID of Next of Kin',  path: sub.doc_valid_id },
+          { label: 'Medico Legal Certificate', path: sub.doc_medico_legal },
+          { label: 'Senior/PWD Proof',         path: sub.doc_senior_pwd_proof },
+        ].filter((d): d is { label: string; path: string } => !!d.path)
 
         if (docs.length === 0) return null
 
         return (
           <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-            {/* Submission header */}
+            {/* Header */}
             <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border/60">
               <div className="min-w-0">
                 <p className="text-sm font-bold text-foreground truncate">
@@ -208,10 +297,10 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
               <StatusBadge status={sub.status} />
             </div>
 
-            {/* Document file links */}
-            <div className="px-5 py-4 space-y-2.5">
+            {/* Document grid with thumbnails */}
+            <div className="p-4 grid grid-cols-2 gap-3">
               {docs.map(d => (
-                <DocLink key={d.label} label={d.label} path={d.path!} />
+                <DocCard key={d.label} label={d.label} path={d.path} />
               ))}
             </div>
           </div>
