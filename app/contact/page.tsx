@@ -19,11 +19,13 @@ export default function ContactPage() {
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
   const [authReady, setAuthReady] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   // Prefill name + email from profile if logged in
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { setAuthReady(true); return }
+      setIsLoggedIn(true)
       const { data: profile } = await supabase
         .from('profiles')
         .select('name, email')
@@ -70,7 +72,7 @@ export default function ContactPage() {
     name, setName, email, setEmail,
     subject, setSubject, message, setMessage,
     success, setSuccess, loading, error,
-    authReady,
+    isLoggedIn,
     onSubmit: handleSubmit,
   }
 

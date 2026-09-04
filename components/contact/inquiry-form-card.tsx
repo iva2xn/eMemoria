@@ -14,13 +14,13 @@ export interface InquiryFormCardProps {
   success: boolean;   setSuccess: (v: boolean) => void
   loading: boolean
   error: string
-  authReady?: boolean
+  isLoggedIn?: boolean
   onSubmit: (e: React.FormEvent) => void
 }
 
 export function InquiryFormCard({
   name, setName, email, setEmail, subject, setSubject,
-  message, setMessage, success, setSuccess, loading, error, authReady, onSubmit,
+  message, setMessage, success, setSuccess, loading, error, isLoggedIn, onSubmit,
 }: InquiryFormCardProps) {
   const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-foreground/40 focus:ring-1 focus:ring-foreground/10 outline-hidden transition-all'
   return (
@@ -47,22 +47,22 @@ export function InquiryFormCard({
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label htmlFor="inq-name" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Full Name</label>
+              <label htmlFor="inq-name" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Full Name <span className="text-destructive">*</span></label>
               <input
-                id="inq-name" type="text" placeholder="Juan Dela Cruz"
+                id="inq-name" type="text" placeholder=""
                 value={name} onChange={e => setName(e.target.value)}
-                readOnly={authReady === true}
-                className={`${inp}${authReady === true ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
+                readOnly={isLoggedIn === true}
+                className={`${inp}${isLoggedIn ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
                 required maxLength={100}
               />
             </div>
             <div className="space-y-1.5">
-              <label htmlFor="inq-email" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Email Address</label>
+              <label htmlFor="inq-email" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Email Address <span className="text-destructive">*</span></label>
               <input
-                id="inq-email" type="email" placeholder="juan@example.com"
+                id="inq-email" type="email" placeholder=""
                 value={email} onChange={e => setEmail(e.target.value)}
-                readOnly={authReady === true}
-                className={`${inp}${authReady === true ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
+                readOnly={isLoggedIn === true}
+                className={`${inp}${isLoggedIn ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`}
                 required
               />
             </div>
@@ -77,7 +77,7 @@ export function InquiryFormCard({
           </SelectField>
 
           <div className="space-y-1.5">
-            <label htmlFor="inq-msg" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Message</label>
+            <label htmlFor="inq-msg" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Message <span className="text-destructive">*</span></label>
             <textarea
               id="inq-msg" rows={5}
               placeholder="How can we help you? Include any relevant details about your needs..."
