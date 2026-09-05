@@ -120,15 +120,25 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
   )
 }
 
-export function SalesReportModal({ onClose }: { onClose: () => void }) {
+export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose: () => void; defaultPeriod?: 'today' | 'week' | 'month' | 'year' }) {
   const supabase = createClient()
 
   const today = new Date()
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
 
-  const [dateFrom,   setDateFrom]   = useState(fmt(firstOfMonth))
-  const [dateTo,     setDateTo]     = useState(fmt(today))
+  // Compute initial date range from defaultPeriod
+  const initDates = (() => {
+    const t = fmt(today)
+    if (defaultPeriod === 'today') return { from: t, to: t }
+    if (defaultPeriod === 'week')  return { from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: t }
+    if (defaultPeriod === 'year')  return { from: fmt(new Date(today.getFullYear(), 0, 1)), to: t }
+    // month (default)
+    return { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: t }
+  })()
+
+
+  const [dateFrom,   setDateFrom]   = useState(initDates.from)
+  const [dateTo,     setDateTo]     = useState(initDates.to)
   const [product,    setProduct]    = useState<ProductFilter>('all')
   const [method,     setMethod]     = useState<MethodFilter>('all')
   const [statusFilt, setStatusFilt] = useState<'all' | 'approved' | 'pending' | 'rejected'>('approved')
@@ -428,8 +438,7 @@ export function SalesReportModal({ onClose }: { onClose: () => void }) {
               {[
                 { label: 'Today',      from: fmt(today), to: fmt(today) },
                 { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
-                { label: 'This Month', from: fmt(firstOfMonth), to: fmt(today) },
-                { label: 'Last Month', from: fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1)), to: fmt(new Date(today.getFullYear(), today.getMonth(), 0)) },
+                { label: 'This Month', from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) },
                 { label: 'This Year',  from: fmt(new Date(today.getFullYear(), 0, 1)), to: fmt(today) },
               ].map(p => (
                 <button key={p.label} onClick={() => { setDateFrom(p.from); setDateTo(p.to) }}

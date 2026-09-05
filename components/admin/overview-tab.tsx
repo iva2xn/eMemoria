@@ -23,12 +23,14 @@ const PLACEHOLDER_PIE = [
   { name: 'Columbarium', value: 1 },
 ]
 
-function DonutTip({ active, payload, isPlaceholder }: { active?: boolean; payload?: { name: string; value: number }[]; isPlaceholder?: boolean }) {
+function DonutTip({ active, payload, isPlaceholder, isCount }: { active?: boolean; payload?: { name: string; value: number }[]; isPlaceholder?: boolean; isCount?: boolean }) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-card border border-border rounded-xl px-2.5 py-1.5 shadow-lg text-[11px]">
       <p className="font-semibold text-muted-foreground capitalize">{payload[0].name}</p>
-      <p className="font-bold text-primary">{isPlaceholder ? '0%' : `₱${Number(payload[0].value).toLocaleString('en-PH')}`}</p>
+      <p className="font-bold text-primary">
+        {isPlaceholder ? '0%' : isCount ? String(payload[0].value) : `₱${Number(payload[0].value).toLocaleString('en-PH')}`}
+      </p>
     </div>
   )
 }
@@ -133,6 +135,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [productBreakdown, setProductBreakdown] = useState<{ name: string; value: number }[]>([])
   const [loading,          setLoading]          = useState(true)
   const [showReport,       setShowReport]       = useState(false)
+  const [reportPeriod,     setReportPeriod]     = useState<PeriodFilter>('month')
   const [expandedInq,         setExpandedInq]         = useState<string | null>(null)
   const [periodFilter,        setPeriodFilter]        = useState<PeriodFilter>('month')
   const [salesChartDays,      setSalesChartDays]      = useState<7 | 14 | 30 | 90>(14)
@@ -238,7 +241,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
   return (
     <div className="space-y-6 p-1">
-      {showReport && <SalesReportModal onClose={() => setShowReport(false)} />}
+      {showReport && <SalesReportModal onClose={() => setShowReport(false)} defaultPeriod={reportPeriod} />}
 
       {/* ── ROW 1: Metric Overview Blocks ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -256,8 +259,8 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
           {/* Revenue card with period dropdown */}
           <div
-            onClick={() => setShowReport(true)}
-            className="bg-card border border-border/60 rounded-2xl p-5 flex flex-col gap-3 shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
+            onClick={() => { setReportPeriod(periodFilter); setShowReport(true) }}
+            className="h-[130px] bg-card border border-border/60 rounded-2xl p-5 flex flex-col justify-between shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
           >
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue</p>
@@ -287,12 +290,18 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             accent="emerald"
             onClick={() => onNavigate('payments')}
           />
-          <MetricCard
-            label="Total Revenue"
-            value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
-            subtitle="All-time approved"
-            onClick={() => setShowReport(true)}
-          />
+          <div
+            onClick={() => { setReportPeriod('year'); setShowReport(true) }}
+            className="h-[130px] bg-card border border-border/60 rounded-2xl p-5 flex flex-col justify-between shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
+          >
+            <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Total Revenue</p>
+            <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">
+              ₱{stats.totalRevenue.toLocaleString('en-PH')}
+            </p>
+            <div className="flex items-center gap-1.5 min-h-[18px]">
+              <p className="text-[10px] text-muted-foreground">All-time approved</p>
+            </div>
+          </div>
         </div>
 
         {/* Col 3 Tall Card: Users (With Donut) */}
@@ -323,7 +332,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                         <Cell fill="#f59e0b" />
                         <Cell fill="var(--color-border)" />
                       </Pie>
-                      <RechartsTooltip content={<DonutTip />} />
+                      <RechartsTooltip content={<DonutTip isCount={true} isPlaceholder={false} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -472,7 +481,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
           <div className="grid grid-cols-2 gap-4">
             
             <div
-              onClick={() => setShowReport(true)}
+              onClick={() => { setReportPeriod('year'); setShowReport(true) }}
               className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/40 hover:shadow-md transition-all duration-200"
             >
               <div className="min-w-0">
@@ -599,10 +608,11 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                     <div className="px-6 pb-4 bg-muted/10 border-t border-border/30">
                       <p className="text-xs text-foreground leading-relaxed pt-3">{inq.message}</p>
                       <div className="flex items-center gap-3 mt-3">
-                        <a href={`mailto:${inq.email}?subject=Re: ${encodeURIComponent(inq.subject)}`}
+                        <button
+                          onClick={e => { e.stopPropagation(); onNavigate('inquiries', inq.id) }}
                           className="inline-flex items-center gap-1.5 h-6 px-3 rounded-lg bg-primary text-primary-foreground text-[10px] font-semibold hover:bg-primary/90 transition-colors">
                           <Mail className="h-2.5 w-2.5" /> Reply
-                        </a>
+                        </button>
                         <span className="text-[10px] text-muted-foreground font-mono">{inq.email}</span>
                       </div>
                     </div>

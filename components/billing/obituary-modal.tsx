@@ -40,7 +40,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
   const [lastName,      setLastName]      = useState('')
   const [birthDate,     setBirthDate]     = useState('')
   const [deathDate,     setDeathDate]     = useState('')
-  const [venueAddress,  setVenueAddress]  = useState('')
   const [contactNumber, setContactNumber] = useState(submitterPhone)
   const [photo,         setPhoto]         = useState<File | null>(null)
   const [photoPreview,  setPhotoPreview]  = useState<string | null>(null)
@@ -93,7 +92,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
     if (!lastName.trim())     { setError('Last name of deceased is required.'); return }
     if (!birthDate)           { setError('Date of birth is required.'); return }
     if (!deathDate)           { setError('Date of death is required.'); return }
-    if (!venueAddress.trim()) { setError('Venue address is required.'); return }
     if (!contactNumber.trim()){ setError('Contact number is required.'); return }
 
     setLoading(true)
@@ -131,7 +129,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
       death_date:      deathDate || null,
       age:             ageNum,
       image_path:      imagePath,
-      venue_address:   venueAddress.trim(),
       contact_number:  contactNumber.trim(),
       submitter_name:  submitterName || null,
       submitter_email: submitterEmail || null,
@@ -198,7 +195,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                   deathDate={deathDate}
                   age={computedAge}
                   photoUrl={photoPreview}
-                  venueAddress={venueAddress}
                   contactNumber={contactNumber}
                   showDownload={false}
                 />
@@ -258,15 +254,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                   <Field label="Contact Number" required>
                     <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
                   </Field>
-                  <div className="sm:col-span-2">
-                    <Field label="Venue / Wake Address" required>
-                      <input
-                        type="text" placeholder="e.g. Brgy. Mayuwi, Tayabas City"
-                        value={venueAddress} onChange={e => setVenueAddress(e.target.value)}
-                        className={inp}
-                      />
-                    </Field>
-                  </div>
                 </div>
 
                 {/* Photo upload */}

@@ -105,6 +105,7 @@ export default function AdminPage() {
     setActiveTab(tab)
     // Clear any deep-linked submission when manually switching tabs
     if (tab !== 'availments') setInitialSubmissionId(null)
+    if (tab !== 'inquiries')  setHighlightInquiryId(null)
   }
 
   // Keep activeTab in sync if the user navigates with browser back/forward
@@ -120,6 +121,7 @@ export default function AdminPage() {
     setSidebarCollapsed(v)
   }
   const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
+  const [highlightInquiryId, setHighlightInquiryId] = useState<string | null>(null)
   const [availmentsProductFilter, setAvailmentsProductFilter] = useState<string | undefined>(undefined)
   const [paymentsStatusFilter, setPaymentsStatusFilter] = useState<string | undefined>(undefined)
 
@@ -184,7 +186,9 @@ export default function AdminPage() {
 
   const tabContent: Record<Tab, React.ReactNode> = {
     overview:       <OverviewTab currentRole={currentRole} onNavigate={(tab, paymentId?, productFilter?, statusFilter?) => {
-                      if (paymentId) setHighlightPaymentId(paymentId)
+                      if (tab === 'payments' && paymentId) setHighlightPaymentId(paymentId)
+                      else if (tab === 'inquiries' && paymentId) { setHighlightInquiryId(paymentId); }
+                      else if (tab === 'payments') setHighlightPaymentId(null)
                       if (tab === 'availments' && productFilter) setAvailmentsProductFilter(productFilter)
                       else setAvailmentsProductFilter(undefined)
                       if (tab === 'payments' && statusFilter) setPaymentsStatusFilter(statusFilter)
@@ -198,7 +202,7 @@ export default function AdminPage() {
     transactions:   <TransactionRegisterTab currentRole={currentRole} />,
     obituaries:     <ObituariesTab />,
     profiles:       <ProfilesTab currentRole={currentRole} />,
-    inquiries:      <InquiriesTab staffName={profile.name} />,
+    inquiries:      <InquiriesTab staffName={profile.name} currentRole={currentRole} highlightInquiryId={highlightInquiryId} />,
   }
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)

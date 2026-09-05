@@ -415,7 +415,7 @@ function ComposeModal({ inquiry, staffName, supabase, onClose, onSent }: {
 }
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staffName?: string }) {
+export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentRole = 'admin', highlightInquiryId }: { staffName?: string; currentRole?: string; highlightInquiryId?: string | null }) {
   const supabase = createClient()
   const [rows,     setRows]     = useState<Inquiry[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -426,6 +426,18 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staf
     supabase.from('inquiries').select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setRows((data as Inquiry[]) ?? []); setLoading(false) })
   }, [supabase])
+
+  // Auto-expand and scroll to highlighted inquiry on mount / when id changes
+  useEffect(() => {
+    if (!highlightInquiryId) return
+    setExpanded(highlightInquiryId)
+    // Scroll into view after a brief paint delay
+    const t = setTimeout(() => {
+      const el = document.getElementById(`inquiry-row-${highlightInquiryId}`)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 120)
+    return () => clearTimeout(t)
+  }, [highlightInquiryId])
 
   const markRead = useCallback(async (id: string) => {
     const now = new Date().toISOString()
@@ -441,6 +453,12 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staf
 
   const unreadCount  = rows.filter(r => !r.is_read).length
   const repliedCount = rows.filter(r => !!r.replied_at).length
+
+  // Account recovery requests are visible to admins only
+  const RECOVERY_KEYWORDS = ['account recovery', 'password recovery', 'password reset', 'account access']
+  const visibleRows = currentRole === 'admin'
+    ? rows
+    : rows.filter(r => !RECOVERY_KEYWORDS.some(kw => r.subject.toLowerCase().includes(kw)))
 
   if (loading) return <Spinner />
 
@@ -463,15 +481,18 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services' }: { staf
         sub={`${rows.length} total · ${unreadCount} unread · ${repliedCount} replied`}
       />
 
-      {rows.length === 0 ? <EmptyState message="No inquiries submitted yet." /> : (
+      {visibleRows.length === 0 ? <EmptyState message="No inquiries submitted yet." /> : (
         <div className="space-y-2">
-          {rows.map(inq => {
+          {visibleRows.map(inq => {
             const status  = getStatus(inq)
             const hasDraft = !!loadDraft(inq.id) || !!(inq.draft_body)
+            const isHighlighted = highlightInquiryId === inq.id
 
             return (
               <div key={inq.id}
+                id={`inquiry-row-${inq.id}`}
                 className={`bg-card border rounded-2xl overflow-hidden transition-all ${
+                  isHighlighted ? 'ring-2 ring-primary ring-offset-1' :
                   status === 'new' ? 'border-amber-500/30' :
                   status === 'read' ? 'border-border' :
                   'border-primary/20'
