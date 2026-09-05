@@ -351,46 +351,45 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
     client: rows.filter(p => p.role === 'client').length,
   }
 
-  const ProfileRow = ({ u }: { u: Profile }) => (
-    <>
-      {/* Mobile card */}
-      <div className="md:hidden bg-card border border-border rounded-2xl p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground text-sm truncate">{u.name}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
-            </div>
+  const ProfileCard = ({ u }: { u: Profile }) => (
+    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-sm font-bold text-primary">{u.name?.charAt(0).toUpperCase()}</span>
           </div>
-          <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground text-sm truncate">{u.name}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+          </div>
         </div>
-        <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2 flex-wrap">
-          <p className="text-[10px] text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</p>
-          <div className="flex items-center gap-2">
-            {currentRole === 'admin' && (
-              <select value={u.role} onChange={e => openRoleChange(u, e.target.value as UserRole)}
-                className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors">
-                <option value="client">client</option>
-                <option value="staff">staff</option>
-                <option value="admin">admin</option>
-              </select>
-            )}
-            {currentRole === 'admin' && u.id !== myId && (
-              <button onClick={() => setDeleteTarget(u)}
-                className="h-7 w-7 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
-                title="Delete account">
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
+        <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+      </div>
+      <div className="flex items-center justify-between pt-2 border-t border-border/40 gap-2 flex-wrap">
+        <p className="text-[10px] text-muted-foreground">Joined {new Date(u.created_at).toLocaleDateString()}</p>
+        <div className="flex items-center gap-2">
+          {currentRole === 'admin' && (
+            <select value={u.role} onChange={e => openRoleChange(u, e.target.value as UserRole)}
+              className="h-7 pl-2.5 pr-6 rounded-lg bg-background border border-border text-[11px] font-semibold text-foreground outline-none appearance-none cursor-pointer hover:border-primary/40 transition-colors">
+              <option value="client">client</option>
+              <option value="staff">staff</option>
+              <option value="admin">admin</option>
+            </select>
+          )}
+          {currentRole === 'admin' && u.id !== myId && (
+            <button onClick={() => setDeleteTarget(u)}
+              className="h-7 w-7 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors"
+              title="Delete account">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
+    </div>
+  )
 
-      {/* Desktop table row */}
-      <tr className="hidden md:table-row hover:bg-muted/20 transition-colors">
+  const ProfileTableRow = ({ u }: { u: Profile }) => (
+    <tr className="hover:bg-muted/20 transition-colors">
         <td className="px-5 py-3.5">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -432,7 +431,6 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
           </td>
         )}
       </tr>
-    </>
   )
 
   if (loading) return <Spinner />
@@ -507,7 +505,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
 
               {/* Mobile cards */}
               <div className="md:hidden space-y-3">
-                {profiles.map(u => <ProfileRow key={u.id} u={u} />)}
+                {profiles.map(u => <ProfileCard key={u.id} u={u} />)}
               </div>
 
               {/* Desktop table */}
@@ -524,7 +522,7 @@ export function ProfilesTab({ currentRole }: { currentRole: UserRole }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/50">
-                    {profiles.map(u => <ProfileRow key={u.id} u={u} />)}
+                    {profiles.map(u => <ProfileTableRow key={u.id} u={u} />)}
                   </tbody>
                 </TableShell>
               </div>
