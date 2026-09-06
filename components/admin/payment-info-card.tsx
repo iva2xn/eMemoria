@@ -98,7 +98,7 @@ export function PaymentInfoCard({ canEdit = true }: { canEdit?: boolean }) {
             <div className="space-y-3">
               <div>
                 <label className={lbl}>Account Name</label>
-                <input value={draft.gcash_name ?? ''} onChange={field('gcash_name')} placeholder="e.g. Juan Dela Cruz" className={inp} />
+                <input value={draft.gcash_name ?? ''} onChange={field('gcash_name')} placeholder="" className={inp} />
               </div>
               <div>
                 <label className={lbl}>GCash Number</label>
@@ -158,7 +158,7 @@ export function PaymentInfoCard({ canEdit = true }: { canEdit?: boolean }) {
                   </div>
                   <div>
                     <label className={lbl}>Account Holder</label>
-                    <input value={(draft as Record<string, string>)[`bank${n}_account_name`] ?? ''} onChange={field(`bank${n}_account_name` as keyof PaymentInfo)} placeholder="e.g. Juan Dela Cruz" className={inp} />
+                    <input value={(draft as Record<string, string>)[`bank${n}_account_name`] ?? ''} onChange={field(`bank${n}_account_name` as keyof PaymentInfo)} placeholder="" className={inp} />
                   </div>
                   <div>
                     <label className={lbl}>Account Number</label>

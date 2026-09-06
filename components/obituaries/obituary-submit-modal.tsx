@@ -227,7 +227,7 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <Field label="First Name of Deceased" required>
-                    <input type="text" placeholder="e.g. Juan" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
+                    <input type="text" placeholder="" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
                   </Field>
                 </div>
                 <Field label="Middle Name (optional)">

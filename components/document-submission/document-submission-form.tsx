@@ -543,7 +543,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Full Name" required>
-              <input type="text" placeholder="Juan Dela Cruz"
+              <input type="text" placeholder=""
                 value={name} onChange={e => setName(e.target.value)} className={inp} />
             </Field>
             <Field label="Contact Number" required>
@@ -551,7 +551,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             </Field>
           </div>
           <Field label="Email Address" required hint="Approval/rejection notification will be sent here.">
-            <input type="email" placeholder="juan@example.com"
+            <input type="email" placeholder=""
               value={email} onChange={e => setEmail(e.target.value)}
               readOnly={authReady === true}
               className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />

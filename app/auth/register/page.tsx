@@ -161,7 +161,7 @@ function RegisterContent() {
               </label>
               <input
                 type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                placeholder="Juan" className={inp} maxLength={50} required />
+                placeholder="" className={inp} maxLength={50} required />
             </div>
             <div>
               <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">

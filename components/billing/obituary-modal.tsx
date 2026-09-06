@@ -207,7 +207,7 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                   <div className="sm:col-span-2">
                     <Field label="First Name of Deceased" required>
                       <input
-                        type="text" placeholder="e.g. Juan"
+                        type="text" placeholder=""
                         value={firstName} onChange={e => setFirstName(e.target.value)}
                         className={inp}
                       />

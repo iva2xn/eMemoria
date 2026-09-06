@@ -502,14 +502,14 @@ export function BillingForm({
                 <div className="px-6 py-5 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Full Name" required>
-                      <input type="text" placeholder="Juan Dela Cruz" value={name} onChange={e => setName(e.target.value)} className={inp} maxLength={100} />
+                      <input type="text" placeholder="" value={name} onChange={e => setName(e.target.value)} className={inp} maxLength={100} />
                     </Field>
                     <Field label="Contact Number" required>
                       <PhoneInput value={phone} onChange={setPhone} className={inp} required />
                     </Field>
                   </div>
                   <Field label="Email Address" required>
-                    <input type="email" placeholder="juan@example.com" value={email} onChange={e => setEmail(e.target.value)}
+                    <input type="email" placeholder="" value={email} onChange={e => setEmail(e.target.value)}
                       readOnly={authReady === true}
                       className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                   </Field>

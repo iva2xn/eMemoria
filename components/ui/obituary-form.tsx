@@ -175,7 +175,7 @@ export function ObituaryForm() {
           <div className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Field label="First Name" required>
-                <input type="text" placeholder="e.g. Juan" value={firstName}
+                <input type="text" placeholder="" value={firstName}
                   onChange={e => setFirstName(e.target.value)} className={inp} />
               </Field>
               <Field label="Middle Name (optional)">
@@ -255,13 +255,13 @@ export function ObituaryForm() {
           <div className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Your Full Name" required>
-                <input type="text" placeholder="Juan Dela Cruz" value={submitterName}
+                <input type="text" placeholder="" value={submitterName}
                   onChange={e => setSubmitterName(e.target.value)}
                   readOnly={authReady && !!submitterName}
                   className={`${inp}${authReady && !!submitterName ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
               </Field>
               <Field label="Your Email Address" required>
-                <input type="email" placeholder="juan@example.com" value={submitterEmail}
+                <input type="email" placeholder="" value={submitterEmail}
                   onChange={e => setSubmitterEmail(e.target.value)}
                   readOnly={authReady && !!submitterEmail}
                   className={`${inp}${authReady && !!submitterEmail ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />

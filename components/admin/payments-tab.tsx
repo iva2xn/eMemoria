@@ -520,7 +520,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email Address <span className="text-muted-foreground/50 font-normal">(optional)</span></label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="juan@example.com" className={inputCls} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="" className={inputCls} />
               </div>
 
               {/* Service */}

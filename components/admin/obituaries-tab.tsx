@@ -503,7 +503,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
                     <label className={lbl}>First Name of Deceased <span className="text-primary">*</span></label>
-                    <input type="text" placeholder="e.g. Juan" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
+                    <input type="text" placeholder="" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
                   </div>
                   <div>
                     <label className={lbl}>Middle Name (optional)</label>
@@ -1036,9 +1036,9 @@ export function ObituariesTab() {
                 <div className="px-6 py-5 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
-                      { label: 'First Name',  value: editFirst,  set: setEditFirst,  placeholder: 'e.g. Juan' },
+                      { label: 'First Name',  value: editFirst,  set: setEditFirst,  placeholder: '' },
                       { label: 'Middle Name', value: editMiddle, set: setEditMiddle, placeholder: 'optional' },
-                      { label: 'Last Name',   value: editLast,   set: setEditLast,   placeholder: 'e.g. Dela Cruz' },
+                      { label: 'Last Name',   value: editLast,   set: setEditLast,   placeholder: '' },
                     ].map(f => (
                       <div key={f.label} className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</label>

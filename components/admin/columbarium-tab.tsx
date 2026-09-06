@@ -499,7 +499,7 @@ function ReserveWalkInModal({
                 </label>
                 <input
                   type="text" value={name} onChange={e => setName(e.target.value)}
-                  placeholder="Juan Dela Cruz" className={inputCls}
+                  placeholder="" className={inputCls}
                 />
               </div>
               <div className="space-y-1.5">
@@ -518,7 +518,7 @@ function ReserveWalkInModal({
                 </label>
                 <input
                   type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="juan@example.com" className={inputCls}
+                  placeholder="" className={inputCls}
                 />
               </div>
 
@@ -782,7 +782,7 @@ function OccupyWalkInModal({
                 </label>
                 <input
                   type="text" value={name} onChange={e => setName(e.target.value)}
-                  placeholder="Juan Dela Cruz" className={inputCls}
+                  placeholder="" className={inputCls}
                 />
               </div>
               <div className="space-y-1.5">
@@ -801,7 +801,7 @@ function OccupyWalkInModal({
                 </label>
                 <input
                   type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="juan@example.com" className={inputCls}
+                  placeholder="" className={inputCls}
                 />
               </div>
 
