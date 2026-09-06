@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
-  const { availmentId, status, recipientEmail, recipientName, packageLabel, packagePrice, productType, rejectionReason } =
+  const { availmentId, status, recipientEmail, recipientName, packageLabel, packagePrice, productType, rejectionReason, seniorPwdDiscount } =
     await req.json()
 
   if (!availmentId || !status || !recipientEmail) {
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   if (productType)  billingParams.set('product', productType)
   if (packageLabel) billingParams.set('label', packageLabel)
   if (packagePrice) billingParams.set('price', String(packagePrice))
+  if (seniorPwdDiscount) billingParams.set('senior_pwd', '1')
   const billingUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/billing?${billingParams.toString()}`
 
   const subject = isApproved

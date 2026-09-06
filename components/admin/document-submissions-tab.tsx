@@ -169,7 +169,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
       if (submission.user_id) {
         const label = submission.product_label ?? submission.product_type
         const price = seniorPwd ? discountedPrice : submission.product_price
-        const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(label)}&price=${price ?? 0}`
+        const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(label)}&price=${price ?? 0}${seniorPwd ? '&senior_pwd=1' : ''}`
         await supabase.from('client_notifications').insert({
           user_id:      submission.user_id,
           event_type:   'doc_approved',
@@ -192,6 +192,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
             packageLabel: submission.product_label ?? submission.product_type,
             packagePrice: seniorPwd ? discountedPrice : submission.product_price,
             productType: submission.product_type,
+            seniorPwdDiscount: seniorPwd,
           }),
         })
       }

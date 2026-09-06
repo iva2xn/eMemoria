@@ -20,6 +20,8 @@ function BillingContent() {
   const prePrice     = Number(params.get('price') ?? 0)
   const preLabel     = params.get('label')        ?? ''
   const documentSubmissionId = params.get('document_submission_id') ?? null   // set when coming from an approved document submission
+  // senior_pwd=1 is set by admin when approving a document submission with discount
+  const seniorPwdDiscount = params.get('senior_pwd') === '1'
 
   const isColumbarium  = preProduct === 'columbarium'
   const isUrn          = preProduct === 'urn'
@@ -103,6 +105,7 @@ function BillingContent() {
       notes:                notesArr,
       status:               'pending',
       document_submission_id: documentSubmissionId,
+      senior_pwd_discount:  seniorPwdDiscount,
     }
 
     const { error: insertErr } = await supabase.from('payments').insert(payload)

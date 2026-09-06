@@ -81,6 +81,7 @@ type BillingFormProps = {
   reservationFee: number; SERVICE_FEE: number
   authReady: boolean | null; returnUrl: string
   prefillName: string; prefillEmail: string; prefillPhone: string
+  seniorPwdDiscount?: boolean
   onSubmit: (fields: {
     name: string; email: string; phone: string
     method: string; refNum: string; amount: string
