@@ -161,6 +161,7 @@ function BillingContent() {
       prefillName={prefillName}
       prefillEmail={prefillEmail}
       prefillPhone={prefillPhone}
+      seniorPwdDiscount={seniorPwdDiscount}
       // Submit handler
       onSubmit={handleSubmit}
     />

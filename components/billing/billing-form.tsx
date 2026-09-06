@@ -182,14 +182,20 @@ export function BillingForm({
   preProduct, preSlot, preLevel, prePrice, preLabel,
   isColumbarium, isUrn, isPackage, reservationFee, SERVICE_FEE,
   authReady, returnUrl, prefillName, prefillEmail, prefillPhone,
+  seniorPwdDiscount,
   onSubmit,
 }: BillingFormProps) {
   const supabase = createClient()
 
   const [includeServiceFee, setIncludeServiceFee] = useState(isUrn)
+
+  // Senior/PWD discount — 20% off the base price (not the service fee)
+  const discountAmount  = seniorPwdDiscount && prePrice > 0 ? Math.round(prePrice * 0.2 * 100) / 100 : 0
+  const discountedBase  = prePrice - discountAmount
+
   const defaultAmount = isColumbarium
-    ? String(prePrice)
-    : isUrn ? String(prePrice + (isUrn ? SERVICE_FEE : 0)) : prePrice ? String(prePrice) : ''
+    ? String(discountedBase)
+    : isUrn ? String(discountedBase + (isUrn ? SERVICE_FEE : 0)) : discountedBase > 0 ? String(discountedBase) : ''
 
   // ── Step: 1 = fill, 2 = review ───────────────────────────
   const [step, setStep] = useState<1 | 2>(1)
@@ -234,8 +240,8 @@ export function BillingForm({
 
   // Keep amount in sync when urn service-fee toggle changes
   useEffect(() => {
-    if (isUrn) setAmount(String(prePrice + (includeServiceFee ? SERVICE_FEE : 0)))
-  }, [includeServiceFee, isUrn, prePrice, SERVICE_FEE])
+    if (isUrn) setAmount(String(discountedBase + (includeServiceFee ? SERVICE_FEE : 0)))
+  }, [includeServiceFee, isUrn, discountedBase, SERVICE_FEE])
 
   // Clear ref num when method changes (avoids mismatched format)
   useEffect(() => { setRefNum(''); setRefError('') }, [method])
@@ -375,7 +381,23 @@ export function BillingForm({
                   )}
                   <ReviewRow
                     label="Amount"
-                    value={<span className="text-primary font-bold">₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>}
+                    value={
+                      seniorPwdDiscount && discountAmount > 0 ? (
+                        <span className="text-right space-y-0.5">
+                          <span className="block text-muted-foreground line-through text-[11px]">
+                            ₱{prePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            − ₱{discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} (20%)
+                          </span>
+                          <span className="block text-primary font-bold">
+                            ₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-primary font-bold">₱{Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                      )
+                    }
                   />
                   {notes && <ReviewRow label="Notes" value={notes} />}
                 </div>
@@ -580,6 +602,22 @@ export function BillingForm({
                         value={amount}
                         readOnly
                         className={`${inp} bg-muted/30 cursor-not-allowed font-bold text-primary`} />
+                      {seniorPwdDiscount && discountAmount > 0 && (
+                        <div className="mt-2 space-y-0.5 text-[11px]">
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Original price</span>
+                            <span className="line-through">₱{prePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Deduction (20%)</span>
+                            <span>− ₱{discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1 mt-1">
+                            <span>Total</span>
+                            <span>₱{discountedBase.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      )}
                     </Field>
                   </div>
 

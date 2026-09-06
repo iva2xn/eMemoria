@@ -1163,7 +1163,7 @@ function SlotPanel({
 // ── Legend — graphical mini-niches ───────────────────────────
 function NicheLegend() {
   return (
-    <div className="flex flex-wrap items-start gap-5 text-[11px] font-semibold text-muted-foreground">
+    <div className="flex flex-wrap justify-center items-start gap-5 text-[11px] font-semibold text-muted-foreground">
 
       {/* Available */}
       <span className="flex items-center gap-2.5">

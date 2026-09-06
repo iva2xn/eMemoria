@@ -83,6 +83,11 @@ const PRESETS = [
       `Thank you for reaching out, ${inq.name.split(' ')[0]}.\n\nOur service packages are designed to accommodate a range of needs and budgets. Pricing varies depending on the type of service, inclusions, and other factors. Our staff will be happy to provide a detailed breakdown and help you find the most suitable option.\n\nTo receive a personalized quote or to learn more, please visit us or contact us at +63 918 901 9978. We are available 24/7.`,
   },
   {
+    label: 'Account Recovery Assistance',
+    body: (inq: Inquiry) =>
+      `Thank you for reaching out to us, ${inq.name.split(' ')[0]}.\n\nWe understand that losing access to your account can be frustrating, and we are here to help you recover it as quickly as possible.\n\nTo proceed with account recovery, please provide the following:\n\n1. The email address associated with your account\n2. A valid government-issued ID for identity verification\n3. Any additional details that may help us locate your account (e.g., reference numbers, booking details)\n\nOnce we receive the required information, our team will review your request and assist you accordingly. You may also contact us directly at +63 918 901 9978 for faster assistance.\n\nWe appreciate your patience and look forward to resolving this for you.`,
+  },
+  {
     label: 'Reply on your own',
     body: (_inq: Inquiry) => '',
   },

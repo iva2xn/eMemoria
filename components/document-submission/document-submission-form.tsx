@@ -447,7 +447,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               />
             )}
             <ReviewRow
-              label="Senior/PWD Eligibility"
+              label="Senior/PWD"
               value={isSeniorPwd ? <span className="text-primary font-bold">Yes — proof attached</span> : 'No'}
             />
           </div>
@@ -617,7 +617,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             />
           </div>
           <div>
-            <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Eligibility</p>
+            <p className="text-sm font-bold text-foreground">Senior Citizen / PWD</p>
             <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
               Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
             </p>
