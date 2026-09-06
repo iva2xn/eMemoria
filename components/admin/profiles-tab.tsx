@@ -11,7 +11,7 @@ import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
 import { Trash2, X, UserCog, RotateCcw, Clock, Download, Mail, Eye, ChevronRight } from 'lucide-react'
 import type { Profile, UserRole, DeletedAccount } from '@/lib/supabase/types'
 
-type ProfileView = 'active' | 'deleted'
+type ProfileView = 'active' | 'deletion_requests' | 'deleted'
 
 // ── Default backup admin accounts (strictly for admin download) ──
 const BACKUP_ADMINS = [
@@ -940,12 +940,72 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       {currentRole === 'admin' && (
         <FilterPills<ProfileView>
           options={[
-            { value: 'active',  label: 'Active Accounts' },
-            { value: 'deleted', label: `Recently Deleted${deletedRows.length > 0 ? ` (${deletedRows.length})` : ''}` },
+            { value: 'active',             label: 'Active Accounts' },
+            { value: 'deletion_requests',  label: `Deletion Requests${rows.filter(p => p.deletion_requested_at).length > 0 ? ` (${rows.filter(p => p.deletion_requested_at).length})` : ''}` },
+            { value: 'deleted',            label: `Recently Deleted${deletedRows.length > 0 ? ` (${deletedRows.length})` : ''}` },
           ]}
           active={view}
           onChange={v => setView(v)}
         />
+      )}
+
+      {/* ── Deletion Requests view — admin only ── */}
+      {view === 'deletion_requests' && currentRole === 'admin' && (
+        <div className="space-y-4">
+          {rows.filter(p => p.deletion_requested_at).length === 0 ? (
+            <EmptyState message="No pending deletion requests." />
+          ) : (
+            <div className="space-y-3">
+              {rows.filter(p => p.deletion_requested_at).map(u => (
+                <div
+                  key={u.id}
+                  className="bg-card border border-destructive/20 rounded-2xl p-4 flex items-start justify-between gap-4"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-destructive">{u.name?.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-foreground truncate">{u.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Clock className="h-2.5 w-2.5 text-destructive/70 shrink-0" />
+                        <p className="text-[10px] text-muted-foreground">
+                          Requested {new Date(u.deletion_requested_at!).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}
+                        </p>
+                      </div>
+                      {u.deletion_reason && (
+                        <p className="text-[11px] text-muted-foreground mt-1 bg-muted/40 border border-border/60 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                          &ldquo;{u.deletion_reason}&rdquo;
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <Badge label={u.role} variant={roleBadgeVariant(u.role)} />
+                    {u.id !== myId && (
+                      <button
+                        onClick={() => setDeleteTarget(u)}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete Account
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Delete account modal (reused) */}
+          {deleteTarget && (
+            <DeleteAccountModal
+              target={deleteTarget}
+              onClose={() => setDeleteTarget(null)}
+              onConfirm={confirmDeleteAccount}
+            />
+          )}
+        </div>
       )}
 
       {/* ── Recently Deleted view ── */}

@@ -59,40 +59,34 @@ export default function ColumbariumPage() {
           </div>
         </div>
 
-        {/* INFO BLOCKS — finefetch nito yung live count para visible sa users yung availability */}
-        <section className="py-10 max-w-6xl mx-auto px-6">
+        {/* INFO BLOCKS + GRID — unified centered section */}
+        <section className="py-10 max-w-6xl mx-auto px-4 md:px-6 space-y-6">
           <InfoBlocks
             available={counts.available}
             reserved={counts.reserved}
             occupied={counts.occupied}
             loading={loading}
           />
-        </section>
 
-        {/* SLOT GRID — eto yung visual nung columbarium 6×12 grid
-            clickable para mabuksan yung SlotModal / details about sa slot */}
-        <section className="pb-10 px-4 md:px-6 flex justify-center">
-          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden w-fit max-w-full">
-            <div className="px-5 py-6 text-center">
-              <h2 className="text-xl font-bold uppercase tracking-widest text-foreground">COLUMBARIUM SLOTS</h2>
-            </div>
-
-            {loading ? (
-              <div className="py-16 flex justify-center">
-                <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          {/* SLOT GRID */}
+          <div className="flex justify-center">
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden w-fit max-w-full">
+              <div className="px-5 py-5 text-center border-b border-border/40">
+                <h2 className="text-base font-bold uppercase tracking-widest text-foreground">Columbarium Slots</h2>
+                <p className="text-[11px] text-muted-foreground mt-1">Click any available slot to view details and reserve</p>
               </div>
-            ) : (
-              <SlotGrid
-                slots={slots}
-                selectedId={modal?.id ?? null}
-                onSlotClick={slot => setModal(slot)}
-              />
-            )}
 
-            <div className="px-5 py-6 text-center border-t border-border/40">
-              <p className="text-sm text-muted-foreground">
-                We are committed to providing a peaceful and respectful resting place where families can honor and remember their loved ones.
-              </p>
+              {loading ? (
+                <div className="py-16 flex justify-center">
+                  <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                </div>
+              ) : (
+                <SlotGrid
+                  slots={slots}
+                  selectedId={modal?.id ?? null}
+                  onSlotClick={slot => setModal(slot)}
+                />
+              )}
             </div>
           </div>
         </section>
