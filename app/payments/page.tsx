@@ -65,23 +65,23 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
   }
 
   return (
-    <div className="border-t border-green-200 dark:border-green-800/40 bg-green-50 dark:bg-green-950/10">
+    <div className="border-t border-border bg-primary/5 dark:bg-primary/10">
       {/* Receipt header */}
       <div className="px-5 pt-4 pb-3 flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+          <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
           <div>
-            <p className="text-xs font-bold text-green-700 dark:text-green-400">Official Receipt</p>
-            <p className="text-[10px] text-green-600/70 dark:text-green-500/70">O.R. No. {orNumber(payment.id)}</p>
+            <p className="text-xs font-bold text-primary">Official Receipt</p>
+            <p className="text-[10px] text-primary/60">O.R. No. {orNumber(payment.id)}</p>
           </div>
         </div>
         <button
           onClick={handleDownload}
           disabled={exporting}
-          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-green-600 dark:bg-green-700 text-white text-xs font-bold hover:bg-green-700 dark:hover:bg-green-600 disabled:opacity-50 transition-all"
+          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-all"
         >
           {exporting
-            ? <><div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" /> Generating…</>
+            ? <><div className="h-3 w-3 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" /> Generating…</>
             : <><Download className="h-3.5 w-3.5" /> Download PDF</>
           }
         </button>
@@ -89,8 +89,8 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
 
       {/* Receipt body */}
       <div className="px-5 pb-5 space-y-3">
-        <div className="bg-white dark:bg-green-950/30 border border-green-200 dark:border-green-800/40 rounded-xl overflow-hidden">
-          <div className="divide-y divide-green-100 dark:divide-green-800/30 text-xs">
+        <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+          <div className="divide-y divide-border/50 text-xs">
             <div className="flex justify-between px-4 py-2.5">
               <span className="text-muted-foreground">Received from</span>
               <span className="font-semibold text-foreground">{profileName || 'Client'}</span>
@@ -119,13 +119,13 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
             </div>
           </div>
           {/* Total row */}
-          <div className="flex items-center justify-between px-4 py-3 bg-green-600 dark:bg-green-800">
-            <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Total Amount Received</span>
-            <span className="text-base font-bold text-white">{formatAmount(payment.amount)}</span>
+          <div className="flex items-center justify-between px-4 py-3 bg-primary">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary-foreground/70">Total Amount Received</span>
+            <span className="text-base font-bold text-primary-foreground">{formatAmount(payment.amount)}</span>
           </div>
         </div>
 
-        <p className="text-[10px] text-green-600/70 dark:text-green-500/60 text-center">
+        <p className="text-[10px] text-muted-foreground text-center">
           eMemoria · M.P. Gayeta Funeral Services · Sariaya, Quezon · +63 918 901 9978
         </p>
       </div>
