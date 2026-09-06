@@ -22,7 +22,7 @@ import {
   LayoutDashboard, Mail, CreditCard,
   Grid3X3, ScrollText, UserCircle2, ShieldAlert,
   ClipboardList, LogOut, Menu, X, Receipt,
-  ChevronLeft, ChevronRight, Moon,
+  ChevronLeft, ChevronRight, Moon, User,
 } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/supabase/types'
 
@@ -272,6 +272,16 @@ export default function AdminPage() {
               <ThemeToggle />
             </div>
           )}
+          {/* Your Account link — shown for all roles */}
+          <Link
+            href="/profile"
+            title={sidebarCollapsed ? 'Your Account' : undefined}
+            className={`w-full flex items-center rounded-lg py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all
+              ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}
+          >
+            <User className="h-4 w-4 shrink-0" />
+            {!sidebarCollapsed && 'Your Account'}
+          </Link>
           <button
             onClick={() => setShowLogoutModal(true)}
             title={sidebarCollapsed ? 'Sign Out' : undefined}
@@ -403,6 +413,14 @@ export default function AdminPage() {
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Appearance</span>
                 <ThemeToggle />
               </div>
+              <Link
+                href="/profile"
+                onClick={() => setSidebarOpen(false)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+              >
+                <User className="h-4 w-4" />
+                Your Account
+              </Link>
               <button
                 onClick={() => { setSidebarOpen(false); setShowLogoutModal(true) }}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
