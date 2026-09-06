@@ -44,8 +44,6 @@ const SERVICES = [
   { label: 'Brown Metal Urn',       type: 'urn',        price: 15000 },
   { label: 'Blue Metal Urn',        type: 'urn',        price: 15000 },
   { label: 'White Marble Urn',      type: 'urn',        price: 5500  },
-  // Columbarium
-  { label: 'Columbarium Slot',      type: 'columbarium', price: 0    },
   // General
   { label: 'General Service',       type: 'general',    price: 0     },
 ] as const
@@ -506,11 +504,19 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               {/* Client info */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Client Name <span className="text-destructive">*</span></label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Juan Dela Cruz" maxLength={100} className={inputCls} />
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="" maxLength={100} className={inputCls} />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number <span className="text-destructive">*</span></label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+63 912 345 6789" maxLength={20} className={inputCls} />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                  placeholder="+63 912 345 6789"
+                  maxLength={15}
+                  inputMode="numeric"
+                  className={inputCls}
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Email Address <span className="text-muted-foreground/50 font-normal">(optional)</span></label>
@@ -531,7 +537,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                   <optgroup label="Urns">
                     {SERVICES.slice(6, 12).map((s, i) => <option key={i + 6} value={i + 6}>{s.label} — {fmtAmt(s.price)}</option>)}
                   </optgroup>
-                  <optgroup label="Other">
+                  <optgroup label="General">
                     {SERVICES.slice(12).map((s, i) => <option key={i + 12} value={i + 12}>{s.label}</option>)}
                   </optgroup>
                 </select>

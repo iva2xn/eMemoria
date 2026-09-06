@@ -29,6 +29,13 @@ export function PaymentInfoCard({ canEdit = true }: { canEdit?: boolean }) {
     const file = e.target.files?.[0]
     if (!file) return
     setQrUploading(true)
+
+    // Delete the previous QR file from storage before uploading the new one
+    const existingPath = draft.gcash_qr_path ?? info?.gcash_qr_path
+    if (existingPath) {
+      await supabase.storage.from('payment-info').remove([existingPath])
+    }
+
     const ext  = file.name.split('.').pop() ?? 'png'
     const path = `gcash-qr.${ext}`
     const { error } = await supabase.storage.from('payment-info').upload(path, file, { upsert: true })
