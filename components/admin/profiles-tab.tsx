@@ -764,8 +764,10 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
   }
 
   // ── Filtering + grouping ──────────────────────────────────
+  const DEFAULT_ADMIN_EMAILS = ['ememoria@admin.com', 'ememoria2@admin.com', 'ememoria3@admin.com']
   const q = search.toLowerCase()
   const filtered = rows.filter(p => {
+    if (DEFAULT_ADMIN_EMAILS.includes(p.email?.toLowerCase() ?? '')) return false
     const matchRole   = roleFilter === 'all' || p.role === roleFilter
     const matchSearch = !q || [p.name, p.email, p.role].some(v => v?.toLowerCase().includes(q))
     return matchRole && matchSearch
@@ -791,9 +793,9 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       : 'Registered client accounts'
 
   const counts = {
-    admin:  rows.filter(p => p.role === 'admin').length,
-    staff:  rows.filter(p => p.role === 'staff').length,
-    client: rows.filter(p => p.role === 'client').length,
+    admin:  rows.filter(p => p.role === 'admin'  && !DEFAULT_ADMIN_EMAILS.includes(p.email?.toLowerCase() ?? '')).length,
+    staff:  rows.filter(p => p.role === 'staff'  && !DEFAULT_ADMIN_EMAILS.includes(p.email?.toLowerCase() ?? '')).length,
+    client: rows.filter(p => p.role === 'client' && !DEFAULT_ADMIN_EMAILS.includes(p.email?.toLowerCase() ?? '')).length,
   }
 
   // ── Shared profile card (mobile) — uniform layout for all roles ──

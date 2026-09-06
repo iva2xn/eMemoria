@@ -108,6 +108,9 @@ function ResetPasswordForm() {
     setLoading(false)
     if (err) { setError(err.message); return }
     setSuccess(true)
+    // Sign out so the session is cleared before redirecting to login —
+    // otherwise the navbar still reads the active session on the login page.
+    await supabase.auth.signOut()
     setTimeout(() => router.push('/auth/login'), 2500)
   }
 

@@ -1,6 +1,6 @@
 const LAT = 13.961961329079667
 const LNG = 121.51970450499091
-const MAPS_EMBED = `https://maps.google.com/maps?q=${LAT},${LNG}&z=17&output=embed`
+const MAPS_EMBED = `https://maps.google.com/maps?q=${LAT},${LNG}&z=17&t=k&output=embed`
 
 export function MapBlock() {
   return (

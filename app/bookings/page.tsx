@@ -9,9 +9,9 @@ import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import {
   ClipboardList, FileText, Clock, CheckCircle2, XCircle,
-  ArrowRight, Layers, X, ZoomIn,
+  ArrowRight, Layers, X, ZoomIn, CreditCard,
 } from 'lucide-react'
-import type { DocumentSubmission } from '@/lib/supabase/types'
+import type { DocumentSubmission, Payment } from '@/lib/supabase/types'
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatDate(iso: string) {
@@ -166,7 +166,7 @@ function DocCard({ label, path }: { label: string; path: string }) {
 }
 
 // ── Availed Services tab ──────────────────────────────────────
-function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] }) {
+function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubmission[]; paidIds: Set<string> }) {
   if (submissions.length === 0) {
     return (
       <div className="py-20 text-center space-y-3">
@@ -188,6 +188,7 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
         // No visual indication — the client just sees the effective price.
         const effectivePrice = sub.discounted_price ?? sub.product_price ?? 0
         const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}`
+        const isPaid = paidIds.has(sub.id)
 
         return (
           <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -204,7 +205,14 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
                   Submitted {formatDate(sub.created_at)}
                 </p>
               </div>
-              <StatusBadge status={sub.status} />
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <StatusBadge status={sub.status} />
+                {isPaid && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800/40 text-green-700 dark:text-green-500">
+                    <CreditCard className="h-3 w-3" /> Paid
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Details */}
@@ -236,7 +244,7 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
             )}
 
             {/* CTAs */}
-            <div className="px-5 pb-5 flex flex-wrap gap-2">
+            <div className="px-5 pb-5 flex flex-wrap gap-2 items-center">
               <Link
                 href={`/document-submission/status?id=${sub.id}`}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
@@ -244,12 +252,18 @@ function AvaledServicesTab({ submissions }: { submissions: DocumentSubmission[] 
                 View status <ArrowRight className="h-3 w-3" />
               </Link>
               {sub.status === 'approved' && (
-                <Link
-                  href={billingUrl}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
-                >
-                  Proceed to Payment <ArrowRight className="h-3 w-3" />
-                </Link>
+                isPaid ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-muted border border-border/60 px-3 py-1.5 rounded-lg cursor-not-allowed">
+                    <CreditCard className="h-3 w-3" /> Payment Received
+                  </span>
+                ) : (
+                  <Link
+                    href={billingUrl}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
+                  >
+                    Proceed to Payment <ArrowRight className="h-3 w-3" />
+                  </Link>
+                )
               )}
             </div>
           </div>
@@ -321,6 +335,7 @@ export default function BookingsPage() {
   const router   = useRouter()
 
   const [submissions, setSubmissions] = useState<DocumentSubmission[]>([])
+  const [paidIds,     setPaidIds]     = useState<Set<string>>(new Set())
   const [loading,     setLoading]     = useState(true)
   const [tab,         setTab]         = useState<TabId>('services')
 
@@ -329,14 +344,26 @@ export default function BookingsPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/auth/login?next=/bookings'); return }
 
-    const { data } = await supabase
-      .from('document_submissions')
-      .select('*')
-      .eq('user_id', user.id)
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false })
+    const [{ data: subs }, { data: payments }] = await Promise.all([
+      supabase
+        .from('document_submissions')
+        .select('*')
+        .eq('user_id', user.id)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('payments')
+        .select('document_submission_id')
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+        .not('document_submission_id', 'is', null),
+    ])
 
-    setSubmissions((data as DocumentSubmission[]) ?? [])
+    setSubmissions((subs as DocumentSubmission[]) ?? [])
+    setPaidIds(new Set(
+      ((payments as Pick<Payment, 'document_submission_id'>[]) ?? [])
+        .map(p => p.document_submission_id!)
+    ))
     setLoading(false)
   }, [supabase, router])
 
@@ -410,7 +437,7 @@ export default function BookingsPage() {
               <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : tab === 'services' ? (
-            <AvaledServicesTab submissions={submissions} />
+            <AvaledServicesTab submissions={submissions} paidIds={paidIds} />
           ) : (
             <SubmittedDocumentsTab submissions={submissions} />
           )}
