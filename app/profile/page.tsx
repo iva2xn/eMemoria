@@ -183,13 +183,13 @@ export default function ProfilePage() {
   const [phoneMsg,   setPhoneMsg]   = useState('')
 
   // ── Email change with OTP ─────────────────────────────────────
-  const [newEmail,   setNewEmail]   = useState('')
-  const [emailTaken, setEmailTaken] = useState(false)
-  const [otpSent,    setOtpSent]    = useState(false)
-  const [otp,        setOtp]        = useState('')
-  const [emailMsg,   setEmailMsg]   = useState('')
-  const [emailErr,   setEmailErr]   = useState('')
-  const [emailLoading, setEmailLoading] = useState(false)
+  const [newEmail,      setNewEmail]      = useState('')
+  const [emailTaken,    setEmailTaken]    = useState(false)
+  const [emailOtpSent,  setEmailOtpSent]  = useState(false)
+  const [emailOtp,      setEmailOtp]      = useState('')
+  const [emailMsg,      setEmailMsg]      = useState('')
+  const [emailErr,      setEmailErr]      = useState('')
+  const [emailLoading,  setEmailLoading]  = useState(false)
 
   // ── Password change ───────────────────────────────────────────
   type PwStep = 'idle' | 'sent' | 'code' | 'password' | 'done'
@@ -230,6 +230,9 @@ export default function ProfilePage() {
       }
       setLoading(false)
     })
+
+    // No auth state listener needed for custom OTP flow
+    return () => {}
   }, [supabase, router])
 
   // ── Save name ─────────────────────────────────────────────────
@@ -273,36 +276,42 @@ export default function ProfilePage() {
     setEmailTaken(!!data)
   }
 
-  // ── Email: send OTP ───────────────────────────────────────────
-  const sendOtp = async () => {
+  // ── Email: send OTP via custom API ───────────────────────────
+  const sendEmailOtp = async () => {
     setEmailErr(''); setEmailMsg('')
     if (!newEmail.trim()) { setEmailErr('Enter a new email address.'); return }
     if (newEmail.trim() === profile?.email) { setEmailErr('This is already your current email.'); return }
     if (emailTaken) { setEmailErr('This email has already been taken.'); return }
     setEmailLoading(true)
-    const { error } = await supabase.auth.updateUser({ email: newEmail.trim() })
+    const res = await fetch('/api/email-change-otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, newEmail: newEmail.trim() }),
+    })
+    const json = await res.json()
     setEmailLoading(false)
-    if (error) { setEmailErr(error.message); return }
-    setOtpSent(true)
-    setEmailMsg('A verification code was sent to your new email. Enter it below.')
+    if (!res.ok) { setEmailErr(json.error ?? 'Failed to send code.'); return }
+    setEmailOtpSent(true)
+    setEmailMsg(`A 6-digit code was sent to ${newEmail.trim()}.`)
   }
 
-  // ── Email: verify OTP ─────────────────────────────────────────
-  const verifyOtp = async () => {
+  // ── Email: verify OTP and apply change ────────────────────────
+  const verifyEmailOtp = async () => {
     setEmailErr('')
-    if (!otp.trim()) { setEmailErr('Enter the code from your new email.'); return }
+    if (!emailOtp.trim()) { setEmailErr('Enter the code from your email.'); return }
     setEmailLoading(true)
-    const { error } = await supabase.auth.verifyOtp({
-      email: newEmail.trim(),
-      token: otp.trim(),
-      type:  'email_change',
+    const res = await fetch('/api/email-change-otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, code: emailOtp.trim() }),
     })
+    const json = await res.json()
     setEmailLoading(false)
-    if (error) { setEmailErr('Invalid or expired code. Please try again.'); return }
-    // Update profile email too
-    await supabase.from('profiles').update({ email: newEmail.trim() }).eq('id', userId!)
-    setProfile(p => p ? { ...p, email: newEmail.trim() } : p)
-    setOtpSent(false); setOtp(''); setEmailTaken(false)
+    if (!res.ok) { setEmailErr(json.error ?? 'Verification failed.'); return }
+    // Success — update local state
+    setProfile(p => p ? { ...p, email: json.newEmail } : p)
+    setNewEmail(json.newEmail)
+    setEmailOtpSent(false); setEmailOtp(''); setEmailTaken(false)
     setEmailMsg('✓ Email updated successfully.')
     setTimeout(() => setEmailMsg(''), 4000)
   }
@@ -556,7 +565,7 @@ export default function ProfilePage() {
                 <input
                   type="email"
                   value={newEmail}
-                  onChange={e => { setNewEmail(e.target.value); setEmailTaken(false); setOtpSent(false); setOtp(''); setEmailErr(''); setEmailMsg('') }}
+                  onChange={e => { setNewEmail(e.target.value); setEmailTaken(false); setEmailOtpSent(false); setEmailOtp(''); setEmailErr(''); setEmailMsg('') }}
                   onBlur={() => { checkEmailDuplicate(newEmail) }}
                   placeholder="newemail@example.com"
                   className={`${inp} ${emailTaken ? 'border-red-500' : ''}`}
@@ -569,9 +578,9 @@ export default function ProfilePage() {
               </div>
 
               {/* Send OTP button — appears when new email differs from current */}
-              {newEmail.trim() && newEmail.trim() !== profile.email && !otpSent && (
+              {newEmail.trim() && newEmail.trim() !== profile.email && !emailOtpSent && (
                 <Button
-                  onClick={sendOtp}
+                  onClick={sendEmailOtp}
                   disabled={emailLoading || emailTaken}
                   variant="outline"
                   className="h-10 px-5 rounded-xl flex items-center gap-2"
@@ -582,25 +591,43 @@ export default function ProfilePage() {
               )}
 
               {/* OTP input — appears after sending */}
-              {otpSent && (
+              {emailOtpSent && (
                 <div className="space-y-3 border border-primary/20 rounded-xl p-4 bg-primary/[0.03]">
-                  <p className="text-xs text-muted-foreground">
-                    A 6-digit code was sent to <span className="font-semibold text-foreground">{newEmail}</span>.
-                  </p>
+                  <div className="flex items-start gap-3">
+                    <MailCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <p className="text-xs text-foreground leading-relaxed">
+                      Code sent to <span className="font-semibold">{newEmail}</span>. Enter it below.
+                    </p>
+                  </div>
                   <div>
                     <label className={lbl}>Verification Code</label>
                     <input
                       type="text"
-                      value={otp}
-                      onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                      inputMode="numeric"
+                      value={emailOtp}
+                      onChange={e => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder="123456"
-                      className={inp}
+                      maxLength={6}
+                      className={`${inp} text-center font-mono tracking-widest`}
                     />
                   </div>
-                  <Button onClick={verifyOtp} disabled={emailLoading || !otp.trim()} className="h-10 px-6 rounded-xl flex items-center gap-2">
-                    <KeyRound className="h-3.5 w-3.5" />
-                    {emailLoading ? 'Verifying…' : 'Verify & Change Email'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => { setEmailOtpSent(false); setEmailOtp(''); setEmailErr(''); setEmailMsg('') }}
+                      className="flex-1 h-10 rounded-xl"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={verifyEmailOtp}
+                      disabled={emailLoading || emailOtp.length < 6}
+                      className="flex-1 h-10 rounded-xl flex items-center justify-center gap-2"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      {emailLoading ? 'Verifying…' : 'Verify & Change Email'}
+                    </Button>
+                  </div>
                 </div>
               )}
 
