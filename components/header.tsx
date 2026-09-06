@@ -14,9 +14,11 @@ import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon } from 'lucid
 
 const NAV_LINKS = [
   { name: 'Home',             href: '/',               authRequired: false },
-  { name: 'Obituaries',       href: '/obituaries',     authRequired: true },
   { name: 'Funeral Services', href: '/services',       authRequired: false },
-  { name: 'Payments',         href: '/payments',       authRequired: true },
+  { name: 'Wake Schedules',   href: '/wake-schedule',  authRequired: true  },
+  { name: 'Obituaries',       href: '/obituaries',     authRequired: true  },
+  { name: 'My Bookings',      href: '/bookings',       authRequired: true  },
+  { name: 'Payments',         href: '/payments',       authRequired: true  },
   { name: 'About Us',         href: '/about',          authRequired: false },
   { name: 'Contact',          href: '/contact',        authRequired: false },
 ]

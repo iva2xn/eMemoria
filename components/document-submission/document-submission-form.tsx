@@ -314,7 +314,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     if (!docDeath)     { setError('Death Certificate is required.'); return }
     if (!docBarangay)  { setError('Barangay Indigency is required.'); return }
     if (!docId)        { setError('Valid ID is required.'); return }
-    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the discount is selected.'); return }
+    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the eligibility option is checked.'); return }
 
     setStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -447,7 +447,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               />
             )}
             <ReviewRow
-              label="Senior/PWD Discount"
+              label="Senior/PWD Eligibility"
               value={isSeniorPwd ? <span className="text-primary font-bold">Yes — proof attached</span> : 'No'}
             />
           </div>
@@ -557,35 +557,6 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
           </Field>
 
-          {/* Senior/PWD discount */}
-          <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
-            <label className="flex items-start gap-3 cursor-pointer select-none">
-              <div className="mt-0.5 shrink-0">
-                <input
-                  type="checkbox"
-                  checked={isSeniorPwd}
-                  onChange={e => { setIsSeniorPwd(e.target.checked); if (!e.target.checked) setDocSeniorPwdProof(null) }}
-                  className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
-                />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Discount</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
-                  Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
-                </p>
-              </div>
-            </label>
-
-            {isSeniorPwd && (
-              <DocUpload
-                label="Senior / PWD Proof"
-                required
-                hint="Upload a Senior Citizen ID, PWD ID, or equivalent government-issued document"
-                value={docSeniorPwdProof}
-                onChange={setDocSeniorPwdProof}
-              />
-            )}
-          </div>
         </div>
       </div>
 
@@ -632,6 +603,36 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             hint="Required only if death was non-natural (accident, etc.)"
             value={docMedico} onChange={setDocMedico} />
         </div>
+      </div>
+
+      {/* Senior Citizen / PWD Eligibility */}
+      <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+        <label className="flex items-start gap-3 cursor-pointer select-none">
+          <div className="mt-0.5 shrink-0">
+            <input
+              type="checkbox"
+              checked={isSeniorPwd}
+              onChange={e => { setIsSeniorPwd(e.target.checked); if (!e.target.checked) setDocSeniorPwdProof(null) }}
+              className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">Senior Citizen / PWD Eligibility</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">
+              Check this if the deceased or the next of kin is a Senior Citizen or Person with Disability (PWD). A valid proof document is required.
+            </p>
+          </div>
+        </label>
+
+        {isSeniorPwd && (
+          <DocUpload
+            label="Senior / PWD Proof"
+            required
+            hint="Upload a Senior Citizen ID, PWD ID, or equivalent government-issued document"
+            value={docSeniorPwdProof}
+            onChange={setDocSeniorPwdProof}
+          />
+        )}
       </div>
 
       <Button type="submit" className="w-full h-12 font-bold rounded-xl text-sm">

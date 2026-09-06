@@ -10,7 +10,7 @@ import {
 import { logActivity } from '@/lib/activity-log'
 import {
   X, Calendar, MapPin, Check, ChevronLeft,
-  Edit2, AlertTriangle, Clock, Eye, Bell,
+  Edit2, AlertTriangle, Clock, Eye, Bell, CheckCircle, XCircle,
 } from 'lucide-react'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import type { Wake, WakeExtensionRequest, WakeScheduleRequest, UserRole } from '@/lib/supabase/types'
@@ -78,7 +78,9 @@ function EditWakeModal({
   const [wakeEnd,         setWakeEnd]         = useState(row.wake_end_date ?? '')
   const [burialLocation,  setBurialLocation]  = useState(row.burial_location ?? '')
   const [burialOther,     setBurialOther]     = useState(row.burial_location_other ?? '')
-  const [notes,           setNotes]           = useState(row.notes ?? '')
+  const [notes,           setNotes]           = useState(
+    /^Auto-generated upon payment/.test(row.notes ?? '') ? '' : (row.notes ?? '')
+  )
   const [loading,         setLoading]         = useState(false)
   const [error,           setError]           = useState('')
 
@@ -597,6 +599,423 @@ function ReviewRequestModal({
   )
 }
 
+// ── Review Schedule Request Modal ────────────────────────────
+function ReviewScheduleRequestModal({
+  req,
+  onClose,
+  onDone,
+}: {
+  req: ScheduleReqRow
+  onClose: () => void
+  onDone: (id: string, action: 'converted' | 'reviewed') => void
+}) {
+  const supabase = createClient()
+
+  const [step,           setStep]           = useState<1 | 2>(1)
+  const [action,         setAction]         = useState<'approve' | 'reject' | ''>('')
+  const [rejectReason,   setRejectReason]   = useState('')
+  const [rejectComment,  setRejectComment]  = useState('')
+
+  // Editable fields (pre-filled from request)
+  const [pickupDate,     setPickupDate]     = useState(req.preferred_pickup_date ?? '')
+  const [pickupTime,     setPickupTime]     = useState(req.preferred_pickup_time ?? '')
+  const [wakeStart,      setWakeStart]      = useState(req.preferred_wake_start ?? '')
+  const [wakeEnd,        setWakeEnd]        = useState(req.preferred_wake_end ?? '')
+  const [burialLocation, setBurialLocation] = useState(req.preferred_burial_location ?? '')
+  const [burialOther,    setBurialOther]    = useState(req.preferred_burial_location_other ?? '')
+  const [notes,          setNotes]          = useState(req.notes ?? '')
+
+  const [loading,        setLoading]        = useState(false)
+  const [error,          setError]          = useState('')
+
+  const isOther       = burialLocation === 'Other Location'
+  const isOtherReason = rejectReason === 'Other'
+  const canProceed    = action === 'approve' || (action === 'reject' && !!rejectReason && (!isOtherReason || rejectComment.trim()))
+
+  const handleConfirm = async () => {
+    setLoading(true); setError('')
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+
+    if (action === 'approve') {
+      // Build pickup_datetime from date + time if both supplied
+      let pickupIso: string | null = null
+      if (pickupDate) {
+        pickupIso = pickupTime
+          ? new Date(`${pickupDate}T${pickupTime}`).toISOString()
+          : new Date(pickupDate).toISOString()
+      }
+
+      // Create the actual wake record
+      const { data: newWake, error: wakeErr } = await supabase
+        .from('wakes')
+        .insert({
+          user_id:               req.user_id,
+          deceased_name:         req.deceased_name,
+          pickup_datetime:       pickupIso,
+          wake_start_date:       wakeStart || null,
+          wake_end_date:         wakeEnd   || null,
+          burial_location:       burialLocation || null,
+          burial_location_other: isOther ? burialOther : null,
+          notes:                 notes.trim() || null,
+        })
+        .select('id')
+        .single()
+
+      if (wakeErr) { setError(wakeErr.message); setLoading(false); return }
+
+      // Mark the request as converted, link it to the new wake
+      await supabase
+        .from('wake_schedule_requests')
+        .update({
+          status:      'converted',
+          wake_id:     newWake.id,
+          reviewed_by: user?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', req.id)
+
+      // Notify the client
+      await supabase.from('client_notifications').insert({
+        user_id:      req.user_id,
+        event_type:   'wake_schedule_approved',
+        entity_table: 'wakes',
+        entity_id:    newWake.id,
+        message:      `Your wake schedule request for ${req.deceased_name} has been approved. You can now view your schedule.`,
+        metadata:     { deceased_name: req.deceased_name, wake_id: newWake.id },
+        action_url:   '/wake-schedule',
+      })
+
+      await logActivity({
+        category:     'log',
+        event_type:   'wake_schedule_request_approved',
+        entity_table: 'wake_schedule_requests',
+        entity_id:    req.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} approved wake schedule request for ${req.deceased_name} and created wake record`,
+      })
+
+      setLoading(false)
+      onDone(req.id, 'converted')
+      onClose()
+    } else {
+      // Reject — mark as reviewed with a note
+      const finalReason = isOtherReason ? rejectComment.trim() : rejectReason
+
+      await supabase
+        .from('wake_schedule_requests')
+        .update({
+          status:      'reviewed',
+          reviewed_by: user?.id ?? null,
+          reviewed_at: new Date().toISOString(),
+          notes:       req.notes
+            ? `${req.notes} | Rejected: ${finalReason}`
+            : `Rejected: ${finalReason}`,
+        })
+        .eq('id', req.id)
+
+      // Notify the client
+      await supabase.from('client_notifications').insert({
+        user_id:      req.user_id,
+        event_type:   'wake_schedule_rejected',
+        entity_table: 'wake_schedule_requests',
+        entity_id:    req.id,
+        message:      `Your wake schedule request for ${req.deceased_name} could not be processed. Reason: ${finalReason}. Please contact us for assistance.`,
+        metadata:     { deceased_name: req.deceased_name, reason: finalReason },
+        action_url:   '/wake-schedule',
+      })
+
+      await logActivity({
+        category:     'log',
+        event_type:   'wake_schedule_request_rejected',
+        entity_table: 'wake_schedule_requests',
+        entity_id:    req.id,
+        actor_id:     user?.id,
+        actor_name:   actorName,
+        message:      `${actorName} rejected wake schedule request for ${req.deceased_name}: ${finalReason}`,
+      })
+
+      setLoading(false)
+      onDone(req.id, 'reviewed')
+      onClose()
+    }
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            {step === 2 && (
+              <button
+                onClick={() => { setStep(1); setError('') }}
+                className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground mr-0.5"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            )}
+            <Eye className="h-4 w-4 text-primary" />
+            <div>
+              <h3 className="text-sm font-bold text-foreground">
+                {step === 1 ? 'Review Schedule Request' : 'Confirm Action'}
+              </h3>
+              <p className="text-[10px] text-muted-foreground">
+                {req.deceased_name} · Step {step} of 2
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {error && <AlertBanner variant="error" message={error} />}
+
+          {step === 1 ? (
+            <>
+              {/* Client info */}
+              <div className="bg-muted/30 border border-border/60 rounded-xl p-3 space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-semibold">Client</span>
+                  <span className="font-bold text-foreground">{req.clientName ?? '—'}</span>
+                </div>
+                {req.clientEmail && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground font-semibold">Email</span>
+                    <span className="text-foreground">{req.clientEmail}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-semibold">Submitted</span>
+                  <span className="text-foreground">{fmtDate(req.created_at)}</span>
+                </div>
+              </div>
+
+              {/* Editable schedule fields */}
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Schedule Details <span className="normal-case font-normal">(edit before approving)</span>
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pickup Date</label>
+                  <input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pickup Time</label>
+                  <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Wake Start</label>
+                  <input type="date" value={wakeStart} onChange={e => setWakeStart(e.target.value)} className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Wake End</label>
+                  <input type="date" value={wakeEnd} min={wakeStart || undefined} onChange={e => setWakeEnd(e.target.value)} className={inputCls} />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Burial / Interment Location</label>
+                <select
+                  value={burialLocation}
+                  onChange={e => { setBurialLocation(e.target.value); if (e.target.value !== 'Other Location') setBurialOther('') }}
+                  className={inputCls}
+                >
+                  <option value="">— Select a cemetery —</option>
+                  {SARIAYA_CEMETERIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              {isOther && (
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Specify Location <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={burialOther}
+                    onChange={e => setBurialOther(e.target.value)}
+                    placeholder="Enter full location…"
+                    className={inputCls}
+                  />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Notes (optional)</label>
+                <textarea
+                  rows={2}
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Additional instructions…"
+                  className={`${inputCls} h-auto resize-none py-2.5`}
+                />
+              </div>
+
+              {/* Decision */}
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Action</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setAction('approve'); setRejectReason(''); setRejectComment('') }}
+                    className={`flex-1 h-10 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-1.5 ${
+                      action === 'approve'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5" /> Approve
+                  </button>
+                  <button
+                    onClick={() => setAction('reject')}
+                    className={`flex-1 h-10 rounded-xl text-sm font-bold border-2 transition-all flex items-center justify-center gap-1.5 ${
+                      action === 'reject'
+                        ? 'bg-destructive text-destructive-foreground border-destructive'
+                        : 'border-border text-muted-foreground hover:border-destructive/40'
+                    }`}
+                  >
+                    <XCircle className="h-3.5 w-3.5" /> Reject
+                  </button>
+                </div>
+              </div>
+
+              {action === 'reject' && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Reason <span className="text-destructive">*</span>
+                    </label>
+                    <select
+                      value={rejectReason}
+                      onChange={e => { setRejectReason(e.target.value); setRejectComment('') }}
+                      className={inputCls}
+                    >
+                      <option value="">— Select a reason —</option>
+                      {REJECTION_REASONS.map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {isOtherReason && (
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Custom Reason <span className="text-destructive">*</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={rejectComment}
+                        onChange={e => setRejectComment(e.target.value)}
+                        placeholder="Describe the reason…"
+                        maxLength={300}
+                        className={`${inputCls} h-auto resize-none py-2.5`}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            /* Step 2: Confirm */
+            <div className="space-y-4">
+              {action === 'approve' && (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="bg-muted/30 border-b border-border px-4 py-2">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Wake Schedule to Create</p>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {[
+                      { label: 'Deceased',    value: req.deceased_name },
+                      { label: 'Client',      value: req.clientName ?? '—' },
+                      { label: 'Pickup',      value: pickupDate ? `${fmtDate(pickupDate)}${pickupTime ? ' · ' + pickupTime : ''}` : '—' },
+                      { label: 'Wake Start',  value: wakeStart ? fmtDate(wakeStart) : '—' },
+                      { label: 'Wake End',    value: wakeEnd   ? fmtDate(wakeEnd)   : '—' },
+                      { label: 'Location',    value: burialLocation === 'Other Location' ? (burialOther || 'Other') : (burialLocation || '—') },
+                      ...(notes.trim() ? [{ label: 'Notes', value: notes }] : []),
+                    ].map(f => (
+                      <div key={f.label} className="flex justify-between px-4 py-2.5 text-xs">
+                        <span className="text-muted-foreground">{f.label}</span>
+                        <span className="font-semibold text-foreground text-right max-w-[60%]">{f.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className={`flex items-start gap-2.5 border rounded-xl p-3 ${action === 'approve' ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'}`}>
+                <AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${action === 'approve' ? 'text-primary' : 'text-destructive'}`} />
+                <p className="text-xs text-foreground">
+                  {action === 'approve'
+                    ? 'This will create a wake schedule record and notify the client. They will be able to view it on their Wake Schedule page.'
+                    : `This will mark the request as rejected and notify the client. Reason: "${isOtherReason ? rejectComment.trim() : rejectReason}"`
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border/60 flex gap-2 shrink-0">
+          {step === 1 ? (
+            <>
+              <button
+                onClick={onClose}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setError(''); setStep(2) }}
+                disabled={!canProceed}
+                className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all"
+              >
+                Review →
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => { setStep(1); setError('') }}
+                className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={loading}
+                className={`flex-1 h-10 rounded-xl text-sm font-bold disabled:opacity-40 transition-all ${
+                  action === 'approve'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                }`}
+              >
+                {loading ? 'Saving…' : action === 'approve' ? 'Confirm Approve' : 'Confirm Reject'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ── Main Tab ──────────────────────────────────────────────────
 export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
@@ -609,6 +1028,7 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
   const [subTab,       setSubTab]       = useState<'schedules' | 'requests' | 'schedule-requests'>('schedules')
   const [editRow,      setEditRow]      = useState<WakeRow | null>(null)
   const [reviewReq,    setReviewReq]    = useState<RequestRow | null>(null)
+  const [reviewSchedReq, setReviewSchedReq] = useState<ScheduleReqRow | null>(null)
   const [notifyingId,  setNotifyingId]  = useState<string | null>(null)
 
   const sendScheduleNotification = async (w: WakeRow) => {
@@ -723,6 +1143,11 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
     load()
   }
 
+  const updateScheduleReq = (id: string, action: 'converted' | 'reviewed') => {
+    setScheduleReqs(prev => prev.map(r => r.id === id ? { ...r, status: action } : r))
+    if (action === 'converted') load() // refresh wakes list too
+  }
+
   const q = search.toLowerCase()
   const filteredWakes = wakes.filter(w =>
     !q || [w.deceased_name, w.clientName, w.clientEmail, w.burial_location].some(v => v?.toLowerCase().includes(q))
@@ -749,6 +1174,13 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
     <div className="space-y-5">
       {editRow   && <EditWakeModal    row={editRow}   onClose={() => setEditRow(null)}   onSaved={updateWake} />}
       {reviewReq && <ReviewRequestModal req={reviewReq} onClose={() => setReviewReq(null)} onReviewed={updateRequest} />}
+      {reviewSchedReq && (
+        <ReviewScheduleRequestModal
+          req={reviewSchedReq}
+          onClose={() => setReviewSchedReq(null)}
+          onDone={updateScheduleReq}
+        />
+      )}
 
       <SectionHeader
         title="Wake Schedule"
@@ -934,7 +1366,7 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b-2 border-border bg-muted/40">
-                      {['Client', 'Deceased', 'Preferred Pickup', 'Wake Period', 'Burial Location', 'Notes', 'Submitted'].map(h => (
+                      {['Client', 'Deceased', 'Preferred Pickup', 'Wake Period', 'Burial Location', 'Notes', 'Submitted', 'Status', 'Actions'].map(h => (
                         <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 last:border-r-0">{h}</th>
                       ))}
                     </tr>
@@ -988,8 +1420,31 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
                             ? <p className="text-muted-foreground text-[11px] truncate" title={r.notes}>{r.notes}</p>
                             : <span className="text-muted-foreground">—</span>}
                         </td>
-                        <td className="px-5 py-3.5 text-[10px] text-muted-foreground whitespace-nowrap">
+                        <td className="px-5 py-3.5 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">
                           {fmtDate(r.created_at)}
+                        </td>
+                        <td className="px-5 py-3.5 border-r border-border/30">
+                          <Badge
+                            label={r.status === 'converted' ? 'Approved' : r.status === 'reviewed' ? 'Rejected' : 'Pending'}
+                            variant={r.status === 'converted' ? 'green' : r.status === 'pending' ? 'amber' : 'red'}
+                          />
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {r.status === 'pending' ? (
+                            <button
+                              onClick={() => setReviewSchedReq(r)}
+                              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
+                            >
+                              <Eye className="h-3 w-3" /> Review
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setReviewSchedReq(r)}
+                              className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-bold hover:bg-muted/80 transition-colors"
+                            >
+                              <Eye className="h-3 w-3" /> View
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

@@ -48,11 +48,11 @@ function getTabFromHash(): Tab {
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview',       label: 'Overview',         icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: 'availments',     label: 'Funeral Services', icon: <ClipboardList   className="h-4 w-4" /> },
-  { id: 'wake-schedule',  label: 'Wake Schedule',    icon: <Moon            className="h-4 w-4" /> },
-  { id: 'columbarium',    label: 'Columbarium',      icon: <Grid3X3         className="h-4 w-4" /> },
   { id: 'payments',       label: 'Payments',         icon: <CreditCard      className="h-4 w-4" /> },
-  { id: 'transactions',   label: 'Transactions',     icon: <Receipt         className="h-4 w-4" /> },
+  { id: 'wake-schedule',  label: 'Wake Schedule',    icon: <Moon            className="h-4 w-4" /> },
   { id: 'obituaries',     label: 'Obituaries',       icon: <ScrollText      className="h-4 w-4" /> },
+  { id: 'columbarium',    label: 'Columbarium',      icon: <Grid3X3         className="h-4 w-4" /> },
+  { id: 'transactions',   label: 'Transactions',     icon: <Receipt         className="h-4 w-4" /> },
   { id: 'profiles',       label: 'Profiles',         icon: <UserCircle2     className="h-4 w-4" /> },
   { id: 'inquiries',      label: 'Inquiries',        icon: <Mail            className="h-4 w-4" /> },
 ]
