@@ -103,9 +103,9 @@ export default function AdminPage() {
   const setTab = (tab: Tab) => {
     window.location.hash = tab
     setActiveTab(tab)
-    // Clear any deep-linked submission when manually switching tabs
     if (tab !== 'availments') setInitialSubmissionId(null)
     if (tab !== 'inquiries')  setHighlightInquiryId(null)
+    if (tab !== 'profiles')   setHighlightDeletedEmail(null)
   }
 
   // Keep activeTab in sync if the user navigates with browser back/forward
@@ -120,10 +120,11 @@ export default function AdminPage() {
     localStorage.setItem('admin:sidebarCollapsed', String(v))
     setSidebarCollapsed(v)
   }
-  const [highlightPaymentId, setHighlightPaymentId] = useState<string | null>(null)
-  const [highlightInquiryId, setHighlightInquiryId] = useState<string | null>(null)
+  const [highlightPaymentId,     setHighlightPaymentId]     = useState<string | null>(null)
+  const [highlightInquiryId,     setHighlightInquiryId]     = useState<string | null>(null)
+  const [highlightDeletedEmail,  setHighlightDeletedEmail]  = useState<string | null>(null)
   const [availmentsProductFilter, setAvailmentsProductFilter] = useState<string | undefined>(undefined)
-  const [paymentsStatusFilter, setPaymentsStatusFilter] = useState<string | undefined>(undefined)
+  const [paymentsStatusFilter,    setPaymentsStatusFilter]    = useState<string | undefined>(undefined)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -201,8 +202,8 @@ export default function AdminPage() {
     payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} initialStatusFilter={paymentsStatusFilter as 'all' | 'pending' | 'approved' | 'rejected' | 'voided' | undefined} />,
     transactions:   <TransactionRegisterTab currentRole={currentRole} />,
     obituaries:     <ObituariesTab />,
-    profiles:       <ProfilesTab currentRole={currentRole} />,
-    inquiries:      <InquiriesTab staffName={profile.name} currentRole={currentRole} highlightInquiryId={highlightInquiryId} />,
+    profiles:       <ProfilesTab currentRole={currentRole} highlightDeletedEmail={highlightDeletedEmail} />,
+    inquiries:      <InquiriesTab staffName={profile.name} currentRole={currentRole} highlightInquiryId={highlightInquiryId} onNavigateToDeletedAccount={(email) => { setHighlightDeletedEmail(email); setTab('profiles') }} />,
   }
 
   const activeTabMeta = TABS.find(t => t.id === activeTab)

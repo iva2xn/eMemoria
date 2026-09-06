@@ -5,6 +5,27 @@ export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'voided'
 export type PaymentMethod = 'gcash' | 'bdo_bank' | 'bpi_bank' | 'cash'
 export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected' | 'deleted'
 
+export interface DeletedAccount {
+  id: string
+  original_id: string
+  name: string
+  email: string
+  phone: string | null
+  role: string
+  first_name: string | null
+  middle_initial: string | null
+  last_name: string | null
+  suffix: string | null
+  deleted_by: string | null
+  deleted_by_name: string | null
+  delete_reason: string | null
+  original_created_at: string | null
+  deleted_at: string
+  restored_at: string | null
+  restored_by: string | null
+  restored_by_name: string | null
+}
+
 export interface Profile {
   id: string
   name: string

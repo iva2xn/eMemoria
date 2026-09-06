@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
-import { Badge, SectionHeader, EmptyState, Spinner, inputCls } from './admin-primitives'
-import { ChevronDown, ChevronUp, Mail, Send, Eye, X, ChevronRight, Clock, CheckCheck, MessageSquare } from 'lucide-react'
+import { Badge, SectionHeader, EmptyState, Spinner, FilterPills, inputCls } from './admin-primitives'
+import { ChevronDown, ChevronUp, Mail, Send, Eye, X, ChevronRight, Clock, CheckCheck, MessageSquare, ShieldAlert, ArrowRight } from 'lucide-react'
 import type { Inquiry } from '@/lib/supabase/types'
 
 // ── Draft helpers (localStorage, keyed per inquiry) ──────────
@@ -415,12 +415,23 @@ function ComposeModal({ inquiry, staffName, supabase, onClose, onSent }: {
 }
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentRole = 'admin', highlightInquiryId }: { staffName?: string; currentRole?: string; highlightInquiryId?: string | null }) {
+export function InquiriesTab({
+  staffName = 'eMemoria Funeral Services',
+  currentRole = 'admin',
+  highlightInquiryId,
+  onNavigateToDeletedAccount,
+}: {
+  staffName?: string
+  currentRole?: string
+  highlightInquiryId?: string | null
+  onNavigateToDeletedAccount?: (email: string) => void
+}) {
   const supabase = createClient()
-  const [rows,     setRows]     = useState<Inquiry[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [compose,  setCompose]  = useState<Inquiry | null>(null)
+  const [rows,       setRows]       = useState<Inquiry[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [expanded,   setExpanded]   = useState<string | null>(null)
+  const [compose,    setCompose]    = useState<Inquiry | null>(null)
+  const [activeView, setActiveView] = useState<'all' | 'recovery'>('all')
 
   useEffect(() => {
     supabase.from('inquiries').select('*').order('created_at', { ascending: false })
@@ -456,9 +467,13 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentR
 
   // Account recovery requests are visible to admins only
   const RECOVERY_KEYWORDS = ['account recovery', 'password recovery', 'password reset', 'account access']
-  const visibleRows = currentRole === 'admin'
-    ? rows
-    : rows.filter(r => !RECOVERY_KEYWORDS.some(kw => r.subject.toLowerCase().includes(kw)))
+  const isRecovery = (inq: Inquiry) => RECOVERY_KEYWORDS.some(kw => inq.subject.toLowerCase().includes(kw))
+  const recoveryRows = rows.filter(isRecovery)
+  const visibleRows = activeView === 'recovery'
+    ? recoveryRows
+    : currentRole === 'admin'
+      ? rows.filter(r => !isRecovery(r))
+      : rows.filter(r => !isRecovery(r))
 
   if (loading) return <Spinner />
 
@@ -470,9 +485,7 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentR
           staffName={staffName}
           supabase={supabase}
           onClose={() => setCompose(null)}
-          onSent={() => {
-            markReplied(compose.id)
-          }}
+          onSent={() => { markReplied(compose.id) }}
         />
       )}
 
@@ -480,6 +493,81 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentR
         title="Inquiries"
         sub={`${rows.length} total · ${unreadCount} unread · ${repliedCount} replied`}
       />
+
+      {/* Sub-tabs — recovery tab admin-only */}
+      {currentRole === 'admin' && (
+        <div className="mb-4">
+          <FilterPills<'all' | 'recovery'>
+            options={[
+              { value: 'all',      label: 'All Inquiries' },
+              { value: 'recovery', label: `Account Recovery${recoveryRows.length > 0 ? ` (${recoveryRows.length})` : ''}` },
+            ]}
+            active={activeView}
+            onChange={v => setActiveView(v)}
+          />
+        </div>
+      )}
+
+      {/* ── Account Recovery sub-tab ── */}
+      {activeView === 'recovery' && currentRole === 'admin' && (
+        <div className="space-y-3">
+          {recoveryRows.length === 0 ? (
+            <EmptyState message="No account recovery requests." />
+          ) : recoveryRows.map(inq => (
+            <div key={inq.id}
+              id={`inquiry-row-${inq.id}`}
+              className={`bg-card border rounded-2xl overflow-hidden transition-all ${
+                highlightInquiryId === inq.id ? 'ring-2 ring-primary ring-offset-1 border-primary/30' : 'border-amber-500/30'
+              }`}
+            >
+              <div className="flex items-center gap-4 px-5 py-4">
+                <div className="h-9 w-9 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">{inq.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{inq.subject}</p>
+                  <p className="text-[10px] text-primary font-mono truncate mt-0.5">{inq.email}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[9px] text-muted-foreground">
+                    {new Date(inq.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' })}
+                  </span>
+                  {onNavigateToDeletedAccount && (
+                    <button
+                      onClick={() => onNavigateToDeletedAccount(inq.email)}
+                      className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[10px] font-bold hover:bg-primary/20 transition-colors"
+                    >
+                      View in Deleted <ArrowRight className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setExpanded(expanded === inq.id ? null : inq.id); if (!inq.is_read) markRead(inq.id) }}
+                    className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  >
+                    {expanded === inq.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+              {expanded === inq.id && (
+                <div className="px-5 pb-5 pt-3 border-t border-border/40 bg-muted/10 space-y-3">
+                  <p className="text-sm text-foreground leading-relaxed">{inq.message}</p>
+                  <button
+                    onClick={() => setCompose(inq)}
+                    className="inline-flex items-center gap-1.5 h-8 px-4 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-colors"
+                  >
+                    <Mail className="h-3 w-3" /> Reply via Email
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Regular inquiries ── */}
+      {activeView === 'all' && (
+        <>
 
       {visibleRows.length === 0 ? <EmptyState message="No inquiries submitted yet." /> : (
         <div className="space-y-2">
@@ -569,6 +657,8 @@ export function InquiriesTab({ staffName = 'eMemoria Funeral Services', currentR
             )
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   )

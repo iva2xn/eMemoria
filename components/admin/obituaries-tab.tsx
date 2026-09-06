@@ -779,7 +779,9 @@ export function ObituariesTab() {
   const [editAge,     setEditAge]     = useState('')
   const [editVenue,   setEditVenue]   = useState('')
   const [editContact, setEditContact] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [saveOk,    setSaveOk]    = useState(false)
 
   const fetchActive = async () => {
     const { data } = await supabase
@@ -809,7 +811,10 @@ export function ObituariesTab() {
   const saveEdit = async () => {
     if (!selected) return
     setSaving(true)
+    setSaveError('')
+    setSaveOk(false)
     const fullName = [editFirst.trim(), editMiddle.trim(), editLast.trim()].filter(Boolean).join(' ')
+    if (!fullName) { setSaveError('Name cannot be empty.'); setSaving(false); return }
     const updates = {
       full_name:      fullName,
       birth_date:     editBirth || null,
@@ -818,10 +823,24 @@ export function ObituariesTab() {
       venue_address:  editVenue || null,
       contact_number: editContact || null,
     }
-    await supabase.from('obituaries').update(updates).eq('id', selected.id)
+    const { error } = await supabase.from('obituaries').update(updates).eq('id', selected.id)
+    if (error) { setSaveError(error.message); setSaving(false); return }
     setRows(r => r.map(x => x.id === selected.id ? { ...x, ...updates } : x))
     setSelected(prev => prev ? { ...prev, ...updates } : null)
     setSaving(false)
+    setSaveOk(true)
+    setTimeout(() => setSaveOk(false), 3000)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Staff'
+      : 'Staff'
+    await logActivity({
+      category: 'log', event_type: 'obituary_edited',
+      entity_table: 'obituaries', entity_id: selected.id,
+      actor_id: user?.id, actor_name: actorName,
+      message: `${actorName} edited obituary for ${fullName}`,
+      metadata: { full_name: fullName },
+    })
   }
 
   const approveAndPublish = async (id: string) => {
@@ -1067,8 +1086,10 @@ export function ObituariesTab() {
                     <input value={editContact} onChange={e => setEditContact(e.target.value)} className={inputCls} />
                   </div>
                   <div className="flex gap-3 pt-2">
+                    {saveError && <p className="text-xs text-destructive col-span-full">{saveError}</p>}
+                    {saveOk    && <p className="text-xs text-primary col-span-full">✓ Saved successfully</p>}
                     <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
-                      {saving ? 'Saving…' : 'Save Changes'}
+                      {saving ? 'Saving…' : saveOk ? '✓ Saved' : 'Save Changes'}
                     </Button>
                     <button
                       onClick={() => selected.is_published ? unpublish(selected.id) : setApproveTarget(selected)}
