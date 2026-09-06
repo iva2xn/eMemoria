@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Spinner, MiniSelect } from './admin-primitives'
 import { SalesReportModal } from './sales-report-modal'
@@ -11,7 +12,7 @@ import {
 import {
   BarChart3, ArrowRight, Mail,
   ChevronDown, ChevronUp,
-  Inbox, Wallet
+  Inbox, Wallet, X, TrendingUp
 } from 'lucide-react'
 import type { Inquiry, Payment, UserRole } from '@/lib/supabase/types'
 
@@ -67,10 +68,11 @@ const PRODUCT_LABELS: Record<string, string> = {
 }
 
 const PERIOD_OPTIONS = [
-  { value: 'today', label: 'Today' },
-  { value: 'week',  label: 'This Week' },
-  { value: 'month', label: 'This Month' },
-  { value: 'year',  label: 'This Year' },
+  { value: 'today',    label: 'Today' },
+  { value: 'week',     label: 'This Week' },
+  { value: 'month',    label: 'This Month' },
+  { value: 'year',     label: 'This Year' },
+  { value: 'all-time', label: 'All Time' },
 ] as const
 type PeriodFilter = typeof PERIOD_OPTIONS[number]['value']
 
@@ -90,6 +92,129 @@ function timeAgo(iso: string) {
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
+}
+
+/* ── Total Revenue Modal (all-time, approved only, no filters) ── */
+interface TotalRevenueRow {
+  id: string
+  created_at: string
+  approved_at: string | null
+  guest_name: string | null
+  product_type: string
+  method: string
+  reference_number: string | null
+  amount: number
+}
+
+function TotalRevenueModal({ onClose }: { onClose: () => void }) {
+  const supabase = createClient()
+  const [rows,    setRows]    = useState<TotalRevenueRow[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('payments')
+      .select('id,created_at,approved_at,guest_name,product_type,method,reference_number,amount')
+      .eq('status', 'approved')
+      .order('approved_at', { ascending: false })
+      .then(({ data }) => { setRows((data ?? []) as TotalRevenueRow[]); setLoading(false) })
+  }, [supabase])
+
+  const total = rows.reduce((s, r) => s + Number(r.amount), 0)
+
+  const PRODUCT_LABELS: Record<string, string> = {
+    package: 'Burial', cremation: 'Cremation', columbarium: 'Columbarium', urn: 'Urn', general: 'General',
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative w-full max-w-3xl bg-card border border-border rounded-2xl shadow-2xl max-h-[88vh] flex flex-col" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Total Revenue</h2>
+              <p className="text-[10px] text-muted-foreground">All time · approved transactions</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Summary strip */}
+        <div className="px-6 py-3 border-b border-border/60 flex items-center gap-6 shrink-0 bg-muted/20">
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total Revenue</p>
+            <p className="text-lg font-bold text-primary">₱{total.toLocaleString('en-PH')}</p>
+          </div>
+          <div className="w-px h-8 bg-border/60" />
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Transactions</p>
+            <p className="text-lg font-bold text-foreground">{rows.length}</p>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-y-auto flex-1 px-6 py-4">
+          {loading ? (
+            <div className="py-12 flex justify-center">
+              <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : rows.length === 0 ? (
+            <p className="py-10 text-center text-xs text-muted-foreground italic">No approved transactions yet.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-muted/30 border-b border-border">
+                    {['Date Approved', 'Client', 'Product', 'Method', 'Reference', 'Amount'].map((h, i) => (
+                      <th key={i} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap border-r border-border/30 last:border-r-0">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.id} className={`border-b border-border/40 hover:bg-muted/10 transition-colors ${i % 2 !== 0 ? 'bg-muted/[0.03]' : ''}`}>
+                      <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground whitespace-nowrap border-r border-border/20">
+                        {r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' }) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 font-semibold text-foreground border-r border-border/20 whitespace-nowrap">
+                        {r.guest_name ?? '—'}
+                      </td>
+                      <td className="px-4 py-2.5 capitalize text-foreground border-r border-border/20">
+                        {PRODUCT_LABELS[r.product_type] ?? r.product_type}
+                      </td>
+                      <td className="px-4 py-2.5 uppercase text-[10px] text-muted-foreground border-r border-border/20 whitespace-nowrap">
+                        {r.method.replace('_', ' ')}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground border-r border-border/20">
+                        {r.reference_number ?? '—'}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">
+                        ₱{Number(r.amount).toLocaleString('en-PH')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-muted/30 border-t border-border">
+                    <td colSpan={5} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</td>
+                    <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">₱{total.toLocaleString('en-PH')}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
 }
 
 /* ── Metrics Stat Card ─────────────────────────── */
@@ -136,6 +261,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [loading,          setLoading]          = useState(true)
   const [showReport,       setShowReport]       = useState(false)
   const [reportPeriod,     setReportPeriod]     = useState<PeriodFilter>('month')
+  const [showTotalRevenue, setShowTotalRevenue] = useState(false)
   const [expandedInq,         setExpandedInq]         = useState<string | null>(null)
   const [periodFilter,        setPeriodFilter]        = useState<PeriodFilter>('month')
   const [salesChartDays,      setSalesChartDays]      = useState<7 | 14 | 30 | 90>(14)
@@ -209,6 +335,9 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
       const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
       return approvedPayments.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
     }
+    if (periodFilter === 'all-time') {
+      return approvedPayments.reduce((s, p) => s + Number(p.amount), 0)
+    }
     // year
     return approvedPayments.filter(p => p.approved_at?.startsWith(String(now.getFullYear()))).reduce((s, p) => s + Number(p.amount), 0)
   })()
@@ -242,6 +371,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   return (
     <div className="space-y-6 p-1">
       {showReport && <SalesReportModal onClose={() => setShowReport(false)} defaultPeriod={reportPeriod} />}
+      {showTotalRevenue && <TotalRevenueModal onClose={() => setShowTotalRevenue(false)} />}
 
       {/* ── ROW 1: Metric Overview Blocks ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -290,18 +420,13 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             accent="emerald"
             onClick={() => onNavigate('payments')}
           />
-          <div
-            onClick={() => { setReportPeriod('year'); setShowReport(true) }}
-            className="h-[130px] bg-card border border-border/60 rounded-2xl p-5 flex flex-col justify-between shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
-          >
-            <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Total Revenue</p>
-            <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">
-              ₱{stats.totalRevenue.toLocaleString('en-PH')}
-            </p>
-            <div className="flex items-center gap-1.5 min-h-[18px]">
-              <p className="text-[10px] text-muted-foreground">All-time approved</p>
-            </div>
-          </div>
+          <MetricCard
+            label="Total Revenue"
+            value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
+            subtitle="All time · approved"
+            accent="emerald"
+            onClick={() => setShowTotalRevenue(true)}
+          />
         </div>
 
         {/* Col 3 Tall Card: Users (With Donut) */}

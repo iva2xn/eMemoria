@@ -462,18 +462,20 @@ export function InquiriesTab({
     setRows(r => r.map(x => x.id === id ? { ...x, replied_at: now, draft_body: null, draft_subject: null } : x))
   }, [supabase])
 
-  const unreadCount  = rows.filter(r => !r.is_read).length
-  const repliedCount = rows.filter(r => !!r.replied_at).length
-
   // Account recovery requests are visible to admins only
   const RECOVERY_KEYWORDS = ['account recovery', 'password recovery', 'password reset', 'account access']
   const isRecovery = (inq: Inquiry) => RECOVERY_KEYWORDS.some(kw => inq.subject.toLowerCase().includes(kw))
   const recoveryRows = rows.filter(isRecovery)
+
+  // Staff never sees recovery inquiries at all
+  const staffVisibleRows = currentRole === 'admin' ? rows : rows.filter(r => !isRecovery(r))
+
+  const unreadCount  = staffVisibleRows.filter(r => !r.is_read).length
+  const repliedCount = staffVisibleRows.filter(r => !!r.replied_at).length
+
   const visibleRows = activeView === 'recovery'
     ? recoveryRows
-    : currentRole === 'admin'
-      ? rows.filter(r => !isRecovery(r))
-      : rows.filter(r => !isRecovery(r))
+    : staffVisibleRows.filter(r => !isRecovery(r))
 
   if (loading) return <Spinner />
 

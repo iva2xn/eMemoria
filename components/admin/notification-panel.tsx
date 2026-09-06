@@ -97,9 +97,13 @@ function actionUrl(entry: LogEntry): string | null {
 // ── Main component ────────────────────────────────────────────
 type NotificationPanelProps = {
   onNavigate?: (submissionId: string) => void
+  currentRole?: string
 }
 
-export function NotificationPanel({ onNavigate }: NotificationPanelProps) {
+// Event types that are admin-only (never shown to staff)
+const ADMIN_ONLY_EVENTS = new Set(['account_deletion_requested'])
+
+export function NotificationPanel({ onNavigate, currentRole = 'admin' }: NotificationPanelProps) {
   const supabase  = createClient()
   const router    = useRouter()
   const panelRef  = useRef<HTMLDivElement>(null)
@@ -111,8 +115,12 @@ export function NotificationPanel({ onNavigate }: NotificationPanelProps) {
   const [loading,     setLoading]     = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
 
-  const notifications = entries.filter(e => e.category === 'notification')
-  const logs          = entries.filter(e => e.category === 'log')
+  const visibleEntries = currentRole === 'admin'
+    ? entries
+    : entries.filter(e => !ADMIN_ONLY_EVENTS.has(e.event_type))
+
+  const notifications = visibleEntries.filter(e => e.category === 'notification')
+  const logs          = visibleEntries.filter(e => e.category === 'log')
 
   const fetchUnreadCount = useCallback(async () => {
     const { count, error } = await supabase
@@ -138,7 +146,10 @@ export function NotificationPanel({ onNavigate }: NotificationPanelProps) {
       .limit(80)
     const loaded = (data as LogEntry[]) ?? []
     setEntries(loaded)
-    setUnreadCount(loaded.filter(e => !e.is_read && e.category === 'notification').length)
+    const filteredLoaded = currentRole === 'admin'
+      ? loaded
+      : loaded.filter(e => !ADMIN_ONLY_EVENTS.has(e.event_type))
+    setUnreadCount(filteredLoaded.filter(e => !e.is_read && e.category === 'notification').length)
     setLoading(false)
   }, [supabase])
 

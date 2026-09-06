@@ -120,7 +120,7 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
   )
 }
 
-export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose: () => void; defaultPeriod?: 'today' | 'week' | 'month' | 'year' }) {
+export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose: () => void; defaultPeriod?: 'today' | 'week' | 'month' | 'year' | 'all-time' }) {
   const supabase = createClient()
 
   const today = new Date()
@@ -129,9 +129,10 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
   // Compute initial date range from defaultPeriod
   const initDates = (() => {
     const t = fmt(today)
-    if (defaultPeriod === 'today') return { from: t, to: t }
-    if (defaultPeriod === 'week')  return { from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: t }
-    if (defaultPeriod === 'year')  return { from: fmt(new Date(today.getFullYear(), 0, 1)), to: t }
+    if (defaultPeriod === 'today')    return { from: t, to: t }
+    if (defaultPeriod === 'week')     return { from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: t }
+    if (defaultPeriod === 'year')     return { from: fmt(new Date(today.getFullYear(), 0, 1)), to: t }
+    if (defaultPeriod === 'all-time') return { from: '', to: '' }
     // month (default)
     return { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: t }
   })()
@@ -154,9 +155,11 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
     let q = supabase
       .from('payments')
       .select('id,created_at,approved_at,guest_name,guest_email,product_type,product_ref,method,reference_number,amount,status,notes,void_reason,void_comment')
-      .gte('created_at', `${dateFrom}T00:00:00`)
-      .lte('created_at', `${dateTo}T23:59:59`)
       .order('created_at', { ascending: false })
+
+    // Only apply date filter when both dates are set (empty = all-time)
+    if (dateFrom) q = q.gte('created_at', `${dateFrom}T00:00:00`)
+    if (dateTo)   q = q.lte('created_at', `${dateTo}T23:59:59`)
 
     if (statusFilt !== 'all') q = q.eq('status', statusFilt)
     if (product    !== 'all') q = q.eq('product_type', product)
@@ -205,7 +208,7 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `sales-report-${dateFrom}-to-${dateTo}.csv`
+    a.download = `sales-report-${dateFrom || 'all-time'}-to-${dateTo || 'all-time'}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -261,7 +264,7 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
     doc.setFontSize(8)
     doc.setTextColor(...DARK)
     const filterLine = [
-      `Period: ${dateFrom} → ${dateTo}`,
+      `Period: ${dateFrom && dateTo ? `${dateFrom} → ${dateTo}` : 'All Time'}`,
       `Status: ${statusFilt}`,
       `Product: ${product}`,
       `Method: ${method}`,
@@ -330,7 +333,7 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
       },
     })
 
-    doc.save(`sales-report-${dateFrom}-to-${dateTo}.pdf`)
+    doc.save(`sales-report-${dateFrom || 'all-time'}-to-${dateTo || 'all-time'}.pdf`)
   }
 
   const [showExportMenu, setShowExportMenu] = useState(false)
@@ -440,6 +443,7 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
                 { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
                 { label: 'This Month', from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) },
                 { label: 'This Year',  from: fmt(new Date(today.getFullYear(), 0, 1)), to: fmt(today) },
+                { label: 'All Time',   from: '', to: '' },
               ].map(p => (
                 <button key={p.label} onClick={() => { setDateFrom(p.from); setDateTo(p.to) }}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${

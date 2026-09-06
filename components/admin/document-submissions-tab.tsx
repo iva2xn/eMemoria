@@ -824,7 +824,7 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
             <Printer className="h-3.5 w-3.5" /> DOCX
           </button>
-          {submission.status === 'pending_review' && currentRole === 'admin' && (
+          {submission.status === 'pending_review' && (currentRole === 'admin' || currentRole === 'staff') && (
             <button onClick={() => setReviewOpen(true)}
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-all">
               <Eye className="h-3.5 w-3.5" /> Review & Approve
@@ -1195,7 +1195,7 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                         </td>
                         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            {s.status === 'pending_review' && currentRole === 'admin' && (
+                            {s.status === 'pending_review' && (currentRole === 'admin' || currentRole === 'staff') && (
                               <button onClick={() => setReviewRow(s)}
                                 className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">
                                 <Eye className="h-3 w-3" /> Review
