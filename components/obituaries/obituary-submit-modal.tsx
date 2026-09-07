@@ -33,7 +33,7 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
   const [lastName,       setLastName]       = useState('')
   const [birthDate,      setBirthDate]      = useState('')
   const [deathDate,      setDeathDate]      = useState('')
-  const [venueAddress,   setVenueAddress]   = useState('')
+  const [venueAddress,   setVenueAddress]   = useState('')  // kept for tarp preview; set by admin via wake schedule
   const [contactNumber,  setContactNumber]  = useState('')
   const [submitterName,  setSubmitterName]  = useState('')
   const [submitterEmail, setSubmitterEmail] = useState('')
@@ -102,7 +102,6 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
     if (!lastName.trim())      { setError('Last name of deceased is required.'); return }
     if (!birthDate)            { setError('Date of birth is required.'); return }
     if (!deathDate)            { setError('Date of death is required.'); return }
-    if (!venueAddress.trim())  { setError('Venue address is required.'); return }
     if (!contactNumber.trim()) { setError('Contact number is required.'); return }
     setStep('review')
   }
@@ -253,11 +252,6 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                 <Field label="Contact Number" required>
                   <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} />
                 </Field>
-                <div className="sm:col-span-2">
-                  <Field label="Venue / Wake Address" required>
-                    <input type="text" placeholder="e.g. Brgy. Mayuwi, Tayabas City" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} className={inp} />
-                  </Field>
-                </div>
               </div>
 
               {/* Submitter info */}
@@ -333,7 +327,6 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                     { label: 'Date of Birth', value: birthDate || '—' },
                     { label: 'Date of Death', value: deathDate || '—' },
                     { label: 'Age',           value: computedAge || '—' },
-                    { label: 'Venue',         value: venueAddress },
                     { label: 'Contact',       value: contactNumber },
                     ...(submitterName  ? [{ label: 'Submitted By', value: submitterName }]  : []),
                     ...(submitterEmail ? [{ label: 'Your Email',   value: submitterEmail }] : []),

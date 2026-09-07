@@ -533,6 +533,19 @@ function WakeScheduleContent() {
                     </div>
                   </div>
 
+                  {/* Venue */}
+                  {(wake as Wake & { venue_address?: string | null }).venue_address && (
+                    <div className="flex items-start gap-4">
+                      <div className="h-9 w-9 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <MapPin className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Venue / Wake Address</p>
+                        <p className="text-sm font-semibold text-foreground">{(wake as Wake & { venue_address?: string | null }).venue_address}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Wake period */}
                   <div className="flex items-start gap-4">
                     <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">

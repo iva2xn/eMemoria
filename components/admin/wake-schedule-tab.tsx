@@ -74,6 +74,7 @@ function EditWakeModal({
   const [pickupDatetime,  setPickupDatetime]  = useState(
     row.pickup_datetime ? row.pickup_datetime.slice(0, 16) : ''
   )
+  const [venueAddress,    setVenueAddress]    = useState((row as Wake & { venue_address?: string | null }).venue_address ?? '')
   const [wakeStart,       setWakeStart]       = useState(row.wake_start_date ?? '')
   const [wakeEnd,         setWakeEnd]         = useState(row.wake_end_date ?? '')
   const [burialLocation,  setBurialLocation]  = useState(row.burial_location ?? '')
@@ -94,6 +95,7 @@ function EditWakeModal({
       : 'Staff'
     const { error: err } = await supabase.from('wakes').update({
       pickup_datetime:       pickupDatetime ? new Date(pickupDatetime).toISOString() : null,
+      venue_address:         venueAddress.trim() || null,
       wake_start_date:       wakeStart || null,
       wake_end_date:         wakeEnd || null,
       burial_location:       burialLocation || null,
@@ -101,6 +103,16 @@ function EditWakeModal({
       notes:                 notes.trim() || null,
     }).eq('id', row.id)
     if (err) { setError(err.message); setLoading(false); return }
+
+    // Sync venue_address back to the linked obituary if one exists
+    if (venueAddress.trim()) {
+      await supabase
+        .from('obituaries')
+        .update({ venue_address: venueAddress.trim() })
+        .eq('user_id', row.user_id ?? '')
+        .eq('full_name', row.deceased_name)
+    }
+
     await logActivity({
       category:     'log',
       event_type:   'wake_updated',
@@ -114,12 +126,13 @@ function EditWakeModal({
     onSaved({
       ...row,
       pickup_datetime:       pickupDatetime ? new Date(pickupDatetime).toISOString() : null,
+      venue_address:         venueAddress.trim() || null,
       wake_start_date:       wakeStart || null,
       wake_end_date:         wakeEnd || null,
       burial_location:       burialLocation || null,
       burial_location_other: isOther ? burialOther : null,
       notes:                 notes.trim() || null,
-    })
+    } as WakeRow)
     onClose()
   }
 
@@ -167,9 +180,10 @@ function EditWakeModal({
 
           {step === 1 ? (
             <>
+              {/* ── Section 1: Pickup ── */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Pickup Date &amp; Time
+                  Wake Start Date &amp; Time
                 </label>
                 <input
                   type="datetime-local"
@@ -178,29 +192,49 @@ function EditWakeModal({
                   className={inputCls}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Wake Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={wakeStart}
-                    onChange={e => setWakeStart(e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Wake End Date
-                  </label>
-                  <input
-                    type="date"
-                    value={wakeEnd}
-                    min={wakeStart || undefined}
-                    onChange={e => setWakeEnd(e.target.value)}
-                    className={inputCls}
-                  />
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Venue / Wake Address
+                </label>
+                <input
+                  type="text"
+                  value={venueAddress}
+                  onChange={e => setVenueAddress(e.target.value)}
+                  placeholder="e.g. Brgy. Mayuwi, Tayabas City"
+                  className={inputCls}
+                />
+              </div>
+
+              {/* Separator */}
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex-1 h-px bg-border/60" />
+              </div>
+
+              {/* ── Section 2: Wake End / Burial ── */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Wake End Date &amp; Time
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-muted-foreground/70 uppercase tracking-wider">Start Date</p>
+                    <input
+                      type="date"
+                      value={wakeStart}
+                      onChange={e => setWakeStart(e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-muted-foreground/70 uppercase tracking-wider">End Date</p>
+                    <input
+                      type="date"
+                      value={wakeEnd}
+                      min={wakeStart || undefined}
+                      onChange={e => setWakeEnd(e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -217,21 +251,23 @@ function EditWakeModal({
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-              </div>
-              {isOther && (
-                <div className="space-y-1.5">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Specify Location <span className="text-destructive">*</span>
-                  </label>
+                {isOther && (
                   <input
                     type="text"
                     value={burialOther}
                     onChange={e => setBurialOther(e.target.value)}
                     placeholder="Enter full location…"
-                    className={inputCls}
+                    className={`${inputCls} mt-2`}
                   />
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Separator */}
+              <div className="flex items-center gap-3 py-1">
+                <div className="flex-1 h-px bg-border/60" />
+              </div>
+
+              {/* ── Section 3: Notes ── */}
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Notes (optional)
@@ -256,6 +292,7 @@ function EditWakeModal({
                     { label: 'Deceased',    value: row.deceased_name },
                     { label: 'Client',      value: row.clientName ?? '—' },
                     { label: 'Pickup',      value: pickupDatetime ? fmtDateTime(new Date(pickupDatetime).toISOString()) : '—' },
+                    { label: 'Venue',       value: venueAddress.trim() || '—' },
                     { label: 'Wake Start',  value: wakeStart ? fmtDate(wakeStart) : '—' },
                     { label: 'Wake End',    value: wakeEnd   ? fmtDate(wakeEnd)   : '—' },
                     { label: 'Location',    value: burialLocation === 'Other Location' ? (burialOther || 'Other') : (burialLocation || '—') },
@@ -619,6 +656,7 @@ function ReviewScheduleRequestModal({
   // Editable fields (pre-filled from request)
   const [pickupDate,     setPickupDate]     = useState(req.preferred_pickup_date ?? '')
   const [pickupTime,     setPickupTime]     = useState(req.preferred_pickup_time ?? '')
+  const [venueAddress,   setVenueAddress]   = useState('')
   const [wakeStart,      setWakeStart]      = useState(req.preferred_wake_start ?? '')
   const [wakeEnd,        setWakeEnd]        = useState(req.preferred_wake_end ?? '')
   const [burialLocation, setBurialLocation] = useState(req.preferred_burial_location ?? '')
@@ -655,6 +693,7 @@ function ReviewScheduleRequestModal({
           user_id:               req.user_id,
           deceased_name:         req.deceased_name,
           pickup_datetime:       pickupIso,
+          venue_address:         venueAddress.trim() || null,
           wake_start_date:       wakeStart || null,
           wake_end_date:         wakeEnd   || null,
           burial_location:       burialLocation || null,
@@ -821,6 +860,20 @@ function ReviewScheduleRequestModal({
                   <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className={inputCls} />
                 </div>
               </div>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Venue / Wake Address</label>
+                <input
+                  type="text"
+                  value={venueAddress}
+                  onChange={e => setVenueAddress(e.target.value)}
+                  placeholder="e.g. Brgy. Mayuwi, Tayabas City"
+                  className={inputCls}
+                />
+              </div>
+
+              {/* Separator */}
+              <div className="flex-1 h-px bg-border/60" />
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Wake Start</label>
@@ -858,6 +911,10 @@ function ReviewScheduleRequestModal({
                   />
                 </div>
               )}
+
+              {/* Separator */}
+              <div className="flex-1 h-px bg-border/60" />
+
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Notes (optional)</label>
                 <textarea

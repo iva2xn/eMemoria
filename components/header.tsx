@@ -10,17 +10,20 @@ import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
-import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon, Bell } from 'lucide-react'
+import {
+  Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon, Bell,
+  Home, Layers, ScrollText, ClipboardList, Receipt, Users, Phone,
+} from 'lucide-react'
 
 const NAV_LINKS = [
-  { name: 'Home',             href: '/',               authRequired: false },
-  { name: 'Funeral Services', href: '/services',       authRequired: false },
-  { name: 'Wake Schedules',   href: '/wake-schedule',  authRequired: true  },
-  { name: 'Obituaries',       href: '/obituaries',     authRequired: true  },
-  { name: 'My Bookings',      href: '/bookings',       authRequired: true  },
-  { name: 'Payments',         href: '/payments',       authRequired: true  },
-  { name: 'About Us',         href: '/about',          authRequired: false },
-  { name: 'Contact',          href: '/contact',        authRequired: false },
+  { name: 'Home',             href: '/',               authRequired: false, icon: Home         },
+  { name: 'Funeral Services', href: '/services',       authRequired: false, icon: Layers       },
+  { name: 'Wake Schedules',   href: '/wake-schedule',  authRequired: true,  icon: Moon         },
+  { name: 'Obituaries',       href: '/obituaries',     authRequired: true,  icon: ScrollText   },
+  { name: 'My Bookings',      href: '/bookings',       authRequired: true,  icon: ClipboardList},
+  { name: 'Payments',         href: '/payments',       authRequired: true,  icon: Receipt      },
+  { name: 'About Us',         href: '/about',          authRequired: false, icon: Users        },
+  { name: 'Contact',          href: '/contact',        authRequired: false, icon: Phone        },
 ]
 
 // Module-level cache — survives page navigations (component remounts)
@@ -186,7 +189,8 @@ export function HeroHeader() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
 
-  const supabase = useRef(createClient()).current // eslint-disable-line react-hooks/refs
+  const supabase  = useRef(createClient()).current // eslint-disable-line react-hooks/refs
+  const headerRef = useRef<HTMLElement>(null)
 
   const [profile,         setProfile]         = useState<Profile | null>(cachedProfile ?? null)
   const [authReady,       setAuthReady]       = useState(cachedProfile !== undefined)
@@ -216,6 +220,8 @@ export function HeroHeader() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Switch to icon-only handled via CSS (xl: breakpoint) — no JS needed
 
   useEffect(() => {
     if (cachedProfile !== undefined) {
@@ -253,6 +259,9 @@ export function HeroHeader() {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href)
 
+  const visibleLinks = NAV_LINKS.filter(link => !link.authRequired || profile)
+  const hasAdminLink = authReady && (profile?.role === 'admin' || profile?.role === 'staff')
+
   return (
     <>
       {showLogoutModal && (
@@ -263,6 +272,7 @@ export function HeroHeader() {
       )}
 
       <header
+        ref={headerRef}
         className={`sticky top-0 z-50 w-full transition-all duration-300 ease-out ${
           topBarVisible
             ? 'border-b border-border/30 bg-background/70 backdrop-blur-xl'
@@ -333,26 +343,39 @@ export function HeroHeader() {
           </div>
         </div>
 
-        {/* Pill nav */}
-        <nav className="hidden md:flex items-center gap-1 rounded-full px-1.5 py-1 bg-muted/70 border border-border/40 backdrop-blur-xl shadow-sm absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
-            <Link key={link.href} href={link.href}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isActive(link.href)
-                  ? 'bg-background text-foreground shadow-sm border border-border/40'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
-              }`}>
-              {link.name}
-            </Link>
-          ))}
-          {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
-            <Link href="/admin"
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+        {/* ── Pill nav (desktop only) ── */}
+        <nav className="hidden md:flex items-center gap-0.5 rounded-full px-1.5 py-1 bg-muted/70 border border-border/40 backdrop-blur-xl shadow-sm absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap">
+          {visibleLinks.map(link => {
+            const active = isActive(link.href)
+            const Icon   = link.icon
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                title={link.name}
+                className={`flex items-center gap-1.5 rounded-full transition-all px-2.5 py-2 xl:px-3.5 xl:py-1.5 ${
+                  active
+                    ? 'bg-background text-foreground shadow-sm border border-border/40'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden xl:inline text-sm font-medium">{link.name}</span>
+              </Link>
+            )
+          })}
+          {hasAdminLink && (
+            <Link
+              href="/admin"
+              title={profile?.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
+              className={`flex items-center gap-1.5 rounded-full transition-all px-2.5 py-2 xl:px-3.5 xl:py-1.5 ${
                 isActive('/admin')
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground hover:bg-background/60'
-              }`}>
-              <ShieldAlert className="h-3 w-3" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden xl:inline text-sm font-medium">{profile?.role === 'admin' ? 'Admin' : 'Staff'}</span>
             </Link>
           )}
         </nav>
@@ -361,28 +384,32 @@ export function HeroHeader() {
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-border/30 bg-background/95 backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-150">
             <div className="space-y-1 px-4 py-4">
-              {NAV_LINKS.filter(link => !link.authRequired || profile).map(link => (
-                <Link key={link.href} href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive(link.href)
-                      ? 'bg-primary/10 text-primary font-semibold'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}>
-                  {link.name}
-                </Link>
-              ))}
-              {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
+              {visibleLinks.map(link => {
+                const Icon = link.icon
+                return (
+                  <Link key={link.href} href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      isActive(link.href)
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}>
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {link.name}
+                  </Link>
+                )
+              })}
+              {hasAdminLink && (
                 <Link href="/admin" onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-primary hover:bg-primary/10 transition-colors">
-                  <ShieldAlert className="h-4 w-4" /> {profile?.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-primary hover:bg-primary/10 transition-colors">
+                  <ShieldAlert className="h-4 w-4 shrink-0" /> {profile?.role === 'admin' ? 'Admin Panel' : 'Staff Panel'}
                 </Link>
               )}
               <div className="border-t border-border/30 pt-3 mt-1 space-y-1">
                 {mounted && (
                   <button
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground w-full transition-colors"
                   >
                     {theme === 'dark'
                       ? <><Sun className="h-4 w-4" /> Light Mode</>
@@ -390,42 +417,41 @@ export function HeroHeader() {
                     }
                   </button>
                 )}
-                {authReady && (
-                  profile ? (
-                    <>
+                {profile && (
+                  <>
+                    <Link
+                      href="/profile"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    >
+                      <UserIcon className="h-4 w-4" /> Your Profile
+                    </Link>
+                    {profile.role === 'client' && (
                       <Link
-                        href="/profile"
+                        href="/notifications"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
-                        <UserIcon className="h-4 w-4" /> Your Profile
+                        <Bell className="h-4 w-4" /> Notifications
                       </Link>
-                      {profile.role === 'client' && (
-                        <Link
-                          href="/notifications"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        >
-                          <Bell className="h-4 w-4" /> Notifications
-                        </Link>
-                      )}
-                      <button
-                        onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true) }}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors"
-                      >
-                        <LogOut className="h-4 w-4" /> Sign Out
-                      </button>
-                    </>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>
-                        <Link href="/auth/login">Login</Link>
-                      </Button>
-                      <Button size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>
-                        <Link href="/auth/register">Sign Up</Link>
-                      </Button>
-                    </div>
-                  )
+                    )}
+                    <button
+                      onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true) }}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" /> Sign Out
+                    </button>
+                  </>
+                )}
+                {authReady && !profile && (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button variant="outline" size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/auth/login">Login</Link>
+                    </Button>
+                    <Button size="sm" className="rounded-xl" asChild onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/auth/register">Sign Up</Link>
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

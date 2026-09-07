@@ -70,7 +70,7 @@ export default function ColumbariumPage() {
 
           {/* SLOT GRID */}
           <div className="flex justify-center">
-            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden w-fit max-w-full">
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-x-auto w-full max-w-full">
               <div className="px-5 py-5 text-center border-b border-border/40">
                 <h2 className="text-base font-bold uppercase tracking-widest text-foreground">Columbarium Slots</h2>
                 <p className="text-[11px] text-muted-foreground mt-1">Click any available slot to view details and reserve</p>
