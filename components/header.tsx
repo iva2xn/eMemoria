@@ -10,7 +10,7 @@ import type { Profile } from '@/lib/supabase/types'
 import { Button } from './ui/button'
 import { ClientNotificationBell } from '@/components/client-notification-bell'
 import { LogoutConfirmModal } from '@/components/ui/logout-confirm-modal'
-import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon } from 'lucide-react'
+import { Menu, X, User as UserIcon, LogOut, ShieldAlert, Sun, Moon, Bell } from 'lucide-react'
 
 const NAV_LINKS = [
   { name: 'Home',             href: '/',               authRequired: false },
@@ -393,13 +393,20 @@ export function HeroHeader() {
                 {authReady && (
                   profile ? (
                     <>
+                      <Link
+                        href="/profile"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <UserIcon className="h-4 w-4" /> Your Profile
+                      </Link>
                       {profile.role === 'client' && (
                         <Link
                           href="/notifications"
                           onClick={() => setMobileMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >
-                          <UserIcon className="h-4 w-4" /> Notifications
+                          <Bell className="h-4 w-4" /> Notifications
                         </Link>
                       )}
                       <button

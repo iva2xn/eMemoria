@@ -348,7 +348,9 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <NotificationPanel onNavigate={handleNotifNavigate} currentRole={currentRole} />
+            {currentRole === 'admin' && (
+              <NotificationPanel onNavigate={handleNotifNavigate} currentRole={currentRole} />
+            )}
             <div className="md:hidden">
               <ThemeToggle />
             </div>
