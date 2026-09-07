@@ -211,7 +211,7 @@ export default function AdminPage() {
   // Staff cannot access the Profiles tab — redirect to overview if they somehow land there
   const visibleTabs = currentRole === 'admin'
     ? TABS
-    : TABS.filter(t => t.id !== 'profiles')
+    : TABS.filter(t => t.id !== 'profiles' && t.id !== 'transactions')
 
   return (
     <div className="flex h-screen overflow-clip bg-background">

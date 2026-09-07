@@ -30,7 +30,7 @@ export function AuthGateModal({ returnUrl }: { returnUrl: string }) {
               onClick={() => router.push(`/auth/login?next=${encoded}`)}
               className="w-full h-11 font-bold rounded-xl gap-2"
             >
-              <LogIn className="h-4 w-4" /> Sign In
+              <LogIn className="h-4 w-4" /> Login
             </Button>
             <Button
               variant="outline"
@@ -40,7 +40,7 @@ export function AuthGateModal({ returnUrl }: { returnUrl: string }) {
               <UserPlus className="h-4 w-4" /> Create Account
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground">Already verified? Sign in to continue.</p>
+          <p className="text-[10px] text-muted-foreground">Already verified? Login to continue.</p>
         </div>
       </div>
     </div>,

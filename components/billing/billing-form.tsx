@@ -278,7 +278,7 @@ export function BillingForm({
     if (refErr) { setRefError(refErr); return }
 
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) { setError('Enter a valid payment amount.'); return }
-    if (!file) { setError('Payment proof is required. Please upload your receipt.'); return }
+    if (!file) { setError('Proof of payment is required. Please upload your receipt.'); return }
 
     setStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -404,7 +404,7 @@ export function BillingForm({
                 {/* Payment proof preview */}
                 {file && (
                   <div className="border-t border-border/40">
-                    <DocReviewRow label="Payment Proof" file={file} />
+                    <DocReviewRow label="Proof of Payment" file={file} />
                   </div>
                 )}
               </div>
@@ -479,8 +479,10 @@ export function BillingForm({
                   {prePrice > 0 && (
                     <p className="text-muted-foreground">
                       {isColumbarium
-                        ? <>Price: <span className="font-bold text-primary">₱{prePrice.toLocaleString('en-PH')}</span> (full price — online payment)</>
-                        : <>Price: <span className="font-semibold text-foreground">₱{prePrice.toLocaleString('en-PH')}</span></>
+                        ? <>Price: <span className="font-bold text-primary">₱{discountedBase.toLocaleString('en-PH')}</span> (full price — online payment)</>
+                        : seniorPwdDiscount && discountAmount > 0
+                          ? <>Price: <span className="line-through">₱{prePrice.toLocaleString('en-PH')}</span> <span className="font-bold text-primary">₱{discountedBase.toLocaleString('en-PH')}</span></>
+                          : <>Price: <span className="font-semibold text-foreground">₱{prePrice.toLocaleString('en-PH')}</span></>
                       }
                     </p>
                   )}
@@ -602,26 +604,10 @@ export function BillingForm({
                         value={amount}
                         readOnly
                         className={`${inp} bg-muted/30 cursor-not-allowed font-bold text-primary`} />
-                      {seniorPwdDiscount && discountAmount > 0 && (
-                        <div className="mt-2 space-y-0.5 text-[11px]">
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Original price</span>
-                            <span className="line-through">₱{prePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Deduction (20%)</span>
-                            <span>− ₱{discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1 mt-1">
-                            <span>Total</span>
-                            <span>₱{discountedBase.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
-                      )}
                     </Field>
                   </div>
 
-                  <Field label="Payment Proof (PNG / JPG / PDF)" required>
+                  <Field label="Proof of Payment (PNG / JPG / PDF)" required>
                     <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-5 text-center transition-all bg-background cursor-pointer group mt-1.5">
                       <input type="file" accept="image/*,application/pdf" onChange={handleFile}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
