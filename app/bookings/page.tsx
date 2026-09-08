@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
@@ -177,7 +177,8 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
       {submissions.map(sub => {
         // Use discounted_price when admin approved a Senior/PWD discount, otherwise original price.
         // No visual indication — the client just sees the effective price.
-        const effectivePrice = (sub.senior_pwd_discount && sub.discounted_price) ? sub.discounted_price : (sub.product_price ?? 0)
+        // Always pass original product_price — billing form applies the 20% itself
+        const effectivePrice = sub.product_price ?? 0
         const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}`
         const isPaid = paidIds.has(sub.id)
 
@@ -208,7 +209,7 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
             {/* Details */}
             <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-              {effectivePrice > 0 && (
+              {sub.product_price && sub.product_price > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Price</p>
                   {sub.senior_pwd_discount && sub.discounted_price ? (
@@ -218,12 +219,12 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
                       </p>
                       <p className="text-[10px] text-muted-foreground">20% Senior/PWD discount</p>
                       <p className="font-serif font-bold text-primary text-base">
-                        ₱{Number(effectivePrice).toLocaleString('en-PH')}
+                        ₱{Number(sub.discounted_price).toLocaleString('en-PH')}
                       </p>
                     </div>
                   ) : (
                     <p className="font-serif font-bold text-primary text-base">
-                      ₱{Number(effectivePrice).toLocaleString('en-PH')}
+                      ₱{Number(sub.product_price).toLocaleString('en-PH')}
                     </p>
                   )}
                 </div>
@@ -278,7 +279,7 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
 // ── Submitted Documents tab ───────────────────────────────────
 function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmission[] }) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   // Batch-fetch all signed URLs at once — keyed by storage path
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
 

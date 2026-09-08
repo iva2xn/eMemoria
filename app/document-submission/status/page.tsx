@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
@@ -126,7 +126,7 @@ function DocCard({ path, label, signedUrl }: { path: string; label: string; sign
 
 // ── Main status content ───────────────────────────────────────
 function StatusContent() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const params   = useSearchParams()
   const id       = params.get('id')
 
@@ -135,44 +135,47 @@ function StatusContent() {
   const [notFound,   setNotFound]   = useState(false)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
 
-  // Batch-fetch signed URLs whenever submission changes
-  useEffect(() => {
-    if (!submission) return
-    const paths = [
-      submission.doc_death_certificate,
-      submission.doc_barangay_indigency,
-      submission.doc_valid_id,
-      submission.doc_medico_legal,
-      submission.doc_senior_pwd_proof,
-    ].filter(Boolean) as string[]
-    if (paths.length === 0) return
-
-    supabase.storage
-      .from('document-submissions')
-      .createSignedUrls(paths, 3600)
-      .then(({ data }) => {
-        if (!data) return
-        const map: Record<string, string> = {}
-        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
-        setSignedUrls(map)
-      })
-  }, [submission, supabase])
-
+  // Fetch submission data + signed URLs in one effect
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
 
-    supabase
-      .from('document_submissions')
-      .select('*')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        if (error || !data) { setNotFound(true) }
-        else { setSubmission(data as DocumentSubmission) }
-        setLoading(false)
-      })
+    const fetchAll = async () => {
+      const { data, error } = await supabase
+        .from('document_submissions')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    // Real-time: status updates live
+      if (error || !data) { setNotFound(true); setLoading(false); return }
+
+      const sub = data as DocumentSubmission
+      setSubmission(sub)
+      setLoading(false)
+
+      // Batch-fetch all signed URLs in one request
+      const paths = [
+        sub.doc_death_certificate,
+        sub.doc_barangay_indigency,
+        sub.doc_valid_id,
+        sub.doc_medico_legal,
+        sub.doc_senior_pwd_proof,
+      ].filter(Boolean) as string[]
+
+      if (paths.length > 0) {
+        const { data: urlData } = await supabase.storage
+          .from('document-submissions')
+          .createSignedUrls(paths, 3600)
+        if (urlData) {
+          const map: Record<string, string> = {}
+          urlData.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+          setSignedUrls(map)
+        }
+      }
+    }
+
+    fetchAll()
+
+    // Real-time: re-fetch signed URLs when status updates
     const channel = supabase
       .channel(`doc-submission-status-${id}`)
       .on(
@@ -202,10 +205,8 @@ function StatusContent() {
     )
   }
 
-  // Use discounted_price if a Senior/PWD discount was applied, otherwise fall back to original price
-  const effectivePrice = submission.senior_pwd_discount && submission.discounted_price
-    ? submission.discounted_price
-    : (submission.product_price ?? 0)
+  // Always pass original product_price in the URL — the billing form applies the 20% itself
+  const effectivePrice = submission.product_price ?? 0
   const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${effectivePrice}${submission.senior_pwd_discount ? '&senior_pwd=1' : ''}`
 
   // Build the list of submitted documents

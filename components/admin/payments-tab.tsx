@@ -224,18 +224,7 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
 
     await logActivity({ category: 'log', event_type: 'payment_approved', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} approved ${fmtAmt(row.amount)} from ${clientName(row)}`, metadata: { amount: row.amount } })
 
-    // Insert in-app notification for the client
-    if (row.user_id) {
-      await supabase.from('client_notifications').insert({
-        user_id:      row.user_id,
-        event_type:   'payment_approved',
-        entity_table: 'payments',
-        entity_id:    row.id,
-        message:      `Your payment of ${fmtAmt(row.amount)} has been approved. Thank you!`,
-        metadata:     { amount: row.amount, method: row.method, product_type: row.product_type, status: 'approved' },
-        action_url:   '/notifications',
-      })
-    }
+    // Note: client_notifications is handled by the DB trigger on payments status change.
 
     // Send receipt email to the client (fire-and-forget — don't block UI)
     const email = clientEmail(row)
@@ -273,18 +262,7 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
     await supabase.from('payments').update({ status: 'rejected' }).eq('id', row.id)
     await logActivity({ category: 'log', event_type: 'payment_rejected', entity_table: 'payments', entity_id: row.id, actor_id: user?.id, actor_name: actorName, message: `${actorName} rejected payment from ${clientName(row)}: ${rejectReason}`, metadata: { reason: rejectReason } })
 
-    // In-app notification for the client
-    if (row.user_id) {
-      await supabase.from('client_notifications').insert({
-        user_id:      row.user_id,
-        event_type:   'payment_rejected',
-        entity_table: 'payments',
-        entity_id:    row.id,
-        message:      `Your payment of ${fmtAmt(row.amount)} was not approved. Reason: ${rejectReason}`,
-        metadata:     { amount: row.amount, method: row.method, product_type: row.product_type, status: 'rejected', rejection_reason: rejectReason },
-        action_url:   '/notifications',
-      })
-    }
+    // Note: client_notifications is handled by the DB trigger on payments status change.
 
     setLoading(false); onRejected(row.id); onClose()
   }

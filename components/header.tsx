@@ -231,7 +231,8 @@ export function HeroHeader() {
 
     const fetchProfile = async (userId: string) => {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
-      if (error) console.error('Header profile fetch error:', error)
+      // PGRST116 = no rows found — not an error in this context
+      if (error && error.code !== 'PGRST116') console.error('Header profile fetch error:', error)
       const resolved = data ?? null
       cachedProfile  = resolved
       setProfile(resolved)
