@@ -95,19 +95,10 @@ function Lightbox({ url, label, onClose }: { url: string; label: string; onClose
 }
 
 // ── Document card with preview + lightbox ─────────────────────
-function DocCard({ label, path }: { label: string; path: string }) {
-  const supabase = createClient()
-  const [url,      setUrl]      = useState<string | null>(null)
+function DocCard({ label, url }: { label: string; url: string | null }) {
   const [lightbox, setLightbox] = useState(false)
 
-  useEffect(() => {
-    supabase.storage
-      .from('document-submissions')
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => setUrl(data?.signedUrl ?? null))
-  }, [path, supabase])
-
-  const ext     = path.split('.').pop()?.toLowerCase() ?? ''
+  const ext     = url ? url.split('?')[0].split('.').pop()?.toLowerCase() ?? '' : ''
   const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
 
   return (
@@ -186,8 +177,8 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
       {submissions.map(sub => {
         // Use discounted_price when admin approved a Senior/PWD discount, otherwise original price.
         // No visual indication — the client just sees the effective price.
-        const effectivePrice = sub.discounted_price ?? sub.product_price ?? 0
-        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}`
+        const effectivePrice = (sub.senior_pwd_discount && sub.discounted_price) ? sub.discounted_price : (sub.product_price ?? 0)
+        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}`
         const isPaid = paidIds.has(sub.id)
 
         return (
@@ -220,9 +211,21 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
               {effectivePrice > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Price</p>
-                  <p className="font-serif font-bold text-primary text-base">
-                    ₱{Number(effectivePrice).toLocaleString('en-PH')}
-                  </p>
+                  {sub.senior_pwd_discount && sub.discounted_price ? (
+                    <div>
+                      <p className="font-mono text-[10px] text-muted-foreground line-through">
+                        ₱{Number(sub.product_price).toLocaleString('en-PH')}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">20% Senior/PWD discount</p>
+                      <p className="font-serif font-bold text-primary text-base">
+                        ₱{Number(effectivePrice).toLocaleString('en-PH')}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="font-serif font-bold text-primary text-base">
+                      ₱{Number(effectivePrice).toLocaleString('en-PH')}
+                    </p>
+                  )}
                 </div>
               )}
               <div>
@@ -275,6 +278,32 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
 // ── Submitted Documents tab ───────────────────────────────────
 function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmission[] }) {
+  const supabase = createClient()
+  // Batch-fetch all signed URLs at once — keyed by storage path
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const allPaths = submissions.flatMap(sub =>
+      [
+        sub.doc_death_certificate,
+        sub.doc_barangay_indigency,
+        sub.doc_valid_id,
+        sub.doc_medico_legal,
+        sub.doc_senior_pwd_proof,
+      ].filter(Boolean) as string[]
+    )
+    if (allPaths.length === 0) return
+
+    supabase.storage
+      .from('document-submissions')
+      .createSignedUrls(allPaths, 3600)
+      .then(({ data }) => {
+        if (!data) return
+        const map: Record<string, string> = {}
+        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+        setSignedUrls(map)
+      })
+  }, [submissions, supabase])
   if (submissions.length === 0) {
     return (
       <div className="py-20 text-center space-y-3">
@@ -317,7 +346,7 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
             {/* Document grid with thumbnails */}
             <div className="p-4 grid grid-cols-2 gap-3">
               {docs.map(d => (
-                <DocCard key={d.label} label={d.label} path={d.path} />
+                <DocCard key={d.label} label={d.label} url={signedUrls[d.path] ?? null} />
               ))}
             </div>
           </div>

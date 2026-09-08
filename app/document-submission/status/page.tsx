@@ -51,18 +51,10 @@ function Lightbox({ url, label, onClose }: { url: string; label: string; onClose
 }
 
 // ── Single document card ──────────────────────────────────────
-function DocCard({ path, label }: { path: string; label: string }) {
-  const supabase = createClient()
-  const [url,      setUrl]      = useState<string | null>(null)
+function DocCard({ path, label, signedUrl }: { path: string; label: string; signedUrl: string | null }) {
   const [lightbox, setLightbox] = useState(false)
 
-  useEffect(() => {
-    supabase.storage
-      .from('document-submissions')
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => setUrl(data?.signedUrl ?? null))
-  }, [path, supabase])
-
+  const url     = signedUrl
   const ext     = path.split('.').pop()?.toLowerCase() ?? ''
   const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)
 
@@ -141,6 +133,30 @@ function StatusContent() {
   const [submission, setSubmission] = useState<DocumentSubmission | null>(null)
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
+
+  // Batch-fetch signed URLs whenever submission changes
+  useEffect(() => {
+    if (!submission) return
+    const paths = [
+      submission.doc_death_certificate,
+      submission.doc_barangay_indigency,
+      submission.doc_valid_id,
+      submission.doc_medico_legal,
+      submission.doc_senior_pwd_proof,
+    ].filter(Boolean) as string[]
+    if (paths.length === 0) return
+
+    supabase.storage
+      .from('document-submissions')
+      .createSignedUrls(paths, 3600)
+      .then(({ data }) => {
+        if (!data) return
+        const map: Record<string, string> = {}
+        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+        setSignedUrls(map)
+      })
+  }, [submission, supabase])
 
   useEffect(() => {
     if (!id) { setNotFound(true); setLoading(false); return }
@@ -186,7 +202,11 @@ function StatusContent() {
     )
   }
 
-  const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${submission.product_price ?? 0}`
+  // Use discounted_price if a Senior/PWD discount was applied, otherwise fall back to original price
+  const effectivePrice = submission.senior_pwd_discount && submission.discounted_price
+    ? submission.discounted_price
+    : (submission.product_price ?? 0)
+  const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${effectivePrice}${submission.senior_pwd_discount ? '&senior_pwd=1' : ''}`
 
   // Build the list of submitted documents
   const docs: { path: string; label: string }[] = [
@@ -266,9 +286,17 @@ function StatusContent() {
           <span className="font-semibold text-foreground">{submission.product_label ?? submission.product_type}</span>
         </div>
         {submission.product_price && (
-          <div className="flex justify-between">
+          <div className="flex justify-between items-start">
             <span className="text-muted-foreground">Price</span>
-            <span className="font-serif font-bold text-primary">₱{Number(submission.product_price).toLocaleString('en-PH')}</span>
+            {submission.senior_pwd_discount && submission.discounted_price ? (
+              <span className="text-right space-y-0.5">
+                <span className="block text-muted-foreground line-through text-xs">₱{Number(submission.product_price).toLocaleString('en-PH')}</span>
+                <span className="block text-[10px] text-muted-foreground">20% Senior/PWD discount</span>
+                <span className="block font-serif font-bold text-primary">₱{Number(submission.discounted_price).toLocaleString('en-PH')}</span>
+              </span>
+            ) : (
+              <span className="font-serif font-bold text-primary">₱{Number(submission.product_price).toLocaleString('en-PH')}</span>
+            )}
           </div>
         )}
         <div className="flex justify-between">
@@ -289,7 +317,7 @@ function StatusContent() {
           </div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {docs.map(d => (
-              <DocCard key={d.label} path={d.path} label={d.label} />
+              <DocCard key={d.label} path={d.path} label={d.label} signedUrl={signedUrls[d.path] ?? null} />
             ))}
           </div>
         </div>
