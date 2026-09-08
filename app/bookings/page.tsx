@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
@@ -9,9 +9,9 @@ import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import {
   ClipboardList, FileText, Clock, CheckCircle2, XCircle,
-  ArrowRight, Layers, X, ZoomIn, CreditCard, CalendarDays,
+  ArrowRight, Layers, X, ZoomIn, CreditCard,
 } from 'lucide-react'
-import type { DocumentSubmission, Payment, WakeExtensionRequest, Wake } from '@/lib/supabase/types'
+import type { DocumentSubmission, Payment } from '@/lib/supabase/types'
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatDate(iso: string) {
@@ -39,11 +39,6 @@ function StatusBadge({ status }: { status: DocumentSubmission['status'] }) {
       cls: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400',
     },
     deleted: {
-      icon: XCircle,
-      label: 'Cancelled',
-      cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
-    },
-    cancelled: {
       icon: XCircle,
       label: 'Cancelled',
       cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
@@ -182,8 +177,7 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
       {submissions.map(sub => {
         // Use discounted_price when admin approved a Senior/PWD discount, otherwise original price.
         // No visual indication — the client just sees the effective price.
-        // Always pass original product_price — billing form applies the 20% itself
-        const effectivePrice = sub.product_price ?? 0
+        const effectivePrice = (sub.senior_pwd_discount && sub.discounted_price) ? sub.discounted_price : (sub.product_price ?? 0)
         const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}`
         const isPaid = paidIds.has(sub.id)
 
@@ -209,17 +203,12 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
                     <CreditCard className="h-3 w-3" /> Paid
                   </span>
                 )}
-                {sub.status === 'approved' && !isPaid && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800/40 text-yellow-700 dark:text-yellow-400">
-                    Pending Payment
-                  </span>
-                )}
               </div>
             </div>
 
             {/* Details */}
             <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-              {sub.product_price && sub.product_price > 0 && (
+              {effectivePrice > 0 && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Price</p>
                   {sub.senior_pwd_discount && sub.discounted_price ? (
@@ -229,12 +218,12 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
                       </p>
                       <p className="text-[10px] text-muted-foreground">20% Senior/PWD discount</p>
                       <p className="font-serif font-bold text-primary text-base">
-                        ₱{Number(sub.discounted_price).toLocaleString('en-PH')}
+                        ₱{Number(effectivePrice).toLocaleString('en-PH')}
                       </p>
                     </div>
                   ) : (
                     <p className="font-serif font-bold text-primary text-base">
-                      ₱{Number(sub.product_price).toLocaleString('en-PH')}
+                      ₱{Number(effectivePrice).toLocaleString('en-PH')}
                     </p>
                   )}
                 </div>
@@ -259,30 +248,18 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
             {/* CTAs */}
             <div className="px-5 pb-5 flex flex-wrap gap-2 items-center">
-              {/* View Status — disabled when approved or paid */}
-              {(sub.status === 'approved' || isPaid) ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground/50 cursor-not-allowed select-none">
-                  View status <ArrowRight className="h-3 w-3" />
-                </span>
-              ) : (
-                <Link
-                  href={`/document-submission/status?id=${sub.id}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-                >
-                  View status <ArrowRight className="h-3 w-3" />
-                </Link>
-              )}
+              <Link
+                href={`/document-submission/status?id=${sub.id}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+              >
+                View status <ArrowRight className="h-3 w-3" />
+              </Link>
               {sub.status === 'approved' && (
                 isPaid ? (
-                  /* Paid: show View Receipt link → goes to /payments filtered to approved, highlights the specific payment */
-                  <Link
-                    href={`/payments?highlight=${sub.id}&filter=approved`}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
-                  >
-                    View Receipt <ArrowRight className="h-3 w-3" />
-                  </Link>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-muted border border-border/60 px-3 py-1.5 rounded-lg cursor-not-allowed">
+                    <CreditCard className="h-3 w-3" /> Payment Received
+                  </span>
                 ) : (
-                  /* Approved but not yet paid: Proceed to Payment */
                   <Link
                     href={billingUrl}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
@@ -301,7 +278,7 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
 // ── Submitted Documents tab ───────────────────────────────────
 function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmission[] }) {
-  const supabase = useMemo(() => createClient(), [])
+  const supabase = createClient()
   // Batch-fetch all signed URLs at once — keyed by storage path
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
 
@@ -323,7 +300,7 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, string> = {}
-        data.forEach(item => { if (item.signedUrl && item.path) map[item.path] = item.signedUrl })
+        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
         setSignedUrls(map)
       })
   }, [submissions, supabase])
@@ -379,165 +356,24 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
   )
 }
 
-// ── Wake Extensions tab ──────────────────────────────────────
-type WakeExtRow = WakeExtensionRequest & { wakeName?: string; paymentStatus?: string }
-
-function WakeExtPaymentBadge({ status }: { status: string }) {
-  const cfg =
-    status === 'approved' ? { label: 'Paid', cls: 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800/40 text-green-700 dark:text-green-500', icon: CheckCircle2 } :
-    status === 'pending'  ? { label: 'Payment Pending Review', cls: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400', icon: Clock } :
-    status === 'rejected' ? { label: 'Payment Rejected', cls: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400', icon: XCircle } :
-    null
-
-  if (!cfg) return null
-  const Icon = cfg.icon
-  return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${cfg.cls}`}>
-      <Icon className="h-3 w-3" /> {cfg.label}
-    </span>
-  )
-}
-
-function WakeExtensionsTab({ rows }: { rows: WakeExtRow[] }) {
-  if (rows.length === 0) {
-    return (
-      <div className="py-20 text-center space-y-3">
-        <div className="h-14 w-14 rounded-full bg-muted/40 border border-border/60 flex items-center justify-center mx-auto">
-          <CalendarDays className="h-6 w-6 text-muted-foreground/40" />
-        </div>
-        <p className="text-sm font-semibold text-muted-foreground">No extension requests yet</p>
-        <p className="text-xs text-muted-foreground/60 max-w-xs mx-auto">
-          Extension requests you submit from your Wake Schedule page will appear here.
-        </p>
-        <Button asChild variant="outline" size="sm" className="rounded-xl mt-2">
-          <Link href="/wake-schedule">Go to Wake Schedule →</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {rows.map(req => {
-        const isApproved = req.status === 'approved'
-        const hasPaid    = !!req.paymentStatus
-
-        // Build billing URL for approved unpaid extensions
-        const extensionBillingUrl = isApproved && req.total_amount && !hasPaid
-          ? `/billing?product=wake_extension&wake_id=${req.wake_id}&extension_request_id=${req.id}&price=${req.total_amount}&label=${encodeURIComponent(`Wake Extension (${req.days_requested} day${req.days_requested !== 1 ? 's' : ''})`)}` 
-          : null
-
-        return (
-          <div key={req.id} className={`bg-card border rounded-2xl overflow-hidden ${
-            isApproved ? 'border-primary/30' : 'border-border'
-          }`}>
-            <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border/60">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">
-                  {req.request_type === 'extension' ? 'Date Extension' : 'Location Change'}
-                  {req.wakeName && <span className="font-normal text-muted-foreground"> — {req.wakeName}</span>}
-                </p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Requested {formatDate(req.created_at)}
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5 shrink-0">
-                {/* Request status */}
-                <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full ${
-                  req.status === 'approved' ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800/40 text-green-700 dark:text-green-500' :
-                  req.status === 'rejected' ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800/40 text-red-600 dark:text-red-400' :
-                  'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40 text-amber-700 dark:text-amber-400'
-                }`}>
-                  {req.status === 'approved'
-                    ? <><CheckCircle2 className="h-3 w-3" /> Approved</>
-                    : req.status === 'rejected'
-                    ? <><XCircle className="h-3 w-3" /> Rejected</>
-                    : <><Clock className="h-3 w-3" /> Pending Review</>
-                  }
-                </span>
-                {/* Payment status badge */}
-                {req.paymentStatus && <WakeExtPaymentBadge status={req.paymentStatus} />}
-              </div>
-            </div>
-
-            <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Type</p>
-                <p className="font-semibold text-foreground capitalize">{req.request_type.replace('_', ' ')}</p>
-              </div>
-              {req.request_type === 'extension' && req.requested_end_date && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">New End Date</p>
-                  <p className="font-semibold text-foreground">{formatDate(req.requested_end_date)}</p>
-                </div>
-              )}
-              {req.request_type === 'extension' && req.total_amount != null && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Extension Fee</p>
-                  <p className="font-serif font-bold text-primary text-base">
-                    ₱{Number(req.total_amount).toLocaleString('en-PH')}
-                  </p>
-                  {req.days_requested && (
-                    <p className="text-[10px] text-muted-foreground">{req.days_requested} day{req.days_requested !== 1 ? 's' : ''}</p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {req.status === 'rejected' && req.rejection_reason && (
-              <div className="px-5 pb-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-destructive mb-1">Rejection Reason</p>
-                <p className="text-xs text-foreground leading-relaxed">{req.rejection_reason}</p>
-              </div>
-            )}
-
-            {/* CTA for approved extension that needs payment */}
-            {extensionBillingUrl && (
-              <div className="px-5 pb-5">
-                <Link
-                  href={extensionBillingUrl}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
-                >
-                  <CreditCard className="h-3 w-3" /> Pay Extension Fee <ArrowRight className="h-3 w-3" />
-                </Link>
-              </div>
-            )}
-
-            {/* CTA — go to wake schedule */}
-            <div className="px-5 pb-5">
-              <Link
-                href="/wake-schedule"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-              >
-                View Wake Schedule <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── Main page ─────────────────────────────────────────────────
-type TabId = 'services' | 'documents' | 'extensions'
+type TabId = 'services' | 'documents'
 
 export default function BookingsPage() {
   const supabase = createClient()
   const router   = useRouter()
 
-  const [submissions,    setSubmissions]    = useState<DocumentSubmission[]>([])
-  const [paidIds,        setPaidIds]        = useState<Set<string>>(new Set())
-  const [wakeExtRows,    setWakeExtRows]    = useState<WakeExtRow[]>([])
-  const [loading,        setLoading]        = useState(true)
-  const [tab,            setTab]            = useState<TabId>('services')
+  const [submissions, setSubmissions] = useState<DocumentSubmission[]>([])
+  const [paidIds,     setPaidIds]     = useState<Set<string>>(new Set())
+  const [loading,     setLoading]     = useState(true)
+  const [tab,         setTab]         = useState<TabId>('services')
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/auth/login?next=/bookings'); return }
 
-    const [{ data: subs }, { data: payments }, { data: wakes }, { data: extReqs }] = await Promise.all([
+    const [{ data: subs }, { data: payments }] = await Promise.all([
       supabase
         .from('document_submissions')
         .select('*')
@@ -546,54 +382,21 @@ export default function BookingsPage() {
         .order('created_at', { ascending: false }),
       supabase
         .from('payments')
-        .select('document_submission_id, wake_id, status')
+        .select('document_submission_id')
         .eq('user_id', user.id)
+        .eq('status', 'approved')
         .not('document_submission_id', 'is', null),
-      supabase
-        .from('wakes')
-        .select('id, deceased_name')
-        .eq('user_id', user.id),
-      supabase
-        .from('wake_extension_requests')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false }),
     ])
 
     setSubmissions((subs as DocumentSubmission[]) ?? [])
     setPaidIds(new Set(
-      ((payments as { document_submission_id: string | null; wake_id: string | null; status: string }[]) ?? [])
-        .filter(p => p.status === 'approved' && p.document_submission_id)
+      ((payments as Pick<Payment, 'document_submission_id'>[]) ?? [])
         .map(p => p.document_submission_id!)
     ))
-
-    // Build wake name map
-    const wakeNameMap: Record<string, string> = {}
-    for (const w of (wakes as Pick<Wake, 'id' | 'deceased_name'>[]) ?? []) {
-      wakeNameMap[w.id] = w.deceased_name
-    }
-
-    // Build extension payment status map: wake_id → payment status (latest)
-    const extPayments = ((payments as { document_submission_id: string | null; wake_id: string | null; status: string }[]) ?? [])
-      .filter(p => p.wake_id)
-    const extPaymentMap: Record<string, string> = {}
-    for (const p of extPayments) {
-      if (p.wake_id) extPaymentMap[p.wake_id] = p.status
-    }
-
-    const extRows = ((extReqs as WakeExtensionRequest[]) ?? []).map(r => ({
-      ...r,
-      wakeName:      wakeNameMap[r.wake_id] ?? undefined,
-      paymentStatus: extPaymentMap[r.wake_id] ?? undefined,
-    }))
-
-    setWakeExtRows(extRows)
     setLoading(false)
   }, [supabase, router])
 
   useEffect(() => { load() }, [load])
-
-  const extensionCount = wakeExtRows.length
 
   const TABS: { id: TabId; label: string; icon: React.ReactNode; count?: number }[] = [
     {
@@ -610,12 +413,6 @@ export default function BookingsPage() {
         s.doc_death_certificate || s.doc_barangay_indigency || s.doc_valid_id || s.doc_medico_legal
       ).length,
     },
-    {
-      id: 'extensions',
-      label: 'Wake Extensions',
-      icon: <CalendarDays className="h-4 w-4" />,
-      count: extensionCount,
-    },
   ]
 
   return (
@@ -631,7 +428,7 @@ export default function BookingsPage() {
               My Bookings
             </h1>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              View the services you've availed, documents submitted, and wake schedule requests.
+              View the services you've availed and all documents you've submitted.
             </p>
           </div>
         </div>
@@ -639,12 +436,12 @@ export default function BookingsPage() {
         <div className="max-w-2xl mx-auto px-4 md:px-6 py-8 space-y-6">
 
           {/* Tabs */}
-          <div className="flex gap-1 p-1 bg-muted/40 border border-border rounded-xl overflow-x-auto">
+          <div className="flex gap-1 p-1 bg-muted/40 border border-border rounded-xl">
             {TABS.map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${
                   tab === t.id
                     ? 'bg-card text-foreground shadow-sm border border-border/60'
                     : 'text-muted-foreground hover:text-foreground'
@@ -670,10 +467,8 @@ export default function BookingsPage() {
             </div>
           ) : tab === 'services' ? (
             <AvaledServicesTab submissions={submissions} paidIds={paidIds} />
-          ) : tab === 'documents' ? (
-            <SubmittedDocumentsTab submissions={submissions} />
           ) : (
-            <WakeExtensionsTab rows={wakeExtRows} />
+            <SubmittedDocumentsTab submissions={submissions} />
           )}
 
         </div>
