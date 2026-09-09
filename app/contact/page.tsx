@@ -13,7 +13,7 @@ export default function ContactPage() {
 
   const [name,    setName]    = useState('')
   const [email,   setEmail]   = useState('')
-  const [subject, setSubject] = useState('Funeral Package Inquiry')
+  const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [success, setSuccess] = useState(false)
   const [error,   setError]   = useState('')
@@ -53,7 +53,7 @@ export default function ContactPage() {
     e.preventDefault()
     setError('')
     setSuccess(false)
-    if (!name || !email || !message) { setError('Please fill in all required fields.'); return }
+    if (!name || !email || !subject || !message) { setError('Please fill in all required fields.'); return }
 
     setLoading(true)
     const { error: insertErr } = await supabase
@@ -65,7 +65,7 @@ export default function ContactPage() {
 
     clearDraft()
     setSuccess(true)
-    setName(''); setEmail(''); setMessage('')
+    setName(''); setEmail(''); setSubject(''); setMessage('')
   }
 
   const formProps = {

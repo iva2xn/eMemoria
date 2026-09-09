@@ -68,7 +68,10 @@ export function InquiryFormCard({
             </div>
           </div>
 
-          <SelectField id="inq-subject" label="Subject" value={subject} onChange={e => setSubject(e.target.value)}>
+          <SelectField id="inq-subject" label="Subject" required
+            labelSuffix={<span className="text-destructive">*</span>}
+            value={subject} onChange={e => setSubject(e.target.value)}>
+            <option value="" disabled>— Select a Subject —</option>
             <option value="Funeral Package Inquiry">Funeral Package Inquiry</option>
             <option value="Pre-planning Memorial Schemes">Pre-planning Memorial Schemes</option>
             <option value="Custom Altar / wake Decorations">Custom Chapel Altar Details</option>
