@@ -28,6 +28,9 @@ function methodLabel(method: string) {
   return map[method] ?? method
 }
 function productLabel(p: Payment) {
+  if (p.product_type === 'wake_extension') {
+    return p.product_ref ? `Wake Extension · ${p.product_ref}` : 'Wake Date Extension'
+  }
   if (p.product_ref) return `${p.product_type} · ${p.product_ref}`
   return p.product_type
 }
@@ -177,7 +180,10 @@ function PaymentCard({ payment, profileName, profileEmail }: {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
             </span>
             <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-              Your payment is under review. This page updates automatically.
+              {payment.product_type === 'wake_extension'
+                ? 'Your extension payment is under review. Once approved, your wake schedule will be updated automatically.'
+                : 'Your payment is under review. This page updates automatically.'
+              }
             </p>
           </div>
         </div>

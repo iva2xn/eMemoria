@@ -10,7 +10,7 @@ import {
 import { logActivity } from '@/lib/activity-log'
 import {
   X, Calendar, MapPin, Check, ChevronLeft,
-  Edit2, AlertTriangle, Clock, Eye, Bell, CheckCircle, XCircle,
+  Edit2, AlertTriangle, Clock, Eye, Bell, CheckCircle, XCircle, Settings,
 } from 'lucide-react'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import type { Wake, WakeExtensionRequest, WakeScheduleRequest, UserRole } from '@/lib/supabase/types'
@@ -1088,6 +1088,14 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
   const [reviewSchedReq, setReviewSchedReq] = useState<ScheduleReqRow | null>(null)
   const [notifyingId,  setNotifyingId]  = useState<string | null>(null)
 
+  // Price config state
+  const [pricePerDay,     setPricePerDay]     = useState<number>(500)
+  const [priceInput,      setPriceInput]      = useState<string>('500')
+  const [savingPrice,     setSavingPrice]     = useState(false)
+  const [priceSuccess,    setPriceSuccess]    = useState(false)
+  const [priceError,      setPriceError]      = useState('')
+  const [showPriceEditor, setShowPriceEditor] = useState(false)
+
   const sendScheduleNotification = async (w: WakeRow) => {
     if (!w.user_id) return
     setNotifyingId(w.id)
@@ -1105,6 +1113,18 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
 
   const load = useCallback(async () => {
     setLoading(true)
+
+    // Fetch price config
+    const { data: priceData } = await supabase
+      .from('wake_extension_price_config')
+      .select('price_per_day')
+      .eq('id', 1)
+      .maybeSingle()
+    if (priceData?.price_per_day) {
+      const p = Number(priceData.price_per_day)
+      setPricePerDay(p)
+      setPriceInput(String(p))
+    }
 
     // Fetch all wakes
     const { data: rawWakes } = await supabase
@@ -1205,6 +1225,33 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
     if (action === 'converted') load() // refresh wakes list too
   }
 
+  const handleSavePrice = async () => {
+    const parsed = parseFloat(priceInput)
+    if (isNaN(parsed) || parsed <= 0) { setPriceError('Please enter a valid amount greater than 0.'); return }
+    setSavingPrice(true); setPriceError(''); setPriceSuccess(false)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { error: err } = await supabase
+      .from('wake_extension_price_config')
+      .update({ price_per_day: parsed, updated_by: user?.id ?? null })
+      .eq('id', 1)
+    setSavingPrice(false)
+    if (err) { setPriceError(err.message); return }
+    setPricePerDay(parsed)
+    setPriceSuccess(true)
+    setTimeout(() => setPriceSuccess(false), 3000)
+    await logActivity({
+      category:     'log',
+      event_type:   'wake_extension_price_updated',
+      entity_table: 'wake_extension_price_config',
+      entity_id:    '1',
+      actor_id:     user?.id,
+      actor_name:   user
+        ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Admin'
+        : 'Admin',
+      message:      `Extension price per day updated to ₱${parsed.toLocaleString('en-PH')}`,
+    })
+  }
+
   const q = search.toLowerCase()
   const filteredWakes = wakes.filter(w =>
     !q || [w.deceased_name, w.clientName, w.clientEmail, w.burial_location].some(v => v?.toLowerCase().includes(q))
@@ -1243,6 +1290,66 @@ export function WakeScheduleTab({ currentRole }: { currentRole: UserRole }) {
         title="Wake Schedule"
         sub="Manage pickup dates, burial locations, and extension requests for coffin/casket services"
       />
+
+      {/* ── Extension Price Config (admin only) ── */}
+      {currentRole === 'admin' && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <button
+            onClick={() => setShowPriceEditor(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/20 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Settings className="h-4 w-4 text-primary" />
+              <div className="text-left">
+                <p className="text-sm font-bold text-foreground">Date Extension Pricing</p>
+                <p className="text-[11px] text-muted-foreground">Current: ₱{pricePerDay.toLocaleString('en-PH')} per day</p>
+              </div>
+            </div>
+            <span className="text-xs text-muted-foreground font-semibold">{showPriceEditor ? 'Hide ↑' : 'Change ↓'}</span>
+          </button>
+
+          {showPriceEditor && (
+            <div className="border-t border-border/60 px-5 py-4 space-y-3">
+              {priceError && <AlertBanner variant="error" message={priceError} />}
+              {priceSuccess && (
+                <div className="flex items-center gap-2 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 rounded-xl px-4 py-2.5">
+                  <Check className="h-4 w-4 text-green-600" />
+                  <p className="text-xs text-green-700 dark:text-green-400 font-semibold">Price updated successfully.</p>
+                </div>
+              )}
+              <div className="flex items-end gap-3">
+                <div className="flex-1 space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Price Per Day (₱)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">₱</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={priceInput}
+                      onChange={e => setPriceInput(e.target.value)}
+                      className={`${inputCls} pl-7`}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    This rate applies to all new date extension requests. Max 7 days per extension.
+                  </p>
+                </div>
+                <button
+                  onClick={handleSavePrice}
+                  disabled={savingPrice}
+                  className="h-11 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {savingPrice ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <FilterPills options={reqFilterOptions} active={subTab} onChange={setSubTab} />
 

@@ -22,10 +22,14 @@ function BillingContent() {
   const documentSubmissionId = params.get('document_submission_id') ?? null   // set when coming from an approved document submission
   // senior_pwd=1 is set by admin when approving a document submission with discount
   const seniorPwdDiscount = params.get('senior_pwd') === '1'
+  // wake extension params
+  const wakeId              = params.get('wake_id') ?? null
+  const extensionRequestId  = params.get('extension_request_id') ?? null
 
   const isColumbarium  = preProduct === 'columbarium'
   const isUrn          = preProduct === 'urn'
   const isPackage      = preProduct === 'package'
+  const isWakeExtension = preProduct === 'wake_extension'
   // Columbarium online = full price (no reservation fee)
   const reservationFee = 0
   const SERVICE_FEE    = 25_000
@@ -88,6 +92,7 @@ function BillingContent() {
       isColumbarium && prePrice ? `Full price: ₱${prePrice.toLocaleString('en-PH')}` : '',
       isUrn && includeServiceFee  ? `Includes ₱25,000 cremation service fee` : '',
       isUrn && !includeServiceFee ? `Urn only (service fee waived)` : '',
+      isWakeExtension ? `Wake date extension payment` : '',
       notes.trim(),
     ].filter(Boolean).join(' · ') || null
 
@@ -106,6 +111,7 @@ function BillingContent() {
       status:               'pending',
       document_submission_id: documentSubmissionId,
       senior_pwd_discount:  seniorPwdDiscount,
+      wake_id:              wakeId ?? null,
     }
 
     const { error: insertErr } = await supabase.from('payments').insert(payload)
@@ -114,6 +120,12 @@ function BillingContent() {
     // Save phone to profile for future prefill
     if (user && phone.trim()) {
       await supabase.from('profiles').update({ phone: phone.trim() }).eq('id', user.id)
+    }
+
+    // Wake extension: no booking row needed; redirect to payments page
+    if (isWakeExtension) {
+      router.push('/payments?payment=success')
+      return
     }
 
     // Create a booking for everything pero hindi to nagseset ng booking if urn-only (no service fee)
@@ -153,6 +165,7 @@ function BillingContent() {
       isColumbarium={isColumbarium}
       isUrn={isUrn}
       isPackage={isPackage}
+      isWakeExtension={isWakeExtension}
       reservationFee={reservationFee}
       SERVICE_FEE={SERVICE_FEE}
       // Auth state

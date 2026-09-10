@@ -77,7 +77,7 @@ type PaymentInfo = {
 type BillingFormProps = {
   preProduct: string; preSlot: string; preLevel: string
   prePrice: number;   preLabel: string
-  isColumbarium: boolean; isUrn: boolean; isPackage: boolean
+  isColumbarium: boolean; isUrn: boolean; isPackage: boolean; isWakeExtension: boolean
   reservationFee: number; SERVICE_FEE: number
   authReady: boolean | null; returnUrl: string
   prefillName: string; prefillEmail: string; prefillPhone: string
@@ -180,7 +180,7 @@ function DocReviewRow({ label, file }: { label: string; file: File | null }) {
 
 export function BillingForm({
   preProduct, preSlot, preLevel, prePrice, preLabel,
-  isColumbarium, isUrn, isPackage, reservationFee, SERVICE_FEE,
+  isColumbarium, isUrn, isPackage, isWakeExtension, reservationFee, SERVICE_FEE,
   authReady, returnUrl, prefillName, prefillEmail, prefillPhone,
   seniorPwdDiscount,
   onSubmit,
@@ -369,7 +369,13 @@ export function BillingForm({
                   {!!preProduct && (
                     <ReviewRow
                       label="Service"
-                      value={isColumbarium ? `Columbarium Slot — ${preSlot || preLabel}` : preLabel || preProduct}
+                      value={
+                        isColumbarium
+                          ? `Columbarium Slot — ${preSlot || preLabel}`
+                          : isWakeExtension
+                          ? preLabel || 'Wake Date Extension'
+                          : preLabel || preProduct
+                      }
                     />
                   )}
                   <ReviewRow label="Payment Method"   value={methodLabel(method)} />
@@ -472,17 +478,24 @@ export function BillingForm({
                 <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1 text-xs w-full">
                   <p className="font-bold text-primary text-sm">
-                    {isColumbarium ? 'Columbarium Slot Reservation' : preLabel || preProduct}
+                    {isColumbarium
+                      ? 'Columbarium Slot Reservation'
+                      : isWakeExtension
+                      ? 'Wake Date Extension Payment'
+                      : preLabel || preProduct}
                   </p>
                   {preSlot  && <p className="text-muted-foreground">Slot: <span className="font-mono font-bold text-foreground">{preSlot}</span></p>}
                   {preLevel && <p className="text-muted-foreground">Level: <span className="font-semibold text-foreground">{preLevel}</span></p>}
+                  {isWakeExtension && preLabel && (
+                    <p className="text-muted-foreground">Details: <span className="font-semibold text-foreground">{preLabel}</span></p>
+                  )}
                   {prePrice > 0 && (
                     <p className="text-muted-foreground">
                       {isColumbarium
                         ? <>Price: <span className="font-bold text-primary">₱{discountedBase.toLocaleString('en-PH')}</span> (full price — online payment)</>
                         : seniorPwdDiscount && discountAmount > 0
                           ? <>Price: <span className="line-through">₱{prePrice.toLocaleString('en-PH')}</span> <span className="font-bold text-primary">₱{discountedBase.toLocaleString('en-PH')}</span></>
-                          : <>Price: <span className="font-semibold text-foreground">₱{prePrice.toLocaleString('en-PH')}</span></>
+                          : <>Amount: <span className="font-bold text-primary">₱{prePrice.toLocaleString('en-PH')}</span></>
                       }
                     </p>
                   )}

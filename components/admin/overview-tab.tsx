@@ -60,11 +60,12 @@ function buildDailyTrend(payments: { amount: number; approved_at: string | null 
 
 // Human-readable labels for product_type values used in the breakdown chart
 const PRODUCT_LABELS: Record<string, string> = {
-  package:      'Burial',
-  cremation:    'Cremation',
-  columbarium:  'Columbarium',
-  urn:          'Urn',
-  general:      'General',
+  package:        'Burial',
+  cremation:      'Cremation',
+  columbarium:    'Columbarium',
+  urn:            'Urn',
+  general:        'General',
+  wake_extension: 'Wake Extension',
 }
 
 const PERIOD_OPTIONS = [
@@ -123,7 +124,7 @@ function TotalRevenueModal({ onClose }: { onClose: () => void }) {
   const total = rows.reduce((s, r) => s + Number(r.amount), 0)
 
   const PRODUCT_LABELS: Record<string, string> = {
-    package: 'Burial', cremation: 'Cremation', columbarium: 'Columbarium', urn: 'Urn', general: 'General',
+    package: 'Burial', cremation: 'Cremation', columbarium: 'Columbarium', urn: 'Urn', general: 'General', wake_extension: 'Wake Extension',
   }
 
   return createPortal(

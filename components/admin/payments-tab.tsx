@@ -164,6 +164,37 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
       await supabase.from('columbarium_slots').update({ status: 'reserved', reserved_by_user_id: row.user_id ?? null, reserved_at: new Date().toISOString() }).eq('slot_code', row.product_ref).eq('status', 'available')
     }
 
+    // ── Auto-update wake end date when extension payment is approved ──
+    if (row.product_type === 'wake_extension' && row.wake_id) {
+      // Find the approved extension request linked to this wake
+      const { data: extReq } = await supabase
+        .from('wake_extension_requests')
+        .select('id, requested_end_date')
+        .eq('wake_id', row.wake_id)
+        .eq('status', 'approved')
+        .eq('request_type', 'extension')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (extReq?.requested_end_date) {
+        await supabase
+          .from('wakes')
+          .update({ wake_end_date: extReq.requested_end_date })
+          .eq('id', row.wake_id)
+
+        await logActivity({
+          category:     'log',
+          event_type:   'wake_extended_via_payment',
+          entity_table: 'wakes',
+          entity_id:    row.wake_id,
+          actor_id:     user?.id,
+          actor_name:   actorName,
+          message:      `Wake end date extended to ${extReq.requested_end_date} after payment approval for ${clientName(row)}`,
+        })
+      }
+    }
+
     // ── Auto-create wake for traditional burial packages ──────
     if (row.product_type === 'package' && row.user_id) {
       // Idempotency: only create if no wake exists for this booking

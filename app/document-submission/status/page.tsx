@@ -167,7 +167,7 @@ function StatusContent() {
           .createSignedUrls(paths, 3600)
         if (urlData) {
           const map: Record<string, string> = {}
-          urlData.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+          urlData.forEach(item => { if (item.signedUrl && item.path) map[item.path] = item.signedUrl })
           setSignedUrls(map)
         }
       }

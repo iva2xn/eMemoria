@@ -120,6 +120,8 @@ export interface Payment {
   // senior/PWD discount (migration 028)
   senior_pwd_discount: boolean
   doc_senior_pwd_proof: string | null
+  // wake extension link (migration 031)
+  wake_id: string | null
   created_at: string
   updated_at: string
 }
@@ -223,6 +225,7 @@ export interface Wake {
   user_id: string | null
   deceased_name: string
   pickup_datetime: string | null
+  venue_address: string | null   // migration 030
   burial_location: string | null
   burial_location_other: string | null
   wake_start_date: string | null
@@ -245,8 +248,19 @@ export interface WakeExtensionRequest {
   rejection_comment: string | null
   reviewed_by: string | null
   reviewed_at: string | null
+  // pricing (migration 031)
+  price_per_day: number | null
+  total_amount: number | null
+  days_requested: number | null
   created_at: string
   updated_at: string
+}
+
+export interface WakeExtensionPriceConfig {
+  id: 1
+  price_per_day: number
+  updated_at: string
+  updated_by: string | null
 }
 
 export type WakeScheduleRequestStatus = 'pending' | 'reviewed' | 'converted'
@@ -285,6 +299,7 @@ export interface Database {
       wakes: { Row: Wake; Insert: Omit<Wake, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Wake> }
       wake_extension_requests: { Row: WakeExtensionRequest; Insert: Omit<WakeExtensionRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeExtensionRequest> }
       wake_schedule_requests: { Row: WakeScheduleRequest; Insert: Omit<WakeScheduleRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeScheduleRequest> }
+      wake_extension_price_config: { Row: WakeExtensionPriceConfig; Insert: never; Update: Partial<Omit<WakeExtensionPriceConfig, 'id' | 'updated_at'>> }
     }
     Functions: {
       admin_delete_user: {
