@@ -14,7 +14,8 @@ function LoginContent() {
   const supabase     = createClient()
   const searchParams = useSearchParams()
   const nextUrl      = searchParams.get('next') ?? '/'
-  const verified     = searchParams.get('verified') === '1'
+  const verified    = searchParams.get('verified')    === '1'
+  const registered  = searchParams.get('registered')  === '1'
 
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
@@ -52,20 +53,21 @@ function LoginContent() {
       <div className="space-y-6">
         <div className="text-center space-y-2">
           <h1 className="font-serif text-3xl font-bold text-foreground">Welcome Back</h1>
-          <p className="text-sm text-muted-foreground">Access your M.P. Gayeta account to view billing and slots.</p>
+          <p className="text-sm text-muted-foreground">Access your eMemoria account to view billing and slots.</p>
         </div>
 
-        {errorMsg && <AlertBanner variant="error"   message={errorMsg} />}
-        {verified && <AlertBanner variant="success" message="Email confirmed! You can now sign in." />}
+        {errorMsg    && <AlertBanner variant="error"   message={errorMsg} />}
+        {verified    && <AlertBanner variant="success" message="Email confirmed! You can now log in." />}
+        {registered  && <AlertBanner variant="success" message="Account created! You can now log in." />}
 
         <form onSubmit={handleLogin} className="space-y-4">
           <FormField id="email" label="Email Address" type="email"
-            placeholder="you@example.com" value={email}
+            placeholder="" value={email}
             onChange={e => setEmail(e.target.value)}
             icon={<Mail className="h-4.5 w-4.5" />}
           />
           <FormField id="pass" label="Password" type="password"
-            placeholder="••••••••" value={password}
+            placeholder="" value={password}
             onChange={e => setPassword(e.target.value)}
             icon={<KeyRound className="h-4.5 w-4.5" />}
             labelRight={
@@ -78,7 +80,7 @@ function LoginContent() {
             }
           />
           <Button type="submit" disabled={loading} className="w-full h-11 font-semibold mt-2">
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? 'Logging in…' : 'Login'}
           </Button>
         </form>
 
@@ -88,7 +90,7 @@ function LoginContent() {
             href={`/auth/register${nextUrl !== '/' ? `?next=${encodeURIComponent(nextUrl)}` : ''}`}
             className="font-semibold text-primary hover:underline"
           >
-            Register
+            Create an account
           </Link>
         </div>
       </div>
