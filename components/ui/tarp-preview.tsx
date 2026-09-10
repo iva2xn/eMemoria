@@ -117,7 +117,17 @@ export function TarpPreview({
       const { toPng } = await import('html-to-image')
       // Temporarily reset transform so html-to-image captures at full resolution
       el.style.transform = 'scale(1)'
-      const dataUrl = await toPng(el, { width: CANVAS_W, height: CANVAS_H, pixelRatio: 2 })
+      const dataUrl = await toPng(el, {
+        width: CANVAS_W,
+        height: CANVAS_H,
+        pixelRatio: 2,
+        // Force light background so dark-mode CSS vars don't bleed into the download
+        backgroundColor: '#ffffff',
+        style: {
+          // Override any inherited color scheme — tarp colors are all hardcoded
+          colorScheme: 'light',
+        },
+      })
       el.style.transform = `scale(${scale})`
       const a = document.createElement('a')
       const name = [firstName, lastName].filter(Boolean).join('_').replace(/\s+/g, '_').toUpperCase() || 'tarpaulin'
@@ -126,7 +136,6 @@ export function TarpPreview({
       a.click()
     } catch (err) {
       console.error('Tarp download failed:', err)
-      // Restore transform even on error
       if (canvasRef.current) canvasRef.current.style.transform = `scale(${scale})`
     } finally {
       setDownloading(false)
@@ -167,6 +176,7 @@ export function TarpPreview({
   const dateStyle: React.CSSProperties = {
     fontFamily: 'Impact, "Arial Black", sans-serif',
     fontSize: datePx,
+    color: '#111111',
     lineHeight: 1.5,
     whiteSpace: 'nowrap',
     display: 'block',

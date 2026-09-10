@@ -92,7 +92,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
     if (!lastName.trim())     { setError('Last name of deceased is required.'); return }
     if (!birthDate)           { setError('Date of birth is required.'); return }
     if (!deathDate)           { setError('Date of death is required.'); return }
-    if (!contactNumber.trim()){ setError('Contact number is required.'); return }
 
     setLoading(true)
 
@@ -213,16 +212,16 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                       />
                     </Field>
                   </div>
-                  <Field label="Middle Name (optional)">
+                  <Field label="Middle Initial (optional)">
                     <input
-                      type="text" placeholder="e.g. Santos"
+                      type="text" placeholder=""
                       value={middleName} onChange={e => setMiddleName(e.target.value)}
                       className={inp}
                     />
                   </Field>
                   <Field label="Last Name / Surname" required>
                     <input
-                      type="text" placeholder="e.g. Dela Cruz"
+                      type="text" placeholder=""
                       value={lastName} onChange={e => setLastName(e.target.value)}
                       className={inp}
                     />
@@ -250,10 +249,6 @@ export function ObituaryModal({ submitterName, submitterEmail, submitterPhone, o
                       <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
                     </div>
                   )}
-
-                  <Field label="Contact Number" required>
-                    <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
-                  </Field>
                 </div>
 
                 {/* Photo upload */}

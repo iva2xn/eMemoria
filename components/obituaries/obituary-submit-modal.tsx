@@ -102,7 +102,6 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
     if (!lastName.trim())      { setError('Last name of deceased is required.'); return }
     if (!birthDate)            { setError('Date of birth is required.'); return }
     if (!deathDate)            { setError('Date of death is required.'); return }
-    if (!contactNumber.trim()) { setError('Contact number is required.'); return }
     setStep('review')
   }
 
@@ -229,11 +228,11 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                     <input type="text" placeholder="" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
                   </Field>
                 </div>
-                <Field label="Middle Name (optional)">
-                  <input type="text" placeholder="e.g. Santos" value={middleName} onChange={e => setMiddleName(e.target.value)} className={inp} />
+                <Field label="Middle Initial (optional)">
+                  <input type="text" placeholder="" value={middleName} onChange={e => setMiddleName(e.target.value)} className={inp} />
                 </Field>
                 <Field label="Last Name / Surname" required>
-                  <input type="text" placeholder="e.g. Dela Cruz" value={lastName} onChange={e => setLastName(e.target.value)} className={inp} />
+                  <input type="text" placeholder="" value={lastName} onChange={e => setLastName(e.target.value)} className={inp} />
                 </Field>
                 <Field label="Date of Birth" required>
                   <input type="date" value={birthDate} max={new Date().toISOString().split('T')[0]} onChange={e => setBirthDate(e.target.value)} className={inp} />
@@ -249,21 +248,18 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                     <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
                   </div>
                 )}
-                <Field label="Contact Number" required>
-                  <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} />
-                </Field>
               </div>
 
               {/* Submitter info */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 border-t border-border/60">
                 <Field label="Your Name (optional)">
-                  <input type="text" placeholder="e.g. Maria Dela Cruz" value={submitterName}
+                  <input type="text" placeholder="" value={submitterName}
                     onChange={e => setSubmitterName(e.target.value)}
                     readOnly={authReady && !!submitterName}
                     className={`${inp}${authReady && !!submitterName ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
                 </Field>
                 <Field label="Your Email (optional)">
-                  <input type="email" placeholder="e.g. maria@example.com" value={submitterEmail}
+                  <input type="email" placeholder="" value={submitterEmail}
                     onChange={e => setSubmitterEmail(e.target.value)}
                     readOnly={authReady && !!submitterEmail}
                     className={`${inp}${authReady && !!submitterEmail ? ' bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
@@ -327,7 +323,6 @@ export function ObituarySubmitModal({ onClose }: { onClose: () => void }) {
                     { label: 'Date of Birth', value: birthDate || '—' },
                     { label: 'Date of Death', value: deathDate || '—' },
                     { label: 'Age',           value: computedAge || '—' },
-                    { label: 'Contact',       value: contactNumber },
                     ...(submitterName  ? [{ label: 'Submitted By', value: submitterName }]  : []),
                     ...(submitterEmail ? [{ label: 'Your Email',   value: submitterEmail }] : []),
                   ].map(f => (
