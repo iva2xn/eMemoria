@@ -263,6 +263,36 @@ export interface WakeExtensionPriceConfig {
   updated_by: string | null
 }
 
+export interface ColumbariumLevelPrice {
+  row_number: number
+  label: string
+  price: number
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface FuneralServiceConfig {
+  service_key: 'traditional' | 'cremation'
+  packages_json: TraditionalPackage[] | CremationUrn[]
+  hero_image_path: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
+export interface TraditionalPackage {
+  title: string
+  price: number
+  imageSrc: string
+  features: string[]
+}
+
+export interface CremationUrn {
+  name: string
+  description: string
+  price: number
+  image: string
+}
+
 export type WakeScheduleRequestStatus = 'pending' | 'reviewed' | 'converted'
 
 export interface WakeScheduleRequest {
@@ -300,6 +330,8 @@ export interface Database {
       wake_extension_requests: { Row: WakeExtensionRequest; Insert: Omit<WakeExtensionRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeExtensionRequest> }
       wake_schedule_requests: { Row: WakeScheduleRequest; Insert: Omit<WakeScheduleRequest, 'id' | 'created_at' | 'updated_at'>; Update: Partial<WakeScheduleRequest> }
       wake_extension_price_config: { Row: WakeExtensionPriceConfig; Insert: never; Update: Partial<Omit<WakeExtensionPriceConfig, 'id' | 'updated_at'>> }
+      columbarium_level_prices: { Row: ColumbariumLevelPrice; Insert: never; Update: Partial<Omit<ColumbariumLevelPrice, 'row_number' | 'updated_at'>> }
+      funeral_service_config: { Row: FuneralServiceConfig; Insert: Omit<FuneralServiceConfig, 'updated_at'>; Update: Partial<Omit<FuneralServiceConfig, 'service_key' | 'updated_at'>> }
     }
     Functions: {
       admin_delete_user: {

@@ -198,7 +198,7 @@ export default function AdminPage() {
                     }} />,
     availments:     <DocumentSubmissionsTab currentRole={currentRole} initialProductFilter={availmentsProductFilter} initialSubmissionId={initialSubmissionId} />,
     'wake-schedule': <WakeScheduleTab currentRole={currentRole} />,
-    columbarium:    <ColumbariumTab />,
+    columbarium:    <ColumbariumTab currentRole={currentRole} />,
     payments:       <PaymentsTab currentRole={currentRole} highlightPaymentId={highlightPaymentId} onHighlightClear={() => setHighlightPaymentId(null)} initialStatusFilter={paymentsStatusFilter as 'all' | 'pending' | 'approved' | 'rejected' | 'voided' | undefined} />,
     transactions:   <TransactionRegisterTab currentRole={currentRole} />,
     obituaries:     <ObituariesTab />,

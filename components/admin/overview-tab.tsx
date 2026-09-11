@@ -46,6 +46,7 @@ function BarTip({ active, payload, label }: { active?: boolean; payload?: { valu
   )
 }
 
+// Sales Dynamics — daily approved revenue (₱ amounts)
 function buildDailyTrend(payments: { amount: number; approved_at: string | null }[], days = 14) {
   const now = new Date()
   return Array.from({ length: days }, (_, i) => {
@@ -54,6 +55,20 @@ function buildDailyTrend(payments: { amount: number; approved_at: string | null 
     return {
       day:     `${d.getMonth() + 1}/${d.getDate()}`,
       revenue: payments.filter(p => p.approved_at?.startsWith(key)).reduce((s, p) => s + Number(p.amount), 0),
+    }
+  })
+}
+
+// Overall User Activity — daily count of ALL payment submissions (pending + approved + rejected)
+// This reflects actual customer activity/submissions, not just revenue
+function buildDailyActivityTrend(submissions: { created_at: string }[], days = 14) {
+  const now = new Date()
+  return Array.from({ length: days }, (_, i) => {
+    const d   = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1 - i))
+    const key = d.toISOString().slice(0, 10)
+    return {
+      day:    `${d.getMonth() + 1}/${d.getDate()}`,
+      count:  submissions.filter(s => s.created_at?.startsWith(key)).length,
     }
   })
 }
@@ -225,7 +240,7 @@ function MetricCard({
   label: string; value: string | number; subtitle?: string; trend?: string; trendType?: 'up' | 'down'
   onClick?: () => void; accent?: 'default' | 'amber' | 'emerald'
 }) {
-  const accentColor = accent === 'amber' ? 'text-muted-foreground' : accent === 'emerald' ? 'text-primary' : 'text-foreground'
+  // All big numbers in black (text-foreground) regardless of accent
   return (
     <div
       onClick={onClick}
@@ -234,7 +249,7 @@ function MetricCard({
       }`}
     >
       <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">{label}</p>
-      <p className={`text-[32px] font-bold leading-none tracking-tight ${accentColor}`}>{value}</p>
+      <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">{value}</p>
       <div className="flex items-center gap-1.5 min-h-[18px]">
         {trend ? (
           trendType === 'up' ? (
@@ -255,6 +270,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
   const [stats,            setStats]            = useState({ pending: 0, inquiries: 0, profiles: 0, thisMonthRevenue: 0, totalRevenue: 0, approvedCount: 0 })
   const [approvedPayments, setApprovedPayments] = useState<{ amount: number; approved_at: string | null; product_type: string }[]>([])
+  const [allSubmissions,   setAllSubmissions]   = useState<{ created_at: string }[]>([])  // all payment rows for activity chart
   const [pendingPayments,  setPendingPayments]  = useState<(Payment & { guest_name?: string })[]>([])
   const [recentInquiries,  setRecentInquiries]  = useState<Inquiry[]>([])
   const [dailyTrend,       setDailyTrend]       = useState<{ day: string; revenue: number }[]>([])
@@ -277,6 +293,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
     const [
       { count: pending }, { count: inquiries }, { count: profiles },
       { data: pendingRows }, { data: recentInq }, { data: approvedRaw }, { data: allPendingAmounts },
+      { data: allSubmissionsRaw },
     ] = await Promise.all([
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('inquiries').select('*', { count: 'exact', head: true }),
@@ -285,23 +302,28 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
       supabase.from('inquiries').select('id,name,email,subject,message,is_read,created_at').order('created_at', { ascending: false }).limit(5),
       supabase.from('payments').select('amount,approved_at,product_type').eq('status', 'approved'),
       supabase.from('payments').select('amount').eq('status', 'pending'),
+      // All payment submissions (any status) for activity chart
+      supabase.from('payments').select('created_at'),
     ])
 
     const approved    = (approvedRaw ?? []) as { amount: number; approved_at: string | null; product_type: string }[]
     const pendingList = (pendingRows ?? []) as (Payment & { guest_name?: string })[]
     const totalRevenue   = approved.reduce((s, p) => s + Number(p.amount), 0)
-    // Use all pending rows (not just the 5 shown) for accurate percentage
+    // Pending revenue = sum of all pending payment amounts
     const pendingRevenue = ((allPendingAmounts ?? []) as { amount: number }[]).reduce((s, p) => s + Number(p.amount), 0)
     const totalPossible  = totalRevenue + pendingRevenue
     const now = new Date()
     const mk  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const thisMonthRevenue = approved.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
 
+    // Paid Invoices % = approved count / total invoice count
     const totalCount = (pending ?? 0) + approved.length
     setPaidInvoicesPct(totalCount > 0 ? Math.round((approved.length / totalCount) * 100) : 0)
+    // Funds Received % = actual money received / (received + pending money)
     setFundsReceivedPct(totalPossible > 0 ? Math.round((totalRevenue / totalPossible) * 100) : 0)
 
     setApprovedPayments(approved)
+    setAllSubmissions((allSubmissionsRaw ?? []) as { created_at: string }[])
     setStats({ pending: pending ?? 0, inquiries: inquiries ?? 0, profiles: profiles ?? 0, thisMonthRevenue, totalRevenue, approvedCount: approved.length })
     setPendingPayments(pendingList)
     setRecentInquiries((recentInq ?? []) as Inquiry[])
@@ -345,7 +367,8 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
   // Recompute trends whenever chart day selections change (no extra DB call)
   const salesChartTrend    = buildDailyTrend(approvedPayments, salesChartDays)
-  const activityChartTrend = buildDailyTrend(approvedPayments, activityChartDays)
+  // Activity chart uses count of ALL submissions (any status) per day — different from sales revenue
+  const activityChartTrend = buildDailyActivityTrend(allSubmissions, activityChartDays)
 
   const CHART_RANGES = [
     { days: 7  as const, label: '7d'  },
@@ -384,7 +407,6 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             value={stats.pending}
             trend={stats.pending > 0 ? `${stats.pending} awaiting` : 'All clear'}
             trendType={stats.pending > 0 ? 'down' : 'up'}
-            accent={stats.pending > 0 ? 'amber' : 'default'}
             onClick={() => onNavigate('payments', undefined, undefined, 'pending')}
           />
 
@@ -418,14 +440,12 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             value={stats.approvedCount}
             trend="All time"
             trendType="up"
-            accent="emerald"
             onClick={() => onNavigate('payments')}
           />
           <MetricCard
             label="Total Revenue"
             value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
             subtitle="All time · approved"
-            accent="emerald"
             onClick={() => setShowTotalRevenue(true)}
           />
         </div>
@@ -571,7 +591,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             <div className="px-6 py-5 border-b border-border/40 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">Overall User Activity</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Active customer submissions &amp; updates</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Daily payment submissions (all statuses)</p>
               </div>
               <MiniSelect
                 value={activityChartDays}
@@ -590,9 +610,19 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} opacity={0.5} />
                   <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} interval={Math.floor(activityChartDays / 7)} />
-                  <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={32} />
-                  <RechartsTooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorActivity)" />
+                  <YAxis tick={{ fontSize: 9, fill: 'var(--color-muted-foreground)' }} axisLine={false} tickLine={false} width={32} tickFormatter={v => String(Math.round(v))} allowDecimals={false} />
+                  <RechartsTooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null
+                      return (
+                        <div className="bg-card border border-border rounded-xl px-2.5 py-1.5 shadow-lg text-[11px]">
+                          <p className="text-muted-foreground mb-0.5">{label}</p>
+                          <p className="font-bold text-primary">{payload[0].value} submission{Number(payload[0].value) !== 1 ? 's' : ''}</p>
+                        </div>
+                      )
+                    }}
+                  />
+                  <Area type="monotone" dataKey="count" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorActivity)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -606,14 +636,12 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
           {/* Dynamic Progress Micro Cards */}
           <div className="grid grid-cols-2 gap-4">
             
-            <div
-              onClick={() => { setReportPeriod('year'); setShowReport(true) }}
-              className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/40 hover:shadow-md transition-all duration-200"
-            >
+            {/* Paid Invoices — count of approved invoices vs total invoices; NON-clickable */}
+            <div className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-muted-foreground/80 truncate uppercase tracking-wider">Paid Invoices</p>
-                <p className="text-lg font-bold text-foreground mt-1 truncate">₱{stats.totalRevenue.toLocaleString('en-PH')}</p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Current Financial Year</p>
+                <p className="text-lg font-bold text-foreground mt-1 truncate">{stats.approvedCount}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">of {stats.approvedCount + stats.pending} total invoices</p>
               </div>
               <div className="relative shrink-0 ml-3 flex items-center justify-center">
                 <svg className="w-12 h-12 transform -rotate-90">
@@ -625,14 +653,12 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               </div>
             </div>
 
-            <div
-              onClick={() => onNavigate('payments')}
-              className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-primary/40 hover:shadow-md transition-all duration-200"
-            >
+            {/* Funds Received — total money actually received (approved amount); NON-clickable */}
+            <div className="bg-card border border-border/60 rounded-[20px] p-4 flex items-center justify-between shadow-sm">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-muted-foreground/80 truncate uppercase tracking-wider">Funds Received</p>
                 <p className="text-lg font-bold text-foreground mt-1 truncate">₱{stats.totalRevenue.toLocaleString('en-PH')}</p>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Current Financial Year</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">of total payable amount</p>
               </div>
               <div className="relative shrink-0 ml-3 flex items-center justify-center">
                 <svg className="w-12 h-12 transform -rotate-90">
@@ -646,11 +672,11 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
           </div>
 
-          {/* Customer Orders / Pending payments */}
+          {/* Customer Transactions / Pending payments */}
           <div className="bg-card border border-border/60 rounded-[24px] overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-6 py-5 border-b border-border/40">
               <div>
-                <p className="text-sm font-semibold text-foreground">Customer Orders</p>
+                <p className="text-sm font-semibold text-foreground">Customer Transactions</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Awaiting authorization & documentation</p>
               </div>
               <button onClick={() => onNavigate('payments')} className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-0.5">

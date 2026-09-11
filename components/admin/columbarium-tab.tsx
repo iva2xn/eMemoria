@@ -9,10 +9,10 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import {
   X, Check, AlertTriangle, ChevronLeft,
   ChevronDown, ChevronUp, UserPlus, Landmark,
-  Info, Banknote, BookOpen, Wrench, Tag,
+  Info, Banknote, BookOpen, Wrench, Tag, Settings,
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
-import type { ColumbariumSlot, SlotStatus } from '@/lib/supabase/types'
+import type { ColumbariumSlot, SlotStatus, UserRole } from '@/lib/supabase/types'
 
 // ── Constants ─────────────────────────────────────────────────
 const ROW_LABELS: Record<number, string> = {
@@ -24,11 +24,165 @@ const ROW_LABELS: Record<number, string> = {
   6: 'Ground Level',
 }
 
-const ROW_PRICES: Record<number, number> = {
+// Fallback prices — overridden by DB values from columbarium_level_prices
+const DEFAULT_ROW_PRICES: Record<number, number> = {
   1: 25000, 2: 35000, 3: 25000, 4: 20000, 5: 20000, 6: 20000,
 }
 
-function fmtAmt(n: number) {
+// ── Admin-only Level Pricing Editor ───────────────────────────
+function LevelPricingEditor({
+  rowPrices,
+  onSaved,
+}: {
+  rowPrices: Record<number, number>
+  onSaved: (updated: Record<number, number>) => void
+}) {
+  const supabase = createClient()
+  const [open,    setOpen]    = useState(false)
+  const [draft,   setDraft]   = useState<Record<number, string>>({})
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const openEditor = () => {
+    const initial: Record<number, string> = {}
+    for (let r = 1; r <= 6; r++) initial[r] = String(rowPrices[r] ?? DEFAULT_ROW_PRICES[r])
+    setDraft(initial)
+    setError('')
+    setSuccess(false)
+    setOpen(true)
+  }
+
+  const handleSave = async () => {
+    setError('')
+    // Validate all values are positive numbers
+    for (let r = 1; r <= 6; r++) {
+      const v = Number(draft[r])
+      if (!draft[r] || isNaN(v) || v <= 0) {
+        setError(`Price for ${ROW_LABELS[r]} must be a positive number.`)
+        return
+      }
+    }
+    setSaving(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      // Upsert each row price
+      for (let r = 1; r <= 6; r++) {
+        const { error: err } = await supabase
+          .from('columbarium_level_prices')
+          .update({ price: Number(draft[r]), updated_by: user?.id ?? null })
+          .eq('row_number', r)
+        if (err) { setError(err.message); setSaving(false); return }
+      }
+      const updated: Record<number, number> = {}
+      for (let r = 1; r <= 6; r++) updated[r] = Number(draft[r])
+
+      await logActivity({
+        category:     'log',
+        event_type:   'columbarium_prices_updated',
+        entity_table: 'columbarium_level_prices',
+        entity_id:    null,
+        actor_id:     user?.id,
+        actor_name:   'Admin',
+        message:      'Admin updated columbarium level pricing',
+        metadata:     updated,
+      })
+
+      onSaved(updated)
+      setSaving(false)
+      setSuccess(true)
+      setTimeout(() => { setSuccess(false); setOpen(false) }, 1200)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={openEditor}
+        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all"
+      >
+        <Settings className="h-3.5 w-3.5" />
+        Edit Level Prices
+      </button>
+
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="font-bold text-sm text-foreground">Edit Level Prices</p>
+                  <p className="text-[10px] text-muted-foreground">Admin only — sets price per slot level</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-5 space-y-3">
+              {error && <AlertBanner variant="error" message={error} />}
+              {success && <AlertBanner variant="success" message="Prices updated successfully!" />}
+
+              {Array.from({ length: 6 }, (_, i) => i + 1).map(r => (
+                <div key={r} className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                      {ROW_LABELS[r]}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-semibold">₱</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="500"
+                        value={draft[r] ?? ''}
+                        onChange={e => setDraft(prev => ({ ...prev, [r]: e.target.value }))}
+                        className={`${inputCls} pl-7`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setOpen(false)}
+                  className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || success}
+                  className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {saving ? 'Saving…' : success ? <><Check className="h-4 w-4" /> Saved!</> : 'Save Prices'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+}
+
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 
@@ -382,10 +536,12 @@ function ReserveWalkInModal({
   slot,
   onClose,
   onSuccess,
+  rowPrices,
 }: {
   slot: ColumbariumSlot
   onClose: () => void
   onSuccess: (updatedSlot: ColumbariumSlot) => void
+  rowPrices: Record<number, number>
 }) {
   const supabase = createClient()
   const [step,      setStep]      = useState<'form' | 'review'>('form')
@@ -396,7 +552,7 @@ function ReserveWalkInModal({
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState('')
 
-  const basePrice   = ROW_PRICES[slot.row_number] ?? 0
+  const basePrice   = rowPrices[slot.row_number] ?? DEFAULT_ROW_PRICES[slot.row_number] ?? 0
   const discount    = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
   const finalAmount = basePrice - discount
 
@@ -549,7 +705,7 @@ function ReserveWalkInModal({
                 <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Fixed Price</p>
                 <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {ROW_LABELS[slot.row_number]} — price is fixed and non-editable
+                  {ROW_LABELS[slot.row_number]} — set per level by admin
                 </p>
               </div>
 
@@ -652,10 +808,12 @@ function OccupyWalkInModal({
   slot,
   onClose,
   onSuccess,
+  rowPrices,
 }: {
   slot: ColumbariumSlot
   onClose: () => void
   onSuccess: (updatedSlot: ColumbariumSlot) => void
+  rowPrices: Record<number, number>
 }) {
   const supabase = createClient()
   const [step,          setStep]          = useState<'form' | 'review'>('form')
@@ -669,7 +827,7 @@ function OccupyWalkInModal({
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
 
-  const basePrice   = ROW_PRICES[slot.row_number] ?? 0
+  const basePrice   = rowPrices[slot.row_number] ?? DEFAULT_ROW_PRICES[slot.row_number] ?? 0
   const discount    = seniorPwd ? Math.round(basePrice * 0.2 * 100) / 100 : 0
   const finalAmount = basePrice - discount
 
@@ -869,7 +1027,7 @@ function OccupyWalkInModal({
                 <p className="text-[9px] font-black uppercase tracking-widest text-primary/70 mb-1">Fixed Price</p>
                 <p className="text-lg font-bold text-primary">{fmtAmt(basePrice)}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {ROW_LABELS[slot.row_number]} — price is fixed and non-editable
+                  {ROW_LABELS[slot.row_number]} — set per level by admin
                 </p>
               </div>
 
@@ -978,11 +1136,13 @@ function SlotPanel({
   onClose,
   onStatusChange,
   onSlotUpdated,
+  rowPrices,
 }: {
   slot: ColumbariumSlot
   onClose: () => void
   onStatusChange: (newStatus: SlotStatus) => void
   onSlotUpdated: (updated: ColumbariumSlot) => void
+  rowPrices: Record<number, number>
 }) {
   const [mode, setMode] = useState<SlotPanelMode>('view')
 
@@ -1009,6 +1169,7 @@ function SlotPanel({
     return (
       <ReserveWalkInModal
         slot={slot}
+        rowPrices={rowPrices}
         onClose={() => setMode('view')}
         onSuccess={updated => { onSlotUpdated(updated); onClose() }}
       />
@@ -1019,6 +1180,7 @@ function SlotPanel({
     return (
       <OccupyWalkInModal
         slot={slot}
+        rowPrices={rowPrices}
         onClose={() => setMode('view')}
         onSuccess={updated => { onSlotUpdated(updated); onClose() }}
       />
@@ -1276,7 +1438,7 @@ const GUIDE_STEPS = [
   {
     icon: Tag,
     title: 'Pricing',
-    desc: 'Prices are fixed per level and cannot be edited here. Senior/PWD 20% discount is available.',
+    desc: 'Prices are set per level. Admins can edit level prices using the "Edit Level Prices" button. Senior/PWD 20% discount is available.',
   },
 ]
 
@@ -1326,7 +1488,7 @@ function StaffGuide() {
 }
 
 // ── Pricing legend card ───────────────────────────────────────
-function PricingCard() {
+function PricingCard({ rowPrices }: { rowPrices: Record<number, number> }) {
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       <div className="px-5 py-3 border-b border-border/60">
@@ -1336,7 +1498,7 @@ function PricingCard() {
         {Object.entries(ROW_LABELS).map(([row, label]) => (
           <div key={row} className="flex items-center justify-between px-5 py-2.5">
             <span className="text-xs text-muted-foreground">{label}</span>
-            <span className="text-xs font-bold text-foreground font-mono">{fmtAmt(ROW_PRICES[Number(row)])}</span>
+            <span className="text-xs font-bold text-foreground font-mono">{fmtAmt(rowPrices[Number(row)] ?? DEFAULT_ROW_PRICES[Number(row)])}</span>
           </div>
         ))}
       </div>
@@ -1345,21 +1507,26 @@ function PricingCard() {
 }
 
 // ── Main Tab ──────────────────────────────────────────────────
-export function ColumbariumTab() {
+export function ColumbariumTab({ currentRole }: { currentRole: UserRole }) {
   const supabase = createClient()
-  const [rows,    setRows]    = useState<ColumbariumSlot[]>([])
-  const [loading, setLoading] = useState(true)
+  const [rows,      setRows]      = useState<ColumbariumSlot[]>([])
+  const [rowPrices, setRowPrices] = useState<Record<number, number>>(DEFAULT_ROW_PRICES)
+  const [loading,   setLoading]   = useState(true)
 
   const [selected,      setSelected]      = useState<ColumbariumSlot | null>(null)
   const [pendingStatus, setPendingStatus] = useState<SlotStatus | null>(null)
 
   const fetchSlots = async () => {
-    const { data } = await supabase
-      .from('columbarium_slots')
-      .select('*')
-      .order('row_number')
-      .order('col_number')
-    setRows(data ?? [])
+    const [{ data: slots }, { data: prices }] = await Promise.all([
+      supabase.from('columbarium_slots').select('*').order('row_number').order('col_number'),
+      supabase.from('columbarium_level_prices').select('row_number,price'),
+    ])
+    setRows(slots ?? [])
+    if (prices && prices.length > 0) {
+      const map: Record<number, number> = { ...DEFAULT_ROW_PRICES }
+      for (const p of prices) map[p.row_number] = Number(p.price)
+      setRowPrices(map)
+    }
     setLoading(false)
   }
 
@@ -1407,17 +1574,23 @@ export function ColumbariumTab() {
 
   return (
     <div className="space-y-5">
-      {/* Header — no top-level cash button */}
+      {/* Header — admin pricing editor button on right */}
       <SectionHeader
         title="Columbarium"
         sub={`${rows.length} total · ${counts.available} available · ${counts.reserved} reserved · ${counts.occupied} occupied`}
+        action={currentRole === 'admin' ? (
+          <LevelPricingEditor
+            rowPrices={rowPrices}
+            onSaved={(updated) => setRowPrices(updated)}
+          />
+        ) : undefined}
       />
 
       {/* Staff guide (collapsed by default) */}
       <StaffGuide />
 
       {/* Level pricing */}
-      <PricingCard />
+      <PricingCard rowPrices={rowPrices} />
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -1462,7 +1635,7 @@ export function ColumbariumTab() {
                         {ROW_LABELS[row]}
                       </p>
                       <p className="text-[10px] text-primary font-semibold mt-0.5">
-                        {fmtAmt(ROW_PRICES[row])}
+                        {fmtAmt(rowPrices[row] ?? DEFAULT_ROW_PRICES[row])}
                       </p>
                     </td>
                     <td colSpan={12} className="p-0">
@@ -1493,6 +1666,7 @@ export function ColumbariumTab() {
       {selected && !pendingStatus && (
         <SlotPanel
           slot={selected}
+          rowPrices={rowPrices}
           onClose={() => setSelected(null)}
           onStatusChange={(newStatus) => setPendingStatus(newStatus)}
           onSlotUpdated={(updated) => {

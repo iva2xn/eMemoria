@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
 import type { DocumentSubmission, DocumentSubmissionStatus, UserRole } from '@/lib/supabase/types'
+import { FuneralServiceConfigPanel } from './funeral-service-config-panel'
 
 // ── Types ─────────────────────────────────────────────────────
 type SubmissionRow = DocumentSubmission & {
@@ -1020,6 +1021,9 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
       {deleteRow  && <DeleteModal        submission={deleteRow}  onClose={() => setDeleteRow(null)}  onDeleted={id => updateRow({ id, status: 'deleted' })} />}
       {recoverRow && <RecoverConfirm     submission={recoverRow} onClose={() => setRecoverRow(null)} onRecovered={id => updateRow({ id, status: 'pending_review', delete_reason: null, delete_comment: null, deleted_by: null, deleted_at: null })} />}
       {permDelIds && <PermanentDeleteConfirm ids={permDelIds} onClose={() => setPermDelIds(null)} onConfirmed={ids => { setRows(prev => prev.filter(r => !ids.includes(r.id))); setSelectedIds(new Set()) }} />}
+
+      {/* Admin-only: Funeral Service Settings panel */}
+      {currentRole === 'admin' && <FuneralServiceConfigPanel />}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
