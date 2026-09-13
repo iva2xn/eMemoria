@@ -204,6 +204,11 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
                     <CreditCard className="h-3 w-3" /> Paid
                   </span>
                 )}
+                {sub.status === 'approved' && !isPaid && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border px-2.5 py-1 rounded-full bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800/40 text-yellow-700 dark:text-yellow-400">
+                    Pending Payment
+                  </span>
+                )}
               </div>
             </div>
 
@@ -249,18 +254,30 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
 
             {/* CTAs */}
             <div className="px-5 pb-5 flex flex-wrap gap-2 items-center">
-              <Link
-                href={`/document-submission/status?id=${sub.id}`}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-              >
-                View status <ArrowRight className="h-3 w-3" />
-              </Link>
+              {/* View Status — disabled when approved or paid */}
+              {(sub.status === 'approved' || isPaid) ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground/50 cursor-not-allowed select-none">
+                  View status <ArrowRight className="h-3 w-3" />
+                </span>
+              ) : (
+                <Link
+                  href={`/document-submission/status?id=${sub.id}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                >
+                  View status <ArrowRight className="h-3 w-3" />
+                </Link>
+              )}
               {sub.status === 'approved' && (
                 isPaid ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-muted border border-border/60 px-3 py-1.5 rounded-lg cursor-not-allowed">
-                    <CreditCard className="h-3 w-3" /> Payment Received
-                  </span>
+                  /* Paid: show View Receipt link → goes to /payments filtered to approved, highlights the specific payment */
+                  <Link
+                    href={`/payments?highlight=${sub.id}&filter=approved`}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                  >
+                    View Receipt <ArrowRight className="h-3 w-3" />
+                  </Link>
                 ) : (
+                  /* Approved but not yet paid: Proceed to Payment */
                   <Link
                     href={billingUrl}
                     className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 border border-primary/25 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"

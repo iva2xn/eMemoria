@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
@@ -137,15 +137,29 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
 }
 
 // ── Payment card ──────────────────────────────────────────────
-function PaymentCard({ payment, profileName, profileEmail }: {
-  payment: Payment; profileName: string; profileEmail: string
+function PaymentCard({ payment, profileName, profileEmail, highlighted }: {
+  payment: Payment; profileName: string; profileEmail: string; highlighted?: boolean
 }) {
+  const cardRef = React.useRef<HTMLDivElement>(null)
+
+  // Scroll into view when highlighted
+  React.useEffect(() => {
+    if (highlighted && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlighted])
+
   return (
-    <div className={`bg-card border rounded-2xl overflow-hidden transition-all ${
-      payment.status === 'approved'
-        ? 'border-green-200 dark:border-green-800/40 shadow-sm shadow-green-100 dark:shadow-green-950/20'
-        : 'border-border'
-    }`}>
+    <div
+      ref={cardRef}
+      className={`bg-card border rounded-2xl overflow-hidden transition-all ${
+        highlighted
+          ? 'border-primary shadow-md shadow-primary/20 ring-2 ring-primary/30'
+          : payment.status === 'approved'
+          ? 'border-green-200 dark:border-green-800/40 shadow-sm shadow-green-100 dark:shadow-green-950/20'
+          : 'border-border'
+      }`}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border/60">
         <div className="min-w-0">
@@ -171,9 +185,43 @@ function PaymentCard({ payment, profileName, profileEmail }: {
         </div>
       </div>
 
-      {/* Pending — waiting indicator */}
+      {/* Pending — breakdown + waiting indicator */}
       {payment.status === 'pending' && (
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-5 space-y-3">
+          {/* Breakdown */}
+          <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+            <div className="bg-muted/30 px-4 py-2 border-b border-border/40">
+              <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Payment Breakdown</p>
+            </div>
+            <div className="divide-y divide-border/50 text-xs">
+              <div className="flex justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Service</span>
+                <span className="font-semibold text-foreground capitalize truncate max-w-[55%] text-right">
+                  {payment.product_ref ?? payment.product_type}
+                </span>
+              </div>
+              <div className="flex justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Payment method</span>
+                <span className="font-semibold text-foreground">{methodLabel(payment.method)}</span>
+              </div>
+              {payment.reference_number && (
+                <div className="flex justify-between px-4 py-2.5">
+                  <span className="text-muted-foreground">Reference #</span>
+                  <span className="font-mono font-semibold text-foreground">{payment.reference_number}</span>
+                </div>
+              )}
+              <div className="flex justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Date submitted</span>
+                <span className="font-semibold text-foreground">{formatDate(payment.created_at)}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 bg-amber-500/10 border-t border-amber-200/40 dark:border-amber-800/30">
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/70 dark:text-amber-400/70">Total Amount</span>
+              <span className="text-base font-bold text-amber-700 dark:text-amber-400">{formatAmount(payment.amount)}</span>
+            </div>
+          </div>
+
+          {/* Under review indicator */}
           <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -227,9 +275,10 @@ function PaymentCard({ payment, profileName, profileEmail }: {
 // ── Main page ─────────────────────────────────────────────────
 type FilterTab = 'all' | 'pending' | 'approved' | 'rejected'
 
-export default function PaymentsPage() {
+function PaymentsContent() {
   const supabase = createClient()
   const router   = useRouter()
+  const searchParams = useSearchParams()
 
   const [payments,     setPayments]     = useState<Payment[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -237,6 +286,15 @@ export default function PaymentsPage() {
   const [profileName,  setProfileName]  = useState('')
   const [profileEmail, setProfileEmail] = useState('')
   const [userId,       setUserId]       = useState<string | null>(null)
+
+  // From query params: ?highlight=<doc_submission_id>&filter=approved
+  const highlightDocId = searchParams.get('highlight')
+  const filterParam    = searchParams.get('filter') as FilterTab | null
+
+  // Find the actual payment ID that corresponds to the highlighted document_submission_id
+  const highlightedPaymentId = highlightDocId
+    ? payments.find(p => p.document_submission_id === highlightDocId && p.status === 'approved')?.id ?? null
+    : null
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -253,6 +311,15 @@ export default function PaymentsPage() {
     if (profile) { setProfileName(profile.name ?? ''); setProfileEmail(profile.email ?? '') }
     setLoading(false)
   }, [supabase, router])
+
+  useEffect(() => { load() }, [load])
+
+  // Apply filter from query param after data is loaded
+  useEffect(() => {
+    if (!loading && filterParam) {
+      setFilter(filterParam)
+    }
+  }, [loading, filterParam])
 
   useEffect(() => { load() }, [load])
 
@@ -352,7 +419,13 @@ export default function PaymentsPage() {
           ) : (
             <div className="space-y-4">
               {displayed.map(p => (
-                <PaymentCard key={p.id} payment={p} profileName={profileName} profileEmail={profileEmail} />
+                <PaymentCard
+                  key={p.id}
+                  payment={p}
+                  profileName={profileName}
+                  profileEmail={profileEmail}
+                  highlighted={!!highlightedPaymentId && p.id === highlightedPaymentId}
+                />
               ))}
             </div>
           )}
@@ -360,5 +433,19 @@ export default function PaymentsPage() {
         </div>
       </main>
     </ClientLayout>
+  )
+}
+
+export default function PaymentsPage() {
+  return (
+    <React.Suspense fallback={
+      <ClientLayout>
+        <main className="flex-1 flex items-center justify-center py-32">
+          <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </main>
+      </ClientLayout>
+    }>
+      <PaymentsContent />
+    </React.Suspense>
   )
 }

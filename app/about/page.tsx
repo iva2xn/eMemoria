@@ -50,7 +50,7 @@ export default function AboutPage() {
               <div className="mx-auto max-w-lg text-center lg:mr-0 lg:ml-auto lg:w-1/2 lg:text-left">
 
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-foreground/15 text-xs font-bold uppercase tracking-widest text-foreground/60">
-                  Established Since 2024
+                  Established Since 2004
                 </span>
 
                 <h1 className="mt-6 text-balance text-4xl font-serif font-bold md:text-5xl lg:mt-8 xl:text-6xl text-foreground leading-[1.1]">
