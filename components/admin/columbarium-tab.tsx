@@ -81,7 +81,7 @@ function LevelPricingEditor({
         category:     'log',
         event_type:   'columbarium_prices_updated',
         entity_table: 'columbarium_level_prices',
-        entity_id:    null,
+        entity_id:    undefined,
         actor_id:     user?.id,
         actor_name:   'Admin',
         message:      'Admin updated columbarium level pricing',
@@ -183,6 +183,7 @@ function LevelPricingEditor({
   )
 }
 
+function fmtAmt(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 

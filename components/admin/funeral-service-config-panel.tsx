@@ -316,7 +316,7 @@ function TraditionalSection() {
     if (err) { setError(err.message); setSaving(false); return }
     await logActivity({
       category: 'log', event_type: 'funeral_service_config_updated',
-      entity_table: 'funeral_service_config', entity_id: null,
+      entity_table: 'funeral_service_config', entity_id: undefined,
       actor_id: user?.id, actor_name: 'Admin',
       message: 'Admin updated Traditional Burial packages',
       metadata: { count: updated.length },
@@ -439,7 +439,7 @@ function CremationSection() {
     if (err) { setError(err.message); setSaving(false); return }
     await logActivity({
       category: 'log', event_type: 'funeral_service_config_updated',
-      entity_table: 'funeral_service_config', entity_id: null,
+      entity_table: 'funeral_service_config', entity_id: undefined,
       actor_id: user?.id, actor_name: 'Admin',
       message: 'Admin updated Cremation Service urns',
       metadata: { count: updated.length },
