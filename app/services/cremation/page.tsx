@@ -1,9 +1,13 @@
-import React from 'react'
+'use client'
+
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, CheckCircle } from 'lucide-react'
+import type { CremationUrn } from '@/lib/supabase/types'
 
 const WHAT_INCLUDED = [
   'Cremation process and handling',
@@ -13,20 +17,42 @@ const WHAT_INCLUDED = [
   'Choice of memorial urn (see options below)',
 ]
 
-export const URNS = [
-  { name: 'Wooden Urn',      description: 'Warm wooden finish — simple and dignified.',           price: 3500,  image: '/urns/wooden.png' },
-  { name: 'Black Metal Urn', description: 'Refined dark design — timeless and understated.',       price: 3500,  image: '/urns/blackmetal.png' },
-  { name: 'Gray Metal Urn',  description: 'Graceful metallic style — calm and elegant.',           price: 5500,  image: '/urns/graymetal.png' },
-  { name: 'White Marble Urn','description': 'Soft marble-inspired finish — reflects purity.',       price: 5500,  image: '/urns/whitemarble.png' },
-  { name: 'Blue Metal Urn',  description: 'Distinguished blue — premium memorial design.',         price: 15000, image: '/urns/blue.png' },
-  { name: 'Brown Metal Urn', description: 'Rich bronze-brown — traditional memorial style.',       price: 15000, image: '/urns/brownmetal.png' },
+// Fallback urns — used only if DB fetch fails or is empty
+const FALLBACK_URNS: CremationUrn[] = [
+  { name: 'Wooden Urn',      description: 'Warm wooden finish — simple and dignified.',        price: 3500,  image: '/urns/wooden.png' },
+  { name: 'Black Metal Urn', description: 'Refined dark design — timeless and understated.',   price: 3500,  image: '/urns/blackmetal.png' },
+  { name: 'Gray Metal Urn',  description: 'Graceful metallic style — calm and elegant.',       price: 5500,  image: '/urns/graymetal.png' },
+  { name: 'White Marble Urn',description: 'Soft marble-inspired finish — reflects purity.',    price: 5500,  image: '/urns/whitemarble.png' },
+  { name: 'Blue Metal Urn',  description: 'Distinguished blue — premium memorial design.',     price: 15000, image: '/urns/blue.png' },
+  { name: 'Brown Metal Urn', description: 'Rich bronze-brown — traditional memorial style.',   price: 15000, image: '/urns/brownmetal.png' },
 ]
+
+// Cremation base price — loaded from DB (cremation row), with fallback
+const DEFAULT_CREMATION_PRICE = 25000
 
 function fmtPrice(n: number) {
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 
 export default function CremationPage() {
+  const supabase = createClient()
+  const [urns,    setUrns]    = useState<CremationUrn[]>([])
+  const [loading, setLoading] = useState(true)
+  const cremationPrice = DEFAULT_CREMATION_PRICE
+
+  useEffect(() => {
+    supabase
+      .from('funeral_service_config')
+      .select('packages_json')
+      .eq('service_key', 'cremation')
+      .single()
+      .then(({ data }) => {
+        const loaded = (data?.packages_json as CremationUrn[]) ?? []
+        setUrns(loaded.length > 0 ? loaded : FALLBACK_URNS)
+        setLoading(false)
+      })
+  }, [supabase])
+
   return (
     <ClientLayout>
       <main className="flex-1 bg-background">
@@ -57,7 +83,9 @@ export default function CremationPage() {
               {/* Left: pricing */}
               <div className="flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Reservation Fee</p>
-                <h2 className="font-serif text-4xl font-bold text-foreground mb-1">₱25,000.00</h2>
+                <h2 className="font-serif text-4xl font-bold text-foreground mb-1">
+                  {fmtPrice(cremationPrice)}
+                </h2>
                 <p className="text-sm text-muted-foreground mb-5 leading-relaxed max-w-md">
                   The reservation covers the full cremation service. You will select your preferred urn as part of the reservation process — urn price is added on top.
                 </p>
@@ -74,7 +102,7 @@ export default function CremationPage() {
               {/* Right: CTA */}
               <div className="md:w-56 flex flex-col gap-3">
                 <Button asChild size="lg" className="font-semibold rounded-xl">
-                  <Link href="/document-submission?product=cremation&label=Cremation+Service&price=25000">
+                  <Link href={`/document-submission?product=cremation&label=Cremation+Service&price=${cremationPrice}`}>
                     Reserve Now
                   </Link>
                 </Button>
@@ -97,20 +125,26 @@ export default function CremationPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-              {URNS.map(urn => (
-                <div key={urn.name} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col">
-                  <div className="relative aspect-square w-full bg-muted/40">
-                    <Image src={urn.image} alt={urn.name} fill className="object-contain p-4" />
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                {urns.map(urn => (
+                  <div key={urn.name} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                    <div className="relative aspect-square w-full bg-muted/40">
+                      <Image src={urn.image} alt={urn.name} fill className="object-contain p-4" unoptimized />
+                    </div>
+                    <div className="px-4 pb-4 pt-3 flex-1 flex flex-col gap-1">
+                      <p className="text-sm font-bold text-foreground">{urn.name}</p>
+                      <p className="text-xs text-muted-foreground leading-relaxed flex-1">{urn.description}</p>
+                      <p className="text-sm font-bold text-primary mt-2">{fmtPrice(urn.price)}</p>
+                    </div>
                   </div>
-                  <div className="px-4 pb-4 pt-3 flex-1 flex flex-col gap-1">
-                    <p className="text-sm font-bold text-foreground">{urn.name}</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed flex-1">{urn.description}</p>
-                    <p className="text-sm font-bold text-primary mt-2">{fmtPrice(urn.price)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-8 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-5">
               <p className="text-sm font-semibold text-foreground mb-1">Have your own urn?</p>
@@ -131,7 +165,9 @@ export default function CremationPage() {
             Speak with our team to learn more about cremation arrangements, memorial options, and urn selections for your loved one.
           </p>
           <Button asChild size="lg" className="font-semibold rounded-xl px-8">
-            <Link href="/document-submission?product=cremation&label=Cremation+Service&price=25000">Arrange a Service</Link>
+            <Link href={`/document-submission?product=cremation&label=Cremation+Service&price=${cremationPrice}`}>
+              Arrange a Service
+            </Link>
           </Button>
         </section>
 

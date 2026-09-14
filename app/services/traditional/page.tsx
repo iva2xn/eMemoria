@@ -1,15 +1,20 @@
-import React from 'react'
+'use client'
+
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 import { ClientLayout } from '@/components/client-layout'
 import { Button } from '@/components/ui/button'
 import { PackageCard } from '@/components/ui/package-card'
 import { ArrowLeft } from 'lucide-react'
+import type { TraditionalPackage } from '@/lib/supabase/types'
 
-const PACKAGES = [
+// Fallback static packages — used only if DB fetch fails or is empty
+const FALLBACK_PACKAGES: TraditionalPackage[] = [
   {
     title: 'OMB',
-    price: '₱25,000.00',
+    price: 25000,
     imageSrc: '/traditional/OMB.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER', 'LIGHTENING',
@@ -20,7 +25,7 @@ const PACKAGES = [
   },
   {
     title: 'HALF GLASS',
-    price: '₱35,000.00',
+    price: 35000,
     imageSrc: '/traditional/HALFGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWERS', 'LIGHTENING',
@@ -32,7 +37,7 @@ const PACKAGES = [
   },
   {
     title: 'JR FULL GLASS',
-    price: '₱47,000.00',
+    price: 47000,
     imageSrc: '/traditional/JRFULL%20GGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
@@ -44,7 +49,7 @@ const PACKAGES = [
   },
   {
     title: 'SR FULL GLASS',
-    price: '₱57,000.00',
+    price: 57000,
     imageSrc: '/traditional/SRFULLGLASS.png',
     features: [
       'CASKET', 'EMBALMING', 'FLOWER W/ 1 REPLACEMENT', 'LIGHTENING',
@@ -55,7 +60,7 @@ const PACKAGES = [
   },
   {
     title: 'ORDINARY METAL',
-    price: '₱75,000.00',
+    price: 75000,
     imageSrc: '/traditional/ORDINARYMETAL.png',
     features: [
       'CASKET', 'EMBALMING', 'LIGHTENING', 'FLOWERS (2 LAGAY)',
@@ -68,7 +73,28 @@ const PACKAGES = [
   },
 ]
 
+function fmtPrice(n: number) {
+  return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
+}
+
 export default function TraditionalBurialPage() {
+  const supabase = createClient()
+  const [packages, setPackages] = useState<TraditionalPackage[]>([])
+  const [loading,  setLoading]  = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('funeral_service_config')
+      .select('packages_json')
+      .eq('service_key', 'traditional')
+      .single()
+      .then(({ data }) => {
+        const pkgs = (data?.packages_json as TraditionalPackage[]) ?? []
+        setPackages(pkgs.length > 0 ? pkgs : FALLBACK_PACKAGES)
+        setLoading(false)
+      })
+  }, [supabase])
+
   return (
     <ClientLayout>
 
@@ -131,17 +157,23 @@ export default function TraditionalBurialPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
-            {PACKAGES.map((pkg, index) => (
-              <PackageCard
-                key={index}
-                title={pkg.title}
-                price={pkg.price}
-                imageSrc={pkg.imageSrc}
-                features={pkg.features}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
+              {packages.map((pkg, index) => (
+                <PackageCard
+                  key={index}
+                  title={pkg.title}
+                  price={fmtPrice(pkg.price)}
+                  imageSrc={pkg.imageSrc}
+                  features={pkg.features}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ── FOOTER CTA ── */}
