@@ -88,6 +88,7 @@ export default function AdminPage() {
   const router   = useRouter()
 
   const [profile,         setProfile]         = useState<Profile | null | undefined>(undefined)
+  const [avatarUrl,       setAvatarUrl]       = useState<string | null>(null)
   const [activeTab,       setActiveTab]       = useState<Tab>(getTabFromHash)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
 
@@ -131,6 +132,10 @@ export default function AdminPage() {
       if (!user) { setProfile(null); return }
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(data ?? null)
+      if (data?.avatar_path) {
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(data.avatar_path)
+        setAvatarUrl(urlData?.publicUrl ?? null)
+      }
     })
   }, [supabase, router])
 
@@ -272,15 +277,32 @@ export default function AdminPage() {
               <ThemeToggle />
             </div>
           )}
-          {/* Your Account link — shown for all roles */}
+          {/* Your Account link — avatar circle + name, shown for all roles */}
           <Link
             href="/profile"
             title={sidebarCollapsed ? 'Your Account' : undefined}
             className={`w-full flex items-center rounded-lg py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all
-              ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2 px-3'}`}
+              ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3'}`}
           >
-            <User className="h-4 w-4 shrink-0" />
-            {!sidebarCollapsed && 'Your Account'}
+            {/* Avatar circle */}
+            <div className="h-7 w-7 rounded-full border border-border overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
+              {avatarUrl ? (
+                <Image src={avatarUrl} alt="avatar" width={28} height={28} className="object-cover w-full h-full" unoptimized />
+              ) : (
+                <span className="text-[10px] font-bold text-primary">
+                  {profile
+                    ? ([profile.first_name, profile.last_name].filter(Boolean).map(s => s![0].toUpperCase()).join('') || profile.name.slice(0, 2).toUpperCase())
+                    : <User className="h-3.5 w-3.5" />
+                  }
+                </span>
+              )}
+            </div>
+            {!sidebarCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-foreground truncate leading-tight">{profile?.name ?? 'Your Account'}</p>
+                <p className="text-[9px] text-muted-foreground capitalize leading-tight">{profile?.role}</p>
+              </div>
+            )}
           </Link>
           <button
             onClick={() => setShowLogoutModal(true)}
@@ -418,10 +440,24 @@ export default function AdminPage() {
               <Link
                 href="/profile"
                 onClick={() => setSidebarOpen(false)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
               >
-                <User className="h-4 w-4" />
-                Your Account
+                <div className="h-7 w-7 rounded-full border border-border overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
+                  {avatarUrl ? (
+                    <Image src={avatarUrl} alt="avatar" width={28} height={28} className="object-cover w-full h-full" unoptimized />
+                  ) : (
+                    <span className="text-[10px] font-bold text-primary">
+                      {profile
+                        ? ([profile.first_name, profile.last_name].filter(Boolean).map(s => s![0].toUpperCase()).join('') || profile.name.slice(0, 2).toUpperCase())
+                        : '?'
+                      }
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-foreground truncate leading-tight">{profile?.name ?? 'Your Account'}</p>
+                  <p className="text-[9px] text-muted-foreground capitalize leading-tight">{profile?.role}</p>
+                </div>
               </Link>
               <button
                 onClick={() => { setSidebarOpen(false); setShowLogoutModal(true) }}
