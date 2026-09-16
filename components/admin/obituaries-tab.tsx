@@ -408,8 +408,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     if (!lastName.trim())     { setError('Last name is required.'); return }
     if (!birthDate)           { setError('Date of birth is required.'); return }
     if (!deathDate)           { setError('Date of death is required.'); return }
-    if (!venueAddress.trim()) { setError('Venue address is required.'); return }
-    if (!contactNumber.trim()){ setError('Contact number is required.'); return }
 
     setLoading(true)
     const fullName = [firstName.trim(), middleName.trim(), lastName.trim()].filter(Boolean).join(' ')
@@ -443,10 +441,8 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       death_date:     deathDate || null,
       age:            ageNum,
       image_path:     imagePath,
-      venue_address:  venueAddress.trim(),
-      contact_number: contactNumber.trim(),
-      is_published:   isPublished,
-      is_approved:    isPublished, // approved if publishing immediately
+      is_published:   false,
+      is_approved:    false,
       created_by:     user?.id ?? null,
     })
 
@@ -476,7 +472,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
               </div>
               <h3 className="font-serif text-xl font-bold text-foreground">Tarp Created</h3>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-                The obituary record has been saved{isPublished ? ' and published' : ' as a draft'}.
+                The obituary record has been saved as a draft.
               </p>
               <Button onClick={() => { onSuccess(); onClose() }} className="rounded-xl px-8 mt-2">Done</Button>
             </div>
@@ -528,14 +524,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                       <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
                     </div>
                   )}
-                  <div>
-                    <label className={lbl}>Contact Number <span className="text-primary">*</span></label>
-                    <PhoneInput value={contactNumber} onChange={setContactNumber} className={inp} required />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className={lbl}>Venue / Wake Address <span className="text-primary">*</span></label>
-                    <input type="text" placeholder="e.g. Brgy. Mayuwi, Tayabas City" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} className={inp} />
-                  </div>
                 </div>
 
                 <div>
@@ -566,18 +554,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                     )}
                   </div>
                 </div>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <div
-                    onClick={() => setIsPublished(v => !v)}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${isPublished ? 'bg-primary' : 'bg-border'}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${isPublished ? 'translate-x-4' : ''}`} />
-                  </div>
-                  <span className="text-xs text-foreground font-medium">
-                    {isPublished ? 'Publish immediately' : 'Save as draft'}
-                  </span>
-                </label>
 
                 <div className="flex gap-3 pt-1">
                   <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-11 rounded-xl">Cancel</Button>
@@ -1077,16 +1053,7 @@ export function ObituariesTab() {
                       </div>
                     ))}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Venue / Address</label>
-                    <input value={editVenue} onChange={e => setEditVenue(e.target.value)} className={inputCls} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contact Number</label>
-                    <input value={editContact} onChange={e => setEditContact(e.target.value)} className={inputCls} />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    {saveError && <p className="text-xs text-destructive col-span-full">{saveError}</p>}
+                  <div className="flex gap-3 pt-2">                    {saveError && <p className="text-xs text-destructive col-span-full">{saveError}</p>}
                     {saveOk    && <p className="text-xs text-primary col-span-full">✓ Saved successfully</p>}
                     <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
                       {saving ? 'Saving…' : saveOk ? '✓ Saved' : 'Save Changes'}
