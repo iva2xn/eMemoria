@@ -7,7 +7,6 @@ import { AlertBanner } from '@/components/ui/alert-banner'
 import { TarpPreview, computeAge } from '@/components/ui/tarp-preview'
 import { Badge, SectionHeader, EmptyState, Spinner, FilterPills, inputCls } from './admin-primitives'
 import { ScrollText, UploadCloud, X, Check, Plus, Trash2, RotateCcw, Eye, Wand2 } from 'lucide-react'
-import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
 import { createPortal } from 'react-dom'
 import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
@@ -72,7 +71,6 @@ function ApprovePublishModal({
                 firstName={firstName} middleName={middleName} lastName={lastName}
                 birthDate={obituary.birth_date ?? ''} deathDate={obituary.death_date ?? ''}
                 age={obituary.age ?? ''} photoUrl={photoUrl}
-                venueAddress={obituary.venue_address ?? ''} contactNumber={obituary.contact_number ?? ''}
               />
               <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2 text-xs">
                 <div className="flex justify-between">
@@ -363,14 +361,11 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [lastName,      setLastName]      = useState('')
   const [birthDate,     setBirthDate]     = useState('')
   const [deathDate,     setDeathDate]     = useState('')
-  const [venueAddress,  setVenueAddress]  = useState('')
-  const [contactNumber, setContactNumber] = useState('')
   const [photo,         setPhoto]         = useState<File | null>(null)
   const [photoPreview,  setPhotoPreview]  = useState<string | null>(null)
   const [fileName,      setFileName]      = useState('')
   const [bgRemoving,    setBgRemoving]    = useState(false)
   const [bgRemoved,     setBgRemoved]     = useState(false)
-  const [isPublished,   setIsPublished]   = useState(true)
   const [loading,       setLoading]       = useState(false)
   const [error,         setError]         = useState('')
   const [done,          setDone]          = useState(false)
@@ -488,8 +483,6 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                   deathDate={deathDate}
                   age={computedAge}
                   photoUrl={photoPreview}
-                  venueAddress={venueAddress}
-                  contactNumber={contactNumber}
                 />
               </div>
 
@@ -753,8 +746,6 @@ export function ObituariesTab() {
   const [editBirth,   setEditBirth]   = useState('')
   const [editDeath,   setEditDeath]   = useState('')
   const [editAge,     setEditAge]     = useState('')
-  const [editVenue,   setEditVenue]   = useState('')
-  const [editContact, setEditContact] = useState('')
   const [saving,    setSaving]    = useState(false)
   const [saveError, setSaveError] = useState('')
   const [saveOk,    setSaveOk]    = useState(false)
@@ -780,8 +771,6 @@ export function ObituariesTab() {
     setEditBirth(o.birth_date ?? '')
     setEditDeath(o.death_date ?? '')
     setEditAge(o.age ? String(o.age) : '')
-    setEditVenue(o.venue_address ?? '')
-    setEditContact(o.contact_number ?? '')
   }
 
   const saveEdit = async () => {
@@ -792,12 +781,10 @@ export function ObituariesTab() {
     const fullName = [editFirst.trim(), editMiddle.trim(), editLast.trim()].filter(Boolean).join(' ')
     if (!fullName) { setSaveError('Name cannot be empty.'); setSaving(false); return }
     const updates = {
-      full_name:      fullName,
-      birth_date:     editBirth || null,
-      death_date:     editDeath || null,
-      age:            editAge ? Number(editAge) : null,
-      venue_address:  editVenue || null,
-      contact_number: editContact || null,
+      full_name:  fullName,
+      birth_date: editBirth || null,
+      death_date: editDeath || null,
+      age:        editAge ? Number(editAge) : null,
     }
     const { error } = await supabase.from('obituaries').update(updates).eq('id', selected.id)
     if (error) { setSaveError(error.message); setSaving(false); return }
@@ -976,7 +963,6 @@ export function ObituariesTab() {
                         firstName={first} middleName={middle} lastName={last}
                         birthDate={o.birth_date ?? ''} deathDate={o.death_date ?? ''}
                         age={o.age ?? ''} photoUrl={getPhotoUrl(o.image_path)}
-                        venueAddress={o.venue_address ?? ''} contactNumber={o.contact_number ?? ''}
                         showDownload
                       />
                     </div>
@@ -1083,7 +1069,6 @@ export function ObituariesTab() {
                     lastName={editLast || 'LAST'} birthDate={editBirth}
                     deathDate={editDeath} age={editAge}
                     photoUrl={getPhotoUrl(selected.image_path)}
-                    venueAddress={editVenue} contactNumber={editContact}
                     showDownload
                   />
                   <p className="text-[10px] text-muted-foreground">Updates as you type. Save to persist changes.</p>

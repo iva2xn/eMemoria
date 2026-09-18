@@ -279,7 +279,7 @@ export default function AdminPage() {
           )}
           {/* Your Account link — avatar circle + name, shown for all roles */}
           <Link
-            href="/profile"
+            href="/admin/profile"
             title={sidebarCollapsed ? 'Your Account' : undefined}
             className={`w-full flex items-center rounded-lg py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all
               ${sidebarCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3'}`}
@@ -438,7 +438,7 @@ export default function AdminPage() {
                 <ThemeToggle />
               </div>
               <Link
-                href="/profile"
+                href="/admin/profile"
                 onClick={() => setSidebarOpen(false)}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
               >
