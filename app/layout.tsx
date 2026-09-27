@@ -15,8 +15,12 @@ export const metadata: Metadata = {
   title: "eMemoria Funeral Services | Dignified Memorials & Tributes",
   description: "Providing compassionate, high-quality, and professional funeral, wake setups, and hearse transport services in Sariaya, Quezon Province.",
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon:     [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/logo.png',    type: 'image/png', sizes: '1024x1024' },
+    ],
+    apple:    [{ url: '/logo.png', type: 'image/png', sizes: '1024x1024' }],
+    shortcut: [{ url: '/favicon.ico' }],
   },
 }
 
