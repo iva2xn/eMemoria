@@ -11,7 +11,7 @@ import { AuthGateModal } from '@/components/billing/auth-gate-modal'
 import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { PhoneInput } from '@/components/ui/phone-input'
-import { URNS } from '@/app/services/cremation/page'
+import { FALLBACK_URNS } from '@/lib/service-constants'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
@@ -94,7 +94,7 @@ function UrnPicker({ value, onChange }: {
 
       {/* Available urns grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {URNS.map(urn => (
+        {FALLBACK_URNS.map(urn => (
           <button
             key={urn.name}
             type="button"
@@ -297,7 +297,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
 
   // Derived urn price
   const selectedUrn   = isCremation && urnChoice && urnChoice !== OWN_URN
-    ? URNS.find(u => u.name === urnChoice) ?? null
+    ? FALLBACK_URNS.find(u => u.name === urnChoice) ?? null
     : null
   const urnPrice      = selectedUrn?.price ?? 0
   const totalPrice    = productPrice + urnPrice
