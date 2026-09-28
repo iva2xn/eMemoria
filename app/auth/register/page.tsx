@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { AlertBanner } from '@/components/ui/alert-banner'
@@ -32,7 +31,6 @@ function PasswordChecklist({ password }: { password: string }) {
 }
 
 function RegisterContent() {
-  const supabase     = createClient()
   const router       = useRouter()
   const searchParams = useSearchParams()
   const nextUrl      = searchParams.get('next') ?? '/'
@@ -55,6 +53,7 @@ function RegisterContent() {
   const [otpSent,     setOtpSent]     = useState(false)
   const [otpCode,     setOtpCode]     = useState('')
   const [otpVerified, setOtpVerified] = useState(false)
+  const [otpToken,    setOtpToken]    = useState('')   // signed token from verify endpoint
   const [otpError,    setOtpError]    = useState('')
   const [otpVerifying, setOtpVerifying] = useState(false)
 
@@ -117,6 +116,7 @@ function RegisterContent() {
       const data = await res.json()
       if (!res.ok) { setOtpError(data.error ?? 'Invalid code.'); return }
       setOtpVerified(true)
+      setOtpToken(data.verifiedToken ?? '')
       setOtpSent(false)
     } catch {
       setOtpError('Network error. Please try again.')
@@ -131,64 +131,53 @@ function RegisterContent() {
     setError('')
     setEmailTaken(false)
 
-    if (!firstName.trim())  { setError('First name is required.'); return }
-    if (!lastName.trim())   { setError('Last name is required.'); return }
-    if (!email.trim())      { setError('Email address is required.'); return }
-    if (!otpVerified)       { setError('Please verify your email address first.'); return }
-    if (!phone.trim())      { setError('Contact number is required.'); return }
-    if (!password)          { setError('Password is required.'); return }
+    if (!firstName.trim())    { setError('First name is required.'); return }
+    if (!lastName.trim())     { setError('Last name is required.'); return }
+    if (!email.trim())        { setError('Email address is required.'); return }
+    if (!otpVerified)         { setError('Please verify your email address first.'); return }
+    if (!phone.trim())        { setError('Contact number is required.'); return }
+    if (!password)            { setError('Password is required.'); return }
     if (!isPasswordStrong(password)) { setError('Password does not meet the requirements below.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
-    if (!agreed)            { setError('Please agree to the Terms & Conditions to continue.'); return }
-
-    const fullName = [firstName.trim(), middleInit.trim(), lastName.trim(), suffix.trim()]
-      .filter(Boolean).join(' ')
+    if (!agreed)              { setError('Please agree to the Terms & Conditions to continue.'); return }
 
     setLoading(true)
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          name:           fullName,
-          first_name:     firstName.trim(),
-          middle_initial: middleInit.trim() || null,
-          last_name:      lastName.trim(),
-          suffix:         suffix.trim() || null,
-          phone:          phone.trim(),
-        },
-        // No emailRedirectTo — we already verified via OTP, skip the email link
-        emailRedirectTo: undefined,
-      },
-    })
-    setLoading(false)
+    try {
+      // Use server-side admin API so the user is created pre-confirmed
+      // (bypasses Supabase's email confirmation since we already verified via OTP)
+      const res = await fetch('/api/auth/create-user', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:       email.trim(),
+          password,
+          firstName:   firstName.trim(),
+          middleInit:  middleInit.trim() || null,
+          lastName:    lastName.trim(),
+          suffix:      suffix.trim()    || null,
+          phone:       phone.trim(),
+          otpVerifiedToken: otpToken || undefined,
+        }),
+      })
+      const data = await res.json()
 
-    if (!signUpError && signUpData.user && signUpData.user.identities?.length === 0) {
-      setEmailTaken(true)
-      setError('This email has already been taken.')
-      return
-    }
-
-    if (signUpError) {
-      const msg  = signUpError.message?.toLowerCase() ?? ''
-      const code = (signUpError as { code?: string }).code ?? ''
-      if (
-        msg.includes('already registered') || msg.includes('already been taken') ||
-        msg.includes('already exists') || msg.includes('unique') ||
-        msg.includes('duplicate') || msg.includes('user already') ||
-        msg.includes('email address is already') ||
-        code === 'user_already_exists' || code === '23505'
-      ) {
-        setEmailTaken(true)
-        setError('This email has already been taken.')
-      } else {
-        setError(signUpError.message)
+      if (!res.ok) {
+        if (data.error === 'email_taken' || res.status === 409) {
+          setEmailTaken(true)
+          setError('This email has already been taken.')
+        } else {
+          setError(data.error ?? 'Registration failed. Please try again.')
+        }
+        return
       }
-      return
-    }
 
-    // Redirect to login
-    router.push('/auth/login?registered=1')
+      // Account created and confirmed — redirect to login
+      router.push('/auth/login?registered=1')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const pwChecks = checkPassword(password)
@@ -253,7 +242,7 @@ function RegisterContent() {
             <div className="flex gap-2">
               <input
                 type="email" value={email}
-                onChange={e => { setEmail(e.target.value); setEmailTaken(false); setOtpVerified(false); setOtpSent(false); setOtpCode('') }}
+                onChange={e => { setEmail(e.target.value); setEmailTaken(false); setOtpVerified(false); setOtpToken(''); setOtpSent(false); setOtpCode('') }}
                 placeholder="" className={`${inp} flex-1 ${emailTaken ? 'border-destructive focus:border-destructive' : ''} ${otpVerified ? 'border-primary bg-primary/5' : ''}`}
                 required
               />

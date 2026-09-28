@@ -79,7 +79,7 @@ export function ClientNotificationBell({ userId }: { userId: string }) {
     setLoading(false)
   }, [supabase, userId])
 
-  // Mount: fetch count + subscribe to real-time inserts
+  // Mount: fetch count + subscribe to real-time inserts AND updates
   useEffect(() => {
     fetchCount()
 
@@ -97,6 +97,24 @@ export function ClientNotificationBell({ userId }: { userId: string }) {
           const newNotif = payload.new as ClientNotification
           setItems(prev => [newNotif, ...prev])
           setUnreadCount(prev => prev + 1)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event:  'UPDATE',
+          schema: 'public',
+          table:  'client_notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const updated = payload.new as ClientNotification
+          setItems(prev => prev.map(n => n.id === updated.id ? updated : n))
+          // Recount from updated list
+          setItems(prev => {
+            setUnreadCount(prev.map(n => n.id === updated.id ? updated : n).filter(n => !n.is_read).length)
+            return prev.map(n => n.id === updated.id ? updated : n)
+          })
         }
       )
       .subscribe()

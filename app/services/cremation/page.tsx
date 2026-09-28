@@ -36,9 +36,9 @@ function fmtPrice(n: number) {
 
 export default function CremationPage() {
   const supabase = createClient()
-  const [urns,    setUrns]    = useState<CremationUrn[]>([])
-  const [loading, setLoading] = useState(true)
-  const cremationPrice = DEFAULT_CREMATION_PRICE
+  const [urns,           setUrns]           = useState<CremationUrn[]>([])
+  const [loading,        setLoading]        = useState(true)
+  const [cremationPrice, setCremationPrice] = useState<number>(DEFAULT_CREMATION_PRICE)
 
   useEffect(() => {
     supabase
@@ -53,6 +53,22 @@ export default function CremationPage() {
       })
   }, [supabase])
 
+  // Real-time: update urn list when admin edits cremation config
+  useEffect(() => {
+    const channel = supabase
+      .channel('cremation-config-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'funeral_service_config', filter: `service_key=eq.cremation` },
+        (payload) => {
+          const updated = payload.new as { packages_json: CremationUrn[] }
+          const loaded = updated.packages_json ?? []
+          if (loaded.length > 0) setUrns(loaded)
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase])
   return (
     <ClientLayout>
       <main className="flex-1 bg-background">

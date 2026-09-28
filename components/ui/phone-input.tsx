@@ -31,22 +31,30 @@ export function PhoneInput({ value, onChange, className, required, id }: PhoneIn
   }
 
   // Strip dashes to get raw digits for storage
+  // Default seed: if value is empty or just the prefix, pre-fill '9'
   const rawDigits = value.startsWith('+63')
     ? value.slice(4).replace(/\D/g, '').slice(0, 10)
-    : ''
+    : '9'
 
-  const displayValue = PREFIX + formatDigits(rawDigits)
+  // Ensure we always have at least '9' as the first digit
+  const seedDigits = rawDigits.length === 0 ? '9' : rawDigits
+
+  const displayValue = PREFIX + formatDigits(seedDigits)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value
 
     if (!raw.startsWith('+63')) {
-      onChange(PREFIX)
+      onChange(PREFIX + '9')
       return
     }
 
     // Strip prefix and all non-digits
-    const digits = raw.slice(4).replace(/\D/g, '').slice(0, 10)
+    let digits = raw.slice(4).replace(/\D/g, '').slice(0, 10)
+
+    // Always keep '9' as the first digit — prevent deletion of the leading 9
+    if (digits.length === 0) digits = '9'
+    else if (digits[0] !== '9') digits = '9' + digits.slice(1)
 
     // Store as +63 9XXXXXXXXX (raw, no dashes) — display layer adds dashes
     onChange('+63 ' + digits)

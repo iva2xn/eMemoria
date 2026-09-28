@@ -95,6 +95,23 @@ export default function TraditionalBurialPage() {
       })
   }, [supabase])
 
+  // Real-time: update packages live when admin edits config
+  useEffect(() => {
+    const channel = supabase
+      .channel('traditional-config-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'funeral_service_config', filter: `service_key=eq.traditional` },
+        (payload) => {
+          const updated = payload.new as { packages_json: TraditionalPackage[] }
+          const loaded = updated.packages_json ?? []
+          if (loaded.length > 0) setPackages(loaded)
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase])
+
   return (
     <ClientLayout>
 

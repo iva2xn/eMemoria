@@ -1,5 +1,6 @@
 // Pure display — renders the columbarium grid.
 // Uses CSS custom properties so it automatically adapts to light/dark mode.
+// ROW_PRICES are loaded from the DB (columbarium_level_prices) — not hardcoded.
 
 import type { ColumbariumSlot } from '@/lib/supabase/types'
 
@@ -12,9 +13,13 @@ export const ROW_LABELS: Record<number, string> = {
   6: 'Ground Level',
 }
 
-export const ROW_PRICES: Record<number, number> = {
+// Fallback prices — used only when DB prices haven't loaded yet
+export const ROW_PRICES_FALLBACK: Record<number, number> = {
   1: 25000, 2: 35000, 3: 25000, 4: 20000, 5: 20000, 6: 20000,
 }
+
+// Keep for backward-compat (slot-modal still imports this)
+export const ROW_PRICES = ROW_PRICES_FALLBACK
 
 export function formatPrice(p: number) {
   return '₱' + p.toLocaleString('en-PH', { minimumFractionDigits: 2 })
@@ -25,9 +30,11 @@ interface SlotCellProps {
   slot: ColumbariumSlot
   isSelected: boolean
   onSlotClick: (slot: ColumbariumSlot) => void
+  rowPrices?: Record<number, number>
 }
 
-function SlotCell({ slot, isSelected, onSlotClick }: SlotCellProps) {
+function SlotCell({ slot, isSelected, onSlotClick, rowPrices }: SlotCellProps) {
+  const prices = rowPrices ?? ROW_PRICES_FALLBACK
   const base: React.CSSProperties = {
     width: 44,
     height: 44,
@@ -44,7 +51,7 @@ function SlotCell({ slot, isSelected, onSlotClick }: SlotCellProps) {
       <button
         onClick={() => onSlotClick(slot)}
         aria-label={`Slot ${slot.slot_code} — available`}
-        title={`${slot.slot_code} · Available · ${formatPrice(ROW_PRICES[slot.row_number])}`}
+        title={`${slot.slot_code} · Available · ${formatPrice(prices[slot.row_number])}`}
         style={{
           ...base,
           backgroundColor: 'color-mix(in srgb, var(--color-background) 60%, #111 40%)',
@@ -215,9 +222,11 @@ interface SlotGridProps {
   slots: ColumbariumSlot[]
   selectedId: string | null
   onSlotClick: (slot: ColumbariumSlot) => void
+  rowPrices?: Record<number, number>
 }
 
-export function SlotGrid({ slots, selectedId, onSlotClick }: SlotGridProps) {
+export function SlotGrid({ slots, selectedId, onSlotClick, rowPrices }: SlotGridProps) {
+  const prices = rowPrices ?? ROW_PRICES_FALLBACK
   const rowGroups = Array.from({ length: 6 }, (_, i) => ({
     row: i + 1,
     slots: slots.filter(s => s.row_number === i + 1),
@@ -268,7 +277,7 @@ export function SlotGrid({ slots, selectedId, onSlotClick }: SlotGridProps) {
                   fontWeight: 600,
                   margin: 0,
                 }}>
-                  {formatPrice(ROW_PRICES[row])}
+                  {formatPrice(prices[row])}
                 </p>
               </div>
 
@@ -280,6 +289,7 @@ export function SlotGrid({ slots, selectedId, onSlotClick }: SlotGridProps) {
                     slot={slot}
                     isSelected={selectedId === slot.id}
                     onSlotClick={onSlotClick}
+                    rowPrices={prices}
                   />
                 ))}
               </div>

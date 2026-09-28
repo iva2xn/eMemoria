@@ -272,18 +272,12 @@ export function HeroHeader() {
 
       <header
         ref={headerRef}
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ease-out ${
-          topBarVisible
-            ? 'border-b border-border/30 bg-background/70 backdrop-blur-xl'
-            : 'border-b border-transparent bg-transparent backdrop-blur-none'
-        }`}
-        style={{ height: topBarVisible ? '4rem' : '3rem' }}
+        className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/80 backdrop-blur-xl"
+        style={{ height: '4rem' }}
       >
         {/* Brand + auth row */}
         <div
-          className={`mx-auto flex max-w-6xl h-16 items-center justify-between px-6 transition-all duration-300 ease-out ${
-            topBarVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-3 pointer-events-none'
-          }`}
+          className={`mx-auto flex max-w-6xl h-16 items-center justify-between px-6 transition-all duration-300 ease-out`}
         >
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <Image src="/logo.png" alt="eMemoria Funeral Services" width={36} height={36} className="rounded-full object-cover" />
@@ -331,6 +325,9 @@ export function HeroHeader() {
           </div>
 
           <div className="flex md:hidden items-center gap-3">
+            {authReady && profile && (
+              <ClientNotificationBell userId={profile.id} />
+            )}
             {authReady && (profile?.role === 'admin' || profile?.role === 'staff') && (
               <Link href="/admin" className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full border border-border/50 text-foreground font-semibold bg-muted/40">
                 <ShieldAlert className="h-2.5 w-2.5" /> {profile?.role === 'admin' ? 'Admin' : 'Staff'}
@@ -425,15 +422,6 @@ export function HeroHeader() {
                     >
                       <UserIcon className="h-4 w-4" /> Your Profile
                     </Link>
-                    {profile.role === 'client' && (
-                      <Link
-                        href="/notifications"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      >
-                        <Bell className="h-4 w-4" /> Notifications
-                      </Link>
-                    )}
                     <button
                       onClick={() => { setMobileMenuOpen(false); setShowLogoutModal(true) }}
                       className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 w-full transition-colors"

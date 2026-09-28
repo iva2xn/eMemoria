@@ -7,13 +7,15 @@ import { ClientLayout } from '@/components/client-layout'
 import { SlotGrid } from '@/components/columbarium/slot-grid'
 import { SlotModal } from '@/components/columbarium/slot-modal'
 import { InfoBlocks } from '@/components/columbarium/info-blocks'
-import type { ColumbariumSlot } from '@/lib/supabase/types'
+import type { ColumbariumSlot, ColumbariumLevelPrice } from '@/lib/supabase/types'
 
 export default function ColumbariumPage() {
   const supabase = createClient()
 
   // SLOT DATA — full list ng columbarium slots from Supabase
-  const [slots,   setSlots]   = useState<ColumbariumSlot[]>([])
+  const [slots,     setSlots]     = useState<ColumbariumSlot[]>([])
+  // LIVE PRICES — fetched from DB, admin-editable
+  const [rowPrices, setRowPrices] = useState<Record<number, number>>({})
 
   // LOADING STATE - self explanatory
   const [loading, setLoading] = useState(true)
@@ -23,12 +25,34 @@ export default function ColumbariumPage() {
   const [modal,   setModal]   = useState<ColumbariumSlot | null>(null)
 
   useEffect(() => {
-    supabase
-      .from('columbarium_slots')
-      .select('*')
-      .order('row_number')
-      .order('col_number')
-      .then(({ data }) => { setSlots(data ?? []); setLoading(false) })
+    Promise.all([
+      supabase.from('columbarium_slots').select('*').order('row_number').order('col_number'),
+      supabase.from('columbarium_level_prices').select('*').order('row_number'),
+    ]).then(([{ data: slotsData }, { data: pricesData }]) => {
+      setSlots(slotsData ?? [])
+      if (pricesData) {
+        const map: Record<number, number> = {}
+        ;(pricesData as ColumbariumLevelPrice[]).forEach(p => { map[p.row_number] = Number(p.price) })
+        setRowPrices(map)
+      }
+      setLoading(false)
+    })
+  }, [supabase])
+
+  // Real-time: update prices live when admin changes them
+  useEffect(() => {
+    const channel = supabase
+      .channel('columbarium-level-prices-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'columbarium_level_prices' },
+        (payload) => {
+          const row = payload.new as ColumbariumLevelPrice
+          setRowPrices(prev => ({ ...prev, [row.row_number]: Number(row.price) }))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [supabase])
   const counts = {
     available: slots.filter(s => s.status === 'available').length,
@@ -85,6 +109,7 @@ export default function ColumbariumPage() {
                   slots={slots}
                   selectedId={modal?.id ?? null}
                   onSlotClick={slot => setModal(slot)}
+                  rowPrices={rowPrices}
                 />
               )}
             </div>
@@ -112,6 +137,7 @@ export default function ColumbariumPage() {
         <SlotModal
           slot={modal}
           onClose={() => setModal(null)}
+          rowPrices={rowPrices}
         />
       )}
     </ClientLayout>

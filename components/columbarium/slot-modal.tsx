@@ -3,16 +3,18 @@
 // Walk-in / admin reservations are handled separately at the counter.
 
 import { X, ArrowRight, Phone, Lock } from 'lucide-react'
-import { ROW_LABELS, ROW_PRICES, formatPrice } from './slot-grid'
+import { ROW_LABELS, ROW_PRICES_FALLBACK, formatPrice } from './slot-grid'
 import type { ColumbariumSlot } from '@/lib/supabase/types'
 
 interface SlotModalProps {
   slot: ColumbariumSlot
   onClose: () => void
+  rowPrices?: Record<number, number>
 }
 
-export function SlotModal({ slot, onClose }: SlotModalProps) {
-  const fixedPrice = ROW_PRICES[slot.row_number] ?? Number(slot.price)
+export function SlotModal({ slot, onClose, rowPrices }: SlotModalProps) {
+  const prices    = rowPrices ?? ROW_PRICES_FALLBACK
+  const fixedPrice = prices[slot.row_number] ?? Number(slot.price)
 
   return (
     <div
