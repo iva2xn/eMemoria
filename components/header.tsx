@@ -19,9 +19,9 @@ const NAV_LINKS = [
   { name: 'Home',             href: '/',               authRequired: false, icon: Home         },
   { name: 'Funeral Services', href: '/services',       authRequired: false, icon: Layers       },
   { name: 'Wake Schedules',   href: '/wake-schedule',  authRequired: true,  icon: Moon         },
-  { name: 'Obituaries',       href: '/obituaries',     authRequired: true,  icon: ScrollText   },
   { name: 'My Bookings',      href: '/bookings',       authRequired: true,  icon: ClipboardList},
   { name: 'Payments',         href: '/payments',       authRequired: true,  icon: Receipt      },
+  { name: 'Obituaries',       href: '/obituaries',     authRequired: true,  icon: ScrollText   },
   { name: 'About Us',         href: '/about',          authRequired: false, icon: Users        },
   { name: 'Contact',          href: '/contact',        authRequired: false, icon: Phone        },
 ]

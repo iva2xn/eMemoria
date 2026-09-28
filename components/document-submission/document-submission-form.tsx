@@ -36,28 +36,69 @@ function DocUpload({
   label: string; required?: boolean; hint?: string
   value: File | null; onChange: (f: File | null) => void
 }) {
+  const [fileError, setFileError] = useState<string | null>(null)
+
+  // Clear inline error if parent clears the value (e.g. form reset)
+  useEffect(() => {
+    if (!value) setFileError(null)
+  }, [value])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null
-    if (f && f.size > 10 * 1024 * 1024) {
-      alert(`"${f.name}" exceeds the 10 MB limit. Please choose a smaller file.`)
+    setFileError(null)
+
+    if (!f) { onChange(null); return }
+
+    // Validate file type
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+    if (!f.type.startsWith('image/') && f.type !== 'application/pdf') {
+      setFileError(`Invalid file type "${f.type || f.name.split('.').pop()}". Only images (JPEG, PNG, WebP) and PDF are accepted.`)
       e.target.value = ''
       onChange(null)
       return
     }
+    // Reject non-web image formats that slip through image/*
+    const blockedImages = ['image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/ico', 'image/vnd.microsoft.icon']
+    if (blockedImages.includes(f.type)) {
+      setFileError(`"${f.type.split('/')[1].toUpperCase()}" images are not accepted. Please upload a JPEG, PNG, or WebP instead.`)
+      e.target.value = ''
+      onChange(null)
+      return
+    }
+
+    // Validate file size (10 MB)
+    if (f.size > 10 * 1024 * 1024) {
+      setFileError(`File is too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 10 MB.`)
+      e.target.value = ''
+      onChange(null)
+      return
+    }
+
     onChange(f)
   }
 
   return (
     <Field label={label} required={required} hint={hint}>
-      <div className="relative border border-dashed border-border hover:border-primary/50 rounded-xl p-4 text-center transition-all bg-background cursor-pointer group mt-1">
+      <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all bg-background cursor-pointer group mt-1 ${
+        fileError
+          ? 'border-destructive bg-destructive/5 hover:border-destructive/80'
+          : 'border-border hover:border-primary/50'
+      }`}>
         <input type="file" accept="image/*,application/pdf" onChange={handleChange}
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
-        <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
-        <p className="text-xs font-semibold text-foreground truncate px-2">
+        <UploadCloud className={`h-5 w-5 mx-auto mb-1.5 transition-colors ${fileError ? 'text-destructive' : 'text-muted-foreground group-hover:text-primary'}`} />
+        <p className={`text-xs font-semibold truncate px-2 ${fileError ? 'text-destructive' : 'text-foreground'}`}>
           {value ? value.name : 'Click or drag to upload'}
         </p>
         <p className="text-[10px] text-muted-foreground mt-0.5">JPEG, PNG, PDF · max 10 MB</p>
       </div>
+      {/* Inline error — shown immediately on bad file selection */}
+      {fileError && (
+        <div className="mt-2 flex items-start gap-2 bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+          <p className="text-[11px] text-destructive font-semibold leading-snug">{fileError}</p>
+        </div>
+      )}
     </Field>
   )
 }
@@ -312,8 +353,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     if (!phone.trim()) { setError('Contact number is required.'); return }
     if (isCremation && urnChoice === null) { setError('Please select an urn option.'); return }
     if (!docDeath)     { setError('Death Certificate is required.'); return }
-    if (!docBarangay)  { setError('Barangay Indigency is required.'); return }
-    if (!docId)        { setError('Valid ID is required.'); return }
+    if (!docId)        { setError('Valid ID of the Closest Relative / Family Member is required.'); return }
     if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the eligibility option is checked.'); return }
 
     setStep(2)
@@ -323,7 +363,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   // ── Final submit ──────────────────────────────────────────
   const handleSubmit = async () => {
     setError('')
-    if (!docDeath || !docBarangay || !docId) {
+    if (!docDeath || !docId) {
       setError('Please go back and upload all required documents.')
       setStep(1)
       return
@@ -460,10 +500,10 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             <p className="text-xs font-bold text-foreground uppercase tracking-wider">Uploaded Documents</p>
           </div>
           <div className="divide-y divide-border/40">
-            <DocReviewRow label="Death Certificate"       file={docDeath} />
-            <DocReviewRow label="Barangay Indigency"      file={docBarangay} />
-            <DocReviewRow label="Valid ID"                file={docId} />
-            <DocReviewRow label="Medico Legal"            file={docMedico} />
+            <DocReviewRow label="Death Certificate"                            file={docDeath} />
+            <DocReviewRow label="Valid ID of the Closest Relative / Family Member" file={docId} />
+            <DocReviewRow label="Barangay Indigency"                          file={docBarangay} />
+            <DocReviewRow label="Medico Legal Certificate"                    file={docMedico} />
             {isSeniorPwd && <DocReviewRow label="Senior/PWD Proof" file={docSeniorPwdProof} />}
           </div>
         </div>
@@ -593,12 +633,12 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
           <DocUpload label="Death Certificate" required
             hint="Official PSA or local civil registry copy"
             value={docDeath} onChange={setDocDeath} />
-          <DocUpload label="Barangay Indigency" required
-            hint="Issued by the barangay of the deceased"
-            value={docBarangay} onChange={setDocBarangay} />
-          <DocUpload label="Valid ID of the Next of Kin" required
-            hint="Any government-issued ID of the next of kin"
+          <DocUpload label="Valid ID of the Closest Relative / Family Member" required
+            hint="Any government-issued ID of the closest relative or family member"
             value={docId} onChange={setDocId} />
+          <DocUpload label="Barangay Indigency"
+            hint="Issued by the barangay of the deceased (optional)"
+            value={docBarangay} onChange={setDocBarangay} />
           <DocUpload label="Medico Legal Certificate"
             hint="Required only if death was non-natural (accident, etc.)"
             value={docMedico} onChange={setDocMedico} />
