@@ -373,7 +373,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     try {
       const uploads: Promise<string | null>[] = [
         uploadDoc(docDeath,    'death-cert'),
-        uploadDoc(docBarangay, 'barangay-indigency'),
+        docBarangay ? uploadDoc(docBarangay, 'barangay-indigency') : Promise.resolve(null),
         uploadDoc(docId,       'valid-id'),
         docMedico        ? uploadDoc(docMedico,        'medico-legal')   : Promise.resolve(null),
         docSeniorPwdProof ? uploadDoc(docSeniorPwdProof, 'senior-pwd-proof') : Promise.resolve(null),
