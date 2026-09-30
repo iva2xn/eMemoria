@@ -7,15 +7,6 @@ declare global {
   var registerOtps: Map<string, { code: string; expiresAt: number }> | undefined
 }
 
-// Server-side admin client — uses service role key, never exposed to browser
-function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-}
-
 /**
  * Verify the signed token issued by register-otp/verify.
  * Token format (base64url): "email:expiresAt|hmac-sig"
@@ -93,39 +84,48 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(' ')
 
-    // ── Create user with admin client (bypasses email confirmation) ──
-    // We use generateLink('signup') to get a one-time token, then immediately
-    // create the user via the link exchange. This avoids GoTrue sending any
-    // confirmation email entirely since we handle email verification via OTP.
-    // Actually the simplest path: createUser with email_confirm:true and
-    // suppress the mailer by inserting directly via the DB admin client.
-    const admin = createAdminClient()
-
-    // Insert directly into auth.users via the service-role client to bypass
-    // GoTrue's email-sending logic completely.
-    // We still use admin.auth.admin.createUser but immediately patch the
-    // mailer issue by catching the specific error and retrying without email.
+    // ── Create user via GoTrue Admin REST API directly ───────────
+    // We call the GoTrue endpoint manually so we can pass
+    // `suppress_email: true`, which prevents GoTrue from sending
+    // any confirmation/welcome email. The JS admin client does not
+    // expose this flag, so we use fetch with the service-role key.
     let userData: { id: string } | null = null
 
-    const { data, error } = await admin.auth.admin.createUser({
-      email:         email.trim(),
-      password,
-      email_confirm: true,
-      user_metadata: {
-        name:           fullName,
-        first_name:     firstName.trim(),
-        middle_initial: middleInit?.trim() || null,
-        last_name:      lastName.trim(),
-        suffix:         suffix?.trim()  || null,
-        phone:          phone?.trim()   || null,
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+    const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'apikey':        serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
       },
+      body: JSON.stringify({
+        email:          email.trim(),
+        password,
+        email_confirm:  true,
+        suppress_email: true,         // <-- stops GoTrue sending any email
+        user_metadata: {
+          name:           fullName,
+          first_name:     firstName.trim(),
+          middle_initial: middleInit?.trim() || null,
+          last_name:      lastName.trim(),
+          suffix:         suffix?.trim()  || null,
+          phone:          phone?.trim()   || null,
+        },
+      }),
     })
 
-    if (error) {
-      const msg  = error.message?.toLowerCase() ?? ''
-      const code = (error as { code?: string }).code ?? ''
+    const createJson = await createRes.json()
+    const data  = createRes.ok ? { user: createJson } : null
+    const error = createRes.ok ? null : createJson
 
-      console.error('[create-user] createUser raw error:', JSON.stringify({ message: error.message, code, status: (error as {status?: number}).status }))
+    if (error) {
+      const msg  = (error.message ?? error.msg ?? JSON.stringify(error)).toLowerCase()
+      const code = error.code ?? error.error_code ?? ''
+
+      console.error('[create-user] createUser raw error:', JSON.stringify(error))
 
       if (
         msg.includes('already registered') || msg.includes('already been taken') ||
@@ -137,25 +137,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'email_taken' }, { status: 409 })
       }
 
-      // For any error (including mailer errors), check if the user was actually
-      // created before failing — GoTrue creates the DB row before sending email.
-      const { data: listData } = await admin.auth.admin.listUsers({ perPage: 1000 })
-      const existing = listData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase().trim())
+      // Fallback: check if the user was actually created before failing
+      const listRes  = await fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1000`, {
+        headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}` },
+      })
+      const listJson = await listRes.json()
+      const existing = (listJson?.users ?? []).find(
+        (u: { email?: string; id?: string }) => u.email?.toLowerCase() === email.toLowerCase().trim()
+      )
       if (existing?.id) {
-        // User exists — mailer failed but account was created, proceed normally
-        console.warn('[create-user] createUser error but user exists, continuing:', error.message)
+        console.warn('[create-user] createUser error but user exists, continuing:', msg)
         userData = { id: existing.id }
       } else {
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: typeof error.message === 'string' ? error.message : 'Failed to create user.' }, { status: 400 })
       }
     } else {
-      userData = { id: data.user.id }
+      userData = { id: data!.user.id }
     }
 
-    // ── Ensure email_confirmed_at is set (no email side-effect) ──
-    // createUser with email_confirm:true should already set this, but some
-    // Supabase project configs override it. We patch auth.users directly via
-    // the service-role DB client — this writes to the DB with zero emails sent.
+    // ── Ensure email_confirmed_at is set ─────────────────────────
     const userId = userData.id
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

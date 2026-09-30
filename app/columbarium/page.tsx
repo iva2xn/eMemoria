@@ -90,6 +90,7 @@ export default function ColumbariumPage() {
             reserved={counts.reserved}
             occupied={counts.occupied}
             loading={loading}
+            rowPrices={rowPrices}
           />
 
           {/* SLOT GRID */}

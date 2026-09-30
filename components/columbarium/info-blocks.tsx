@@ -1,12 +1,13 @@
 // Info cards shown above the grid: live counts, pricing, and legend.
 
-import { ROW_LABELS, ROW_PRICES } from './slot-grid'
+import { ROW_LABELS, ROW_PRICES_FALLBACK } from './slot-grid'
 
 interface InfoBlocksProps {
   available: number
   reserved: number
   occupied: number
   loading: boolean
+  rowPrices?: Record<number, number>
 }
 
 function fmtAmt(n: number) {
@@ -22,7 +23,8 @@ const DOT_STYLE: React.CSSProperties = {
   boxShadow: '14px 0 0 #a98844',
 }
 
-export function InfoBlocks({ available, reserved, occupied, loading }: InfoBlocksProps) {
+export function InfoBlocks({ available, reserved, occupied, loading, rowPrices }: InfoBlocksProps) {
+  const prices = rowPrices ?? ROW_PRICES_FALLBACK
   return (
     <div className="space-y-4">
 
@@ -55,7 +57,7 @@ export function InfoBlocks({ available, reserved, occupied, loading }: InfoBlock
               <div key={row} className="flex items-center justify-between px-5 py-2.5">
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <span className="text-xs font-bold text-foreground font-mono">
-                  {fmtAmt(ROW_PRICES[Number(row)])}
+                  {fmtAmt(prices[Number(row)])}
                 </span>
               </div>
             ))}
