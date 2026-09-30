@@ -24,6 +24,16 @@ export interface DeletedAccount {
   restored_at: string | null
   restored_by: string | null
   restored_by_name: string | null
+  // Ban fields (migration 038)
+  is_banned: boolean
+  ban_reason: string | null
+  ban_message: string | null
+  banned_at: string | null
+  banned_by: string | null
+  banned_by_name: string | null
+  unbanned_at: string | null
+  unbanned_by: string | null
+  unbanned_by_name: string | null
 }
 
 export interface Profile {

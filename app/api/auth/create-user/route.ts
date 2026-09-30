@@ -53,6 +53,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 })
     }
 
+    // ── Check if email is banned ──────────────────────────────
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+    const db = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
+    const { data: banRow } = await db
+      .from('banned_emails')
+      .select('message')
+      .eq('email', email.toLowerCase().trim())
+      .is('unbanned_at', null)
+      .maybeSingle()
+
+    if (banRow) {
+      const msg = banRow.message?.trim()
+        || 'This email address has been flagged and cannot be used to create an account.'
+      return NextResponse.json({ error: msg, banned: true }, { status: 403 })
+    }
+
     // ── Re-verify OTP was completed ───────────────────────────
     // Prefer the signed token (works across serverless instances).
     // Fall back to in-memory store for requests from older clients.
@@ -90,9 +108,6 @@ export async function POST(req: NextRequest) {
     // any confirmation/welcome email. The JS admin client does not
     // expose this flag, so we use fetch with the service-role key.
     let userData: { id: string } | null = null
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
     const createRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
       method:  'POST',
@@ -157,10 +172,6 @@ export async function POST(req: NextRequest) {
 
     // ── Ensure email_confirmed_at is set ─────────────────────────
     const userId = userData.id
-    const db = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
     const { error: patchError } = await db
       .schema('auth')
       .from('users')

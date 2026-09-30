@@ -8,7 +8,7 @@ import { Badge, SectionHeader, EmptyState, Spinner, TableShell, Th, SearchInput,
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { logActivity } from '@/lib/activity-log'
 import { useLockBodyScroll } from '@/lib/hooks/use-lock-body-scroll'
-import { Trash2, X, UserCog, RotateCcw, Clock, Download, Mail, Eye, ChevronRight } from 'lucide-react'
+import { Trash2, X, UserCog, RotateCcw, Clock, Download, Mail, Eye, ChevronRight, Ban, ShieldOff, ShieldCheck } from 'lucide-react'
 import type { Profile, UserRole, DeletedAccount } from '@/lib/supabase/types'
 
 type ProfileView = 'active' | 'deletion_requests' | 'deleted'
@@ -155,13 +155,18 @@ function DeleteAccountModal({
 }: {
   target: Profile
   onClose: () => void
-  onConfirm: (opts: { reason: string; emailBody: string; includeRecovery: boolean; sendEmail: boolean }) => Promise<void>
+  onConfirm: (opts: { reason: string; emailBody: string; includeRecovery: boolean; sendEmail: boolean; banEmail: boolean; banReason: string; banMessage: string }) => Promise<void>
 }) {
   const [step,    setStep]    = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
   const [reason,  setReason]  = useState('')
   const [confirm, setConfirm] = useState('')
   const [error,   setError]   = useState('')
+
+  // Ban options
+  const [banEmail,   setBanEmail]   = useState(false)
+  const [banReason,  setBanReason]  = useState('')
+  const [banMessage, setBanMessage] = useState('')
 
   const isStaff = target.role === 'staff'
   const TEMPLATES = isStaff ? STAFF_EMAIL_TEMPLATES : CLIENT_EMAIL_TEMPLATES
@@ -210,13 +215,14 @@ function DeleteAccountModal({
   const handleStep1Next = () => {
     if (!reason)                         { setError('Please select a reason.'); return }
     if (confirm.trim() !== 'DELETE')     { setError('Type "DELETE" (all caps) to continue.'); return }
+    if (banEmail && !banReason.trim())   { setError('Please provide a reason for the ban.'); return }
     setError('')
     setStep(2)
   }
 
   const handleConfirm = async () => {
     setLoading(true)
-    await onConfirm({ reason, emailBody, includeRecovery, sendEmail })
+    await onConfirm({ reason, emailBody, includeRecovery, sendEmail, banEmail, banReason: banReason.trim(), banMessage: banMessage.trim() })
     setLoading(false)
   }
 
@@ -287,6 +293,64 @@ function DeleteAccountModal({
                   className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm focus:border-destructive/60 focus:ring-1 focus:ring-destructive/10 outline-none transition-all"
                 />
               </div>
+
+              {/* ── Ban email toggle ── */}
+              <div className={`border rounded-xl p-3.5 space-y-3 transition-all ${banEmail ? 'border-orange-400/40 bg-orange-500/5' : 'border-border/60 bg-muted/20'}`}>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <div
+                    onClick={() => setBanEmail(v => !v)}
+                    className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${banEmail ? 'bg-orange-500' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${banEmail ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Ban className="h-3.5 w-3.5 text-orange-500" />
+                      Ban this email address
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Prevents this email from being used to create a new account. Toggle off for a clean deletion without a ban.
+                    </p>
+                  </div>
+                </label>
+                {banEmail && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Ban reason <span className="text-orange-500">*</span>
+                      </label>
+                      <select
+                        value={banReason}
+                        onChange={e => { setBanReason(e.target.value); setError('') }}
+                        className="w-full h-9 px-3 rounded-xl bg-background border border-orange-400/40 text-sm outline-none appearance-none transition-all"
+                      >
+                        <option value="">— Select a reason —</option>
+                        <option value="Spam / trolling account">Spam / trolling account</option>
+                        <option value="Repeated policy violations">Repeated policy violations</option>
+                        <option value="Fraudulent activity">Fraudulent activity</option>
+                        <option value="Harassment">Harassment</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Message shown to user at registration{' '}
+                        <span className="text-muted-foreground font-normal normal-case">(optional)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={banMessage}
+                        onChange={e => setBanMessage(e.target.value)}
+                        placeholder={'e.g. "This email has been flagged for repeated policy violations and cannot be used to register."'}
+                        maxLength={300}
+                        className="w-full px-3 py-2 rounded-xl bg-background border border-orange-400/40 text-sm resize-none outline-none leading-relaxed"
+                      />
+                      <p className="text-[10px] text-muted-foreground">Leave blank to use the default message.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-1">
                 <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-10 rounded-xl">Cancel</Button>
                 <Button type="button" onClick={handleStep1Next} className="flex-1 h-10 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-0">
@@ -415,8 +479,15 @@ function DeleteAccountModal({
                 <ul className="text-[11px] text-muted-foreground space-y-1 list-inside list-disc">
                   <li>Account moved to Recently Deleted</li>
                   <li>Can be recovered within 30 days</li>
+                  <li>All pending requests will be cancelled</li>
+                  <li>Transactions and wake schedules are preserved</li>
                   {sendEmail && <li>Notification email will be sent to {target.email}</li>}
                   {sendEmail && !isStaff && includeRecovery && <li>Account recovery link included in email</li>}
+                  {banEmail && (
+                    <li className="text-orange-600 dark:text-orange-400 font-semibold">
+                      Email will be banned — {target.email} cannot register a new account
+                    </li>
+                  )}
                 </ul>
               </div>
               <div className="flex gap-3 pt-1">
@@ -474,6 +545,166 @@ function RecoverAccountModal({ account, recovering, onClose, onConfirm }: {
               className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5">
               <RotateCcw className="h-3.5 w-3.5" />
               {recovering ? 'Recovering…' : 'Recover & Notify'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── Ban Account Modal ─────────────────────────────────────────
+function BanAccountModal({
+  account,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  account: DeletedAccount
+  onClose: () => void
+  onConfirm: (reason: string, message: string) => Promise<void>
+  loading: boolean
+}) {
+  const [banReason,  setBanReason]  = useState('')
+  const [banMessage, setBanMessage] = useState('')
+  const [error,      setError]      = useState('')
+
+  const handleConfirm = async () => {
+    if (!banReason.trim()) { setError('Please select a ban reason.'); return }
+    setError('')
+    await onConfirm(banReason.trim(), banMessage.trim())
+  }
+
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Ban className="h-4 w-4 text-orange-500" />
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Ban Email</h2>
+              <p className="text-[10px] text-muted-foreground">Prevent re-registration with this email</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="bg-orange-500/5 border border-orange-400/30 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-xs font-semibold text-foreground">{account.name}</p>
+            <p className="text-[10px] text-muted-foreground font-mono">{account.email}</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed mt-1">
+              This email will be flagged. Any attempt to register a new account using this address will be blocked with the message below.
+            </p>
+          </div>
+          {error && <AlertBanner variant="error" message={error} />}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Ban reason <span className="text-orange-500">*</span>
+            </label>
+            <select
+              value={banReason}
+              onChange={e => { setBanReason(e.target.value); setError('') }}
+              className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm outline-none appearance-none transition-all"
+            >
+              <option value="">— Select a reason —</option>
+              <option value="Spam / trolling account">Spam / trolling account</option>
+              <option value="Repeated policy violations">Repeated policy violations</option>
+              <option value="Fraudulent activity">Fraudulent activity</option>
+              <option value="Harassment">Harassment</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Message shown to user at registration{' '}
+              <span className="text-muted-foreground font-normal normal-case">(optional)</span>
+            </label>
+            <textarea
+              rows={3}
+              value={banMessage}
+              onChange={e => setBanMessage(e.target.value)}
+              placeholder='e.g. "This email has been flagged for repeated policy violations and cannot be used to register."'
+              maxLength={300}
+              className="w-full px-3 py-2.5 rounded-xl bg-background border border-border/80 text-sm resize-none outline-none focus:border-orange-400/60 leading-relaxed"
+            />
+            <p className="text-[10px] text-muted-foreground">Leave blank to use the default blocked message.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={loading}
+              className="flex-1 h-10 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              {loading ? 'Banning…' : 'Confirm Ban'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+// ── Unban Account Modal ───────────────────────────────────────
+function UnbanAccountModal({
+  account,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  account: DeletedAccount
+  onClose: () => void
+  onConfirm: () => Promise<void>
+  loading: boolean
+}) {
+  useLockBodyScroll()
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-sm bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-green-600" />
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Unban Email</h2>
+              <p className="text-[10px] text-muted-foreground">Allow this email to register again</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="bg-green-500/5 border border-green-500/20 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-xs font-semibold text-foreground">{account.name}</p>
+            <p className="text-[10px] text-muted-foreground font-mono">{account.email}</p>
+            {account.ban_reason && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Previously banned for: <span className="font-semibold">{account.ban_reason}</span>
+              </p>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Removing the ban will allow <span className="font-semibold text-foreground">{account.email}</span> to be used for new account registration again.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={onClose} className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all">
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={loading}
+              className="flex-1 h-10 rounded-xl bg-green-600 text-white text-sm font-bold hover:bg-green-700 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {loading ? 'Unbanning…' : 'Confirm Unban'}
             </button>
           </div>
         </div>
@@ -569,6 +800,11 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
   const [deleteTarget,  setDeleteTarget]  = useState<Profile | null>(null)
   const [generalError,  setGeneralError]  = useState('')
 
+  // Ban/unban modal (for Recently Deleted view)
+  const [banTarget,    setBanTarget]    = useState<DeletedAccount | null>(null)
+  const [unbanTarget,  setUnbanTarget]  = useState<DeletedAccount | null>(null)
+  const [banningId,    setBanningId]    = useState<string | null>(null)
+
   // Download dropdown
   const [downloadOpen, setDownloadOpen] = useState(false)
   const downloadRef = useRef<HTMLDivElement>(null)
@@ -661,6 +897,9 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
     emailBody: string
     includeRecovery: boolean
     sendEmail: boolean
+    banEmail: boolean
+    banReason: string
+    banMessage: string
   }) => {
     if (!deleteTarget) return
     setGeneralError('')
@@ -687,9 +926,12 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
     }
 
     const { error } = await supabase.rpc('admin_delete_user', {
-      target_user_id: deleteTarget.id,
-      reason:         opts.reason,
-      actor_name_in:  actorName,
+      target_user_id:  deleteTarget.id,
+      reason:          opts.reason,
+      actor_name_in:   actorName,
+      ban_email_in:    opts.banEmail,
+      ban_reason_in:   opts.banEmail ? opts.banReason : null,
+      ban_message_in:  opts.banEmail ? (opts.banMessage || null) : null,
     })
     if (error) {
       setGeneralError(`Failed to delete account: ${error.message}`)
@@ -704,12 +946,14 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       entity_id: deleteTarget.id,
       actor_id: user?.id,
       actor_name: actorName,
-      message: `${actorName} deleted account for ${deleteTarget.name} (${deleteTarget.email})`,
+      message: `${actorName} deleted account for ${deleteTarget.name} (${deleteTarget.email})${opts.banEmail ? ' [email banned]' : ''}`,
       metadata: {
         target_name: deleteTarget.name,
         target_email: deleteTarget.email,
         reason: opts.reason,
         email_sent: opts.sendEmail,
+        email_banned: opts.banEmail,
+        ban_reason: opts.banEmail ? opts.banReason : null,
       },
     })
 
@@ -761,6 +1005,80 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
     setRecovering(false)
     setRecoverMsg(`Account for ${account.name} restored. Recovery email sent to ${account.email}.`)
     setTimeout(() => setRecoverMsg(''), 6000)
+  }
+
+  // ── Ban account (from Recently Deleted) ───────────────────
+  const handleBan = async (account: DeletedAccount, banReason: string, banMessage: string) => {
+    setBanningId(account.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Admin'
+      : 'Admin'
+
+    const { error } = await supabase.rpc('admin_ban_email', {
+      email_in:      account.email,
+      reason_in:     banReason,
+      message_in:    banMessage || null,
+      actor_name_in: actorName,
+    })
+
+    if (!error) {
+      setDeletedRows(r => r.map(x =>
+        x.id === account.id
+          ? { ...x, is_banned: true, ban_reason: banReason, ban_message: banMessage || null, banned_at: new Date().toISOString(), banned_by_name: actorName, unbanned_at: null }
+          : x
+      ))
+      await logActivity({
+        category: 'log',
+        event_type: 'email_banned',
+        entity_table: 'deleted_accounts',
+        entity_id: account.id,
+        actor_id: user?.id,
+        actor_name: actorName,
+        message: `${actorName} banned email ${account.email} (account: ${account.name})`,
+        metadata: { email: account.email, name: account.name, reason: banReason },
+      })
+    } else {
+      setGeneralError(`Failed to ban email: ${error.message}`)
+    }
+    setBanTarget(null)
+    setBanningId(null)
+  }
+
+  // ── Unban account (from Recently Deleted) ─────────────────
+  const handleUnban = async (account: DeletedAccount) => {
+    setBanningId(account.id)
+    const { data: { user } } = await supabase.auth.getUser()
+    const actorName = user
+      ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Admin'
+      : 'Admin'
+
+    const { error } = await supabase.rpc('admin_unban_email', {
+      email_in:      account.email,
+      actor_name_in: actorName,
+    })
+
+    if (!error) {
+      setDeletedRows(r => r.map(x =>
+        x.id === account.id
+          ? { ...x, is_banned: false, unbanned_at: new Date().toISOString(), unbanned_by_name: actorName }
+          : x
+      ))
+      await logActivity({
+        category: 'log',
+        event_type: 'email_unbanned',
+        entity_table: 'deleted_accounts',
+        entity_id: account.id,
+        actor_id: user?.id,
+        actor_name: actorName,
+        message: `${actorName} unbanned email ${account.email} (account: ${account.name})`,
+        metadata: { email: account.email, name: account.name },
+      })
+    } else {
+      setGeneralError(`Failed to unban email: ${error.message}`)
+    }
+    setUnbanTarget(null)
+    setBanningId(null)
   }
 
   // ── Filtering + grouping ──────────────────────────────────
@@ -1017,41 +1335,100 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
             <div className="space-y-3">
               {deletedRows.map(u => {
                 const isHighlighted = highlightDeletedEmail?.toLowerCase() === u.email.toLowerCase()
+                const isBanned = u.is_banned && !u.unbanned_at
                 return (
                   <div
                     key={u.id}
                     id={`deleted-account-${u.id}`}
-                    className={`bg-card border rounded-2xl p-4 flex items-center justify-between gap-4 transition-all ${
-                      isHighlighted ? 'border-primary ring-2 ring-primary ring-offset-1' : 'border-border'
+                    className={`bg-card border rounded-2xl p-4 transition-all ${
+                      isHighlighted ? 'border-primary ring-2 ring-primary ring-offset-1' : isBanned ? 'border-orange-400/40' : 'border-border'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                        <span className="text-sm font-bold text-destructive">{u.name?.charAt(0).toUpperCase()}</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-foreground truncate">{u.name}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                          <p className="text-[9px] text-muted-foreground">
-                            Deleted {new Date(u.deleted_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}
-                            {u.deleted_by_name ? ` by ${u.deleted_by_name}` : ''}
-                            {u.delete_reason ? ` · ${u.delete_reason}` : ''}
-                          </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${isBanned ? 'bg-orange-500/10' : 'bg-destructive/10'}`}>
+                          {isBanned
+                            ? <Ban className="h-4 w-4 text-orange-500" />
+                            : <span className="text-sm font-bold text-destructive">{u.name?.charAt(0).toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-sm text-foreground truncate">{u.name}</p>
+                            {isBanned && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-400/30 text-orange-600 dark:text-orange-400">
+                                <Ban className="h-2.5 w-2.5" /> Banned
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate">{u.email}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+                            <p className="text-[9px] text-muted-foreground">
+                              Deleted {new Date(u.deleted_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}
+                              {u.deleted_by_name ? ` by ${u.deleted_by_name}` : ''}
+                              {u.delete_reason ? ` · ${u.delete_reason}` : ''}
+                            </p>
+                          </div>
+                          {isBanned && u.ban_reason && (
+                            <p className="text-[9px] text-orange-600 dark:text-orange-400 mt-0.5">
+                              Ban reason: {u.ban_reason}
+                              {u.banned_by_name ? ` · by ${u.banned_by_name}` : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
+                      {/* Actions */}
+                      <div className="shrink-0 flex flex-col items-end gap-2">
+                        <button
+                          onClick={() => setRecoverTarget(u)}
+                          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
+                        >
+                          <RotateCcw className="h-3 w-3" /> Recover
+                        </button>
+                        {isBanned ? (
+                          <button
+                            onClick={() => setUnbanTarget(u)}
+                            disabled={banningId === u.id}
+                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-[11px] font-bold hover:bg-green-500/20 transition-colors disabled:opacity-40"
+                          >
+                            <ShieldCheck className="h-3 w-3" /> Unban
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setBanTarget(u)}
+                            disabled={banningId === u.id}
+                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400 text-[11px] font-bold hover:bg-orange-500/20 transition-colors disabled:opacity-40"
+                          >
+                            <ShieldOff className="h-3 w-3" /> Ban
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setRecoverTarget(u)}
-                      className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
-                    >
-                      <RotateCcw className="h-3 w-3" /> Recover
-                    </button>
                   </div>
                 )
               })}
             </div>
+          )}
+
+          {/* Ban modal */}
+          {banTarget && (
+            <BanAccountModal
+              account={banTarget}
+              onClose={() => setBanTarget(null)}
+              onConfirm={(reason, message) => handleBan(banTarget, reason, message)}
+              loading={banningId === banTarget.id}
+            />
+          )}
+
+          {/* Unban confirm modal */}
+          {unbanTarget && (
+            <UnbanAccountModal
+              account={unbanTarget}
+              onClose={() => setUnbanTarget(null)}
+              onConfirm={() => handleUnban(unbanTarget)}
+              loading={banningId === unbanTarget.id}
+            />
           )}
         </div>
       )}

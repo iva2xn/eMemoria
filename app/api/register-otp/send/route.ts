@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { createClient } from '@supabase/supabase-js'
 
 // ── In-memory OTP store keyed by email (pre-registration) ─────
 interface OtpEntry { code: string; expiresAt: number }
@@ -19,8 +20,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email is required.' }, { status: 400 })
   }
 
+  const key = email.toLowerCase().trim()
+
+  // ── Check if email is banned ──────────────────────────────
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  const { data: banRow } = await db
+    .from('banned_emails')
+    .select('message')
+    .eq('email', key)
+    .is('unbanned_at', null)
+    .maybeSingle()
+
+  if (banRow) {
+    const msg = banRow.message?.trim()
+      || 'This email address has been flagged and cannot be used to create an account. Please contact support if you believe this is an error.'
+    return NextResponse.json({ error: msg, banned: true }, { status: 403 })
+  }
+
   const code = generateOtp()
-  const key  = email.toLowerCase().trim()
   otpStore.set(key, { code, expiresAt: Date.now() + OTP_TTL_MS })
 
   const resend = new Resend(process.env.RESEND_API_KEY)
