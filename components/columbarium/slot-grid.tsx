@@ -21,7 +21,8 @@ export const ROW_PRICES_FALLBACK: Record<number, number> = {
 // Keep for backward-compat (slot-modal still imports this)
 export const ROW_PRICES = ROW_PRICES_FALLBACK
 
-export function formatPrice(p: number) {
+export function formatPrice(p: number | undefined) {
+  if (p == null || isNaN(p)) return '—'
   return '₱' + p.toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 
@@ -34,7 +35,7 @@ interface SlotCellProps {
 }
 
 function SlotCell({ slot, isSelected, onSlotClick, rowPrices }: SlotCellProps) {
-  const prices = rowPrices ?? ROW_PRICES_FALLBACK
+  const prices = (rowPrices && Object.keys(rowPrices).length > 0) ? rowPrices : ROW_PRICES_FALLBACK
   const base: React.CSSProperties = {
     width: 44,
     height: 44,
@@ -226,7 +227,7 @@ interface SlotGridProps {
 }
 
 export function SlotGrid({ slots, selectedId, onSlotClick, rowPrices }: SlotGridProps) {
-  const prices = rowPrices ?? ROW_PRICES_FALLBACK
+  const prices = (rowPrices && Object.keys(rowPrices).length > 0) ? rowPrices : ROW_PRICES_FALLBACK
   const rowGroups = Array.from({ length: 6 }, (_, i) => ({
     row: i + 1,
     slots: slots.filter(s => s.row_number === i + 1),

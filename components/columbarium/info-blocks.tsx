@@ -10,7 +10,8 @@ interface InfoBlocksProps {
   rowPrices?: Record<number, number>
 }
 
-function fmtAmt(n: number) {
+function fmtAmt(n: number | undefined) {
+  if (n == null || isNaN(n)) return '—'
   return '₱' + n.toLocaleString('en-PH', { minimumFractionDigits: 2 })
 }
 
@@ -24,7 +25,7 @@ const DOT_STYLE: React.CSSProperties = {
 }
 
 export function InfoBlocks({ available, reserved, occupied, loading, rowPrices }: InfoBlocksProps) {
-  const prices = rowPrices ?? ROW_PRICES_FALLBACK
+  const prices = (rowPrices && Object.keys(rowPrices).length > 0) ? rowPrices : ROW_PRICES_FALLBACK
   return (
     <div className="space-y-4">
 
