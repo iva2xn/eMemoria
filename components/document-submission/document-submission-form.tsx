@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { AuthGateModal } from '@/components/billing/auth-gate-modal'
 import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X, MapPin, Loader2 } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
+import { ToastContainer, showToast } from '@/components/ui/toast-notification'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { FALLBACK_URNS } from '@/lib/service-constants'
 
@@ -86,17 +87,19 @@ function DocUpload({
     if (!f) { onChange(null); return }
 
     // Validate file type
-    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
-    if (!f.type.startsWith('image/') && f.type !== 'application/pdf') {
-      setFileError(`Invalid file type "${f.type || f.name.split('.').pop()}". Only images (JPEG, PNG, WebP) and PDF are accepted.`)
+    const blockedImages = ['image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/ico', 'image/vnd.microsoft.icon']
+    if (blockedImages.includes(f.type)) {
+      const msg = `This type of image (${f.type.split('/')[1].toUpperCase()}) isn't accepted. Please upload a JPEG, PNG, or WebP photo instead.`
+      setFileError(msg)
+      showToast({ variant: 'error', title: 'File type not accepted', message: msg, duration: 6000 })
       e.target.value = ''
       onChange(null)
       return
     }
-    // Reject non-web image formats that slip through image/*
-    const blockedImages = ['image/gif', 'image/bmp', 'image/tiff', 'image/svg+xml', 'image/ico', 'image/vnd.microsoft.icon']
-    if (blockedImages.includes(f.type)) {
-      setFileError(`"${f.type.split('/')[1].toUpperCase()}" images are not accepted. Please upload a JPEG, PNG, or WebP instead.`)
+    if (!f.type.startsWith('image/') && f.type !== 'application/pdf') {
+      const msg = `Only photos (JPEG, PNG, WebP) and PDF files are accepted. Please try a different file.`
+      setFileError(msg)
+      showToast({ variant: 'error', title: 'Wrong file type', message: msg, duration: 6000 })
       e.target.value = ''
       onChange(null)
       return
@@ -104,7 +107,10 @@ function DocUpload({
 
     // Validate file size (10 MB)
     if (f.size > 10 * 1024 * 1024) {
-      setFileError(`File is too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 10 MB.`)
+      const mb  = (f.size / 1024 / 1024).toFixed(1)
+      const msg = `"${f.name}" is ${mb} MB. The maximum allowed size is 10 MB. Please compress or resize the file and try again.`
+      setFileError(msg)
+      showToast({ variant: 'error', title: 'File is too large', message: msg, duration: 7000 })
       e.target.value = ''
       onChange(null)
       return
@@ -479,16 +485,36 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     e.preventDefault()
     setError('')
 
-    if (!name.trim())  { setError('Full name is required.'); return }
-    if (!email.trim()) { setError('Email address is required.'); return }
-    if (!phone.trim()) { setError('Contact number is required.'); return }
-    if (!deceasedFirstName.trim()) { setError("Deceased person's first name is required."); return }
-    if (!deceasedLastName.trim())  { setError("Deceased person's last name is required."); return }
-    if (!placeOfDeath.trim())      { setError('Place of death is required.'); return }
-    if (isCremation && urnChoice === null) { setError('Please select an urn option.'); return }
-    if (!docDeath)     { setError('Death Certificate is required.'); return }
-    if (!docId)        { setError('Valid ID of the Closest Relative / Family Member is required.'); return }
-    if (isSeniorPwd && !docSeniorPwdProof) { setError('Senior/PWD proof is required when the eligibility option is checked.'); return }
+    if (!name.trim()) {
+      showToast({ variant: 'error', title: 'Name is required', message: 'Please enter your full name before continuing.' }); return
+    }
+    if (!email.trim()) {
+      showToast({ variant: 'error', title: 'Email is required', message: 'Please enter your email address so we can send you updates.' }); return
+    }
+    if (!phone.trim()) {
+      showToast({ variant: 'error', title: 'Contact number is required', message: 'Please enter your phone number before continuing.' }); return
+    }
+    if (!deceasedFirstName.trim()) {
+      showToast({ variant: 'error', title: "Deceased's first name is required", message: "Please enter the first name of the deceased person." }); return
+    }
+    if (!deceasedLastName.trim()) {
+      showToast({ variant: 'error', title: "Deceased's last name is required", message: "Please enter the last name of the deceased person." }); return
+    }
+    if (!placeOfDeath.trim()) {
+      showToast({ variant: 'error', title: 'Place of death is required', message: 'Please enter or locate the place where the deceased passed away.' }); return
+    }
+    if (isCremation && urnChoice === null) {
+      showToast({ variant: 'error', title: 'Please choose an urn', message: 'Select an urn option before proceeding. You can also choose to bring your own.' }); return
+    }
+    if (!docDeath) {
+      showToast({ variant: 'error', title: 'Death Certificate is required', message: 'Please upload a copy of the Death Certificate before continuing.' }); return
+    }
+    if (!docId) {
+      showToast({ variant: 'error', title: 'Valid ID is required', message: 'Please upload a valid government-issued ID of the closest relative or family member.' }); return
+    }
+    if (isSeniorPwd && !docSeniorPwdProof) {
+      showToast({ variant: 'error', title: 'Senior/PWD proof is required', message: 'You checked the Senior/PWD option — please upload the required ID or proof document.' }); return
+    }
 
     setStep(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -575,6 +601,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   if (step === 2) {
     return (
       <div className="space-y-6">
+        <ToastContainer />
         {/* Step indicator */}
         <StepIndicator step={2} />
 
@@ -687,6 +714,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   // ── STEP 1: Form ──────────────────────────────────────────
   return (
     <form onSubmit={handleReview} className="space-y-6">
+      <ToastContainer />
 
       {/* Auth gate — show modal if not logged in */}
       {authReady === false && <AuthGateModal returnUrl={typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/document-submission'} />}
