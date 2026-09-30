@@ -8,13 +8,49 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { AuthGateModal } from '@/components/billing/auth-gate-modal'
-import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X } from 'lucide-react'
+import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X, MapPin, Loader2 } from 'lucide-react'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { FALLBACK_URNS } from '@/lib/service-constants'
 
 const inp = 'w-full h-11 px-4 rounded-xl bg-background border border-border/80 text-sm focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all placeholder:text-muted-foreground/50'
 const lbl = 'block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5'
+
+const SUFFIXES = ['No Suffix', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V', 'Esq.', 'PhD', 'MD', 'RN']
+
+// ── Step progress bar ─────────────────────────────────────────
+function StepIndicator({ step }: { step: 1 | 2 }) {
+  const steps = ['Fill in Details', 'Review & Submit']
+  return (
+    <div className="flex items-center gap-0 mb-2">
+      {steps.map((label, i) => {
+        const n       = i + 1
+        const done    = step > n
+        const active  = step === n
+        const last    = i === steps.length - 1
+        return (
+          <div key={label} className="flex items-center flex-1">
+            <div className="flex flex-col items-center gap-1">
+              <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
+                done   ? 'bg-primary border-primary text-primary-foreground' :
+                active ? 'bg-primary/10 border-primary text-primary' :
+                         'bg-muted border-border text-muted-foreground'
+              }`}>
+                {done ? <Check className="h-3.5 w-3.5" /> : n}
+              </div>
+              <span className={`text-[10px] font-semibold whitespace-nowrap ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+                {label}
+              </span>
+            </div>
+            {!last && (
+              <div className={`flex-1 h-0.5 mx-2 mb-4 rounded-full transition-colors ${done ? 'bg-primary' : 'bg-border'}`} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 function Field({ label, required, hint, children }: {
   label: string; required?: boolean; hint?: string; children: React.ReactNode
@@ -247,14 +283,76 @@ function FilePreviewThumb({ file, label }: { file: File; label: string }) {
   )
 }
 
+// Shows a large card preview for the review step (bigger than the small thumb)
+function DocReviewCard({ file, label }: { file: File; label: string }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null)
+  const [lightbox,  setLightbox]  = useState(false)
+  const isImage = file.type.startsWith('image/')
+
+  useEffect(() => {
+    if (!isImage) return
+    const url = URL.createObjectURL(file)
+    setObjectUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
+
+  return (
+    <>
+      {lightbox && objectUrl && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[300] flex flex-col bg-black/95 backdrop-blur-sm"
+          onClick={() => setLightbox(false)}
+        >
+          <div className="flex items-center justify-between px-5 py-3 shrink-0" onClick={e => e.stopPropagation()}>
+            <p className="text-white/70 text-sm font-semibold">{label}</p>
+            <button onClick={() => setLightbox(false)} className="h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center">
+              <X className="h-4 w-4 text-white" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={() => setLightbox(false)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={objectUrl} alt={label} className="max-w-full max-h-full rounded-xl shadow-2xl object-contain" onClick={e => e.stopPropagation()} />
+          </div>
+          <p className="text-center text-white/30 text-[10px] pb-3 shrink-0">Click outside to close</p>
+        </div>,
+        document.body
+      )}
+
+      <div className="bg-muted/30 border border-border/60 rounded-xl overflow-hidden">
+        <div className="relative bg-muted/20 aspect-[4/3]">
+          {isImage && objectUrl ? (
+            <button
+              type="button"
+              className="absolute inset-0 w-full h-full group"
+              onClick={() => setLightbox(true)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={objectUrl} alt={label} className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                <X className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </button>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+              <FileText className="h-8 w-8 text-muted-foreground" />
+              <p className="text-[11px] text-muted-foreground font-medium truncate px-4">{file.name}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-3 py-2 border-t border-border/40 flex items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground truncate">{label}</p>
+          {isImage && objectUrl && (
+            <button type="button" onClick={() => setLightbox(true)} className="text-[10px] font-semibold text-primary hover:underline shrink-0">View</button>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function DocReviewRow({ label, file }: { label: string; file: File | null }) {
   if (!file) return null
-  return (
-    <div className="px-4 py-3 border-b border-border/40 last:border-0 space-y-1.5">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <FilePreviewThumb file={file} label={label} />
-    </div>
-  )
+  return <DocReviewCard file={file} label={label} />
 }
 
 type DocumentSubmissionFormProps = {
@@ -282,6 +380,15 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   const [name,  setName]  = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+
+  // Deceased information
+  const [deceasedFirstName,     setDeceasedFirstName]     = useState('')
+  const [deceasedMiddleInitial, setDeceasedMiddleInitial] = useState('')
+  const [deceasedLastName,      setDeceasedLastName]      = useState('')
+  const [deceasedSuffix,        setDeceasedSuffix]        = useState('No Suffix')
+  const [placeOfDeath,          setPlaceOfDeath]          = useState('')
+  const [gpsLoading,            setGpsLoading]            = useState(false)
+  const [gpsError,              setGpsError]              = useState('')
 
   // Senior/PWD
   const [isSeniorPwd,       setIsSeniorPwd]       = useState(false)
@@ -343,6 +450,30 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   const urnPrice      = selectedUrn?.price ?? 0
   const totalPrice    = productPrice + urnPrice
 
+  // ── GPS locate ───────────────────────────────────────────────
+  const handleLocate = () => {
+    if (!navigator.geolocation) { setGpsError('Location not supported on this device.'); return }
+    setGpsLoading(true)
+    setGpsError('')
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude: lat, longitude: lng } = pos.coords
+          const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+          const data = await res.json()
+          const addr = data.display_name ?? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+          setPlaceOfDeath(addr)
+        } catch {
+          setPlaceOfDeath(`${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`)
+        } finally {
+          setGpsLoading(false)
+        }
+      },
+      () => { setGpsError('Could not get your location. Please type it manually.'); setGpsLoading(false) },
+      { timeout: 10000 }
+    )
+  }
+
   // ── Step 1 validation → advance to review ────────────────
   const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
@@ -351,6 +482,9 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     if (!name.trim())  { setError('Full name is required.'); return }
     if (!email.trim()) { setError('Email address is required.'); return }
     if (!phone.trim()) { setError('Contact number is required.'); return }
+    if (!deceasedFirstName.trim()) { setError("Deceased person's first name is required."); return }
+    if (!deceasedLastName.trim())  { setError("Deceased person's last name is required."); return }
+    if (!placeOfDeath.trim())      { setError('Place of death is required.'); return }
     if (isCremation && urnChoice === null) { setError('Please select an urn option.'); return }
     if (!docDeath)     { setError('Death Certificate is required.'); return }
     if (!docId)        { setError('Valid ID of the Closest Relative / Family Member is required.'); return }
@@ -412,6 +546,11 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
           doc_senior_pwd_proof:   seniorPwdProofPath,
           senior_pwd_discount:    isSeniorPwd,
           status:                 'pending_review',
+          deceased_first_name:    deceasedFirstName.trim()     || null,
+          deceased_middle_initial: deceasedMiddleInitial.trim() || null,
+          deceased_last_name:     deceasedLastName.trim()      || null,
+          deceased_suffix:        deceasedSuffix === 'No Suffix' ? null : deceasedSuffix,
+          place_of_death:         placeOfDeath.trim()          || null,
         })
         .select('id')
         .single()
@@ -436,6 +575,9 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   if (step === 2) {
     return (
       <div className="space-y-6">
+        {/* Step indicator */}
+        <StepIndicator step={2} />
+
         {/* Back button */}
         <button
           onClick={() => { setStep(1); setError('') }}
@@ -463,6 +605,18 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             <ReviewRow label="Full Name"       value={name} />
             <ReviewRow label="Email"           value={email} />
             <ReviewRow label="Contact Number"  value={phone} />
+          </div>
+        </div>
+
+        {/* Deceased info review */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/60 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-primary" />
+            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Deceased Information</p>
+          </div>
+          <div className="divide-y divide-border/40">
+            <ReviewRow label="Full Name" value={[deceasedFirstName, deceasedMiddleInitial, deceasedLastName, deceasedSuffix !== 'No Suffix' ? deceasedSuffix : ''].filter(Boolean).join(' ')} />
+            <ReviewRow label="Place of Death" value={placeOfDeath} />
           </div>
         </div>
 
@@ -499,12 +653,12 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
             <FileText className="h-4 w-4 text-primary" />
             <p className="text-xs font-bold text-foreground uppercase tracking-wider">Uploaded Documents</p>
           </div>
-          <div className="divide-y divide-border/40">
-            <DocReviewRow label="Death Certificate"                            file={docDeath} />
-            <DocReviewRow label="Valid ID of the Closest Relative / Family Member" file={docId} />
-            <DocReviewRow label="Barangay Indigency"                          file={docBarangay} />
-            <DocReviewRow label="Medico Legal Certificate"                    file={docMedico} />
-            {isSeniorPwd && <DocReviewRow label="Senior/PWD Proof" file={docSeniorPwdProof} />}
+          <div className="p-4 grid grid-cols-2 gap-3">
+            <DocReviewRow label="Death Certificate"                                file={docDeath} />
+            <DocReviewRow label="Valid ID — Closest Relative"                      file={docId} />
+            <DocReviewRow label="Barangay Indigency"                               file={docBarangay} />
+            <DocReviewRow label="Medico Legal Certificate"                         file={docMedico} />
+            {isSeniorPwd && <DocReviewRow label="Senior/PWD Proof"                 file={docSeniorPwdProof} />}
           </div>
         </div>
 
@@ -536,6 +690,9 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
 
       {/* Auth gate — show modal if not logged in */}
       {authReady === false && <AuthGateModal returnUrl={typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/document-submission'} />}
+
+      {/* Step indicator */}
+      <StepIndicator step={1} />
 
       {/* Package summary */}
       <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
@@ -597,6 +754,85 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               className={`${inp} ${authReady === true ? 'bg-muted/30 cursor-not-allowed text-muted-foreground' : ''}`} />
           </Field>
 
+        </div>
+      </div>
+
+      {/* Deceased Information */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-border/60 flex items-center gap-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-bold text-foreground">Deceased Information</h3>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
+                First Name <span className="text-primary">*</span>
+              </label>
+              <input type="text" value={deceasedFirstName}
+                onChange={e => setDeceasedFirstName(e.target.value)}
+                className={inp} maxLength={50} />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">Middle Initial</label>
+              <input type="text" value={deceasedMiddleInitial}
+                onChange={e => setDeceasedMiddleInitial(e.target.value)}
+                className={inp} maxLength={10} />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
+                Last Name <span className="text-primary">*</span>
+              </label>
+              <input type="text" value={deceasedLastName}
+                onChange={e => setDeceasedLastName(e.target.value)}
+                className={inp} maxLength={50} />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">Suffix</label>
+              <div className="relative">
+                <select
+                  value={deceasedSuffix}
+                  onChange={e => setDeceasedSuffix(e.target.value)}
+                  className={`${inp} appearance-none pr-8 cursor-pointer`}
+                >
+                  {SUFFIXES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">▾</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Place of Death */}
+          <div>
+            <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">
+              Place of Death <span className="text-primary">*</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={placeOfDeath}
+                onChange={e => setPlaceOfDeath(e.target.value)}
+                placeholder="Enter the location or use the pin button"
+                className={`${inp} flex-1`}
+              />
+              <button
+                type="button"
+                onClick={handleLocate}
+                disabled={gpsLoading}
+                title="Use my current location"
+                className="shrink-0 h-11 w-11 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 transition-all disabled:opacity-50"
+              >
+                {gpsLoading
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <MapPin className="h-4 w-4" />
+                }
+              </button>
+            </div>
+            {gpsError && (
+              <p className="text-[11px] text-destructive mt-1 font-medium">{gpsError}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-1">Used for wake schedule planning.</p>
+          </div>
         </div>
       </div>
 

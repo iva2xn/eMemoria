@@ -179,6 +179,12 @@ export interface DocumentSubmission {
   discounted_price: number | null
   // senior/PWD proof upload (migration 028)
   doc_senior_pwd_proof: string | null
+  // deceased info + place of death (migration 036)
+  deceased_first_name:    string | null
+  deceased_middle_initial: string | null
+  deceased_last_name:     string | null
+  deceased_suffix:        string | null
+  place_of_death:         string | null
   created_at: string
   updated_at: string
 }
