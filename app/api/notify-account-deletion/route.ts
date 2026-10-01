@@ -1,11 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
@@ -13,24 +7,18 @@ export async function POST(req: NextRequest) {
   const {
     recipientEmail,
     recipientName,
-    role,           // 'client' | 'staff'
+    role,            // 'client' | 'staff'
     reason,
     deletedByName,
-    emailBody,      // custom body chosen/edited by admin in the UI
-    includeRecovery, // boolean — whether to include account recovery link
+    emailBody,       // custom body chosen/edited by admin in the UI
+    includeRecovery, // boolean — whether to include account recovery link in email
   } = await req.json()
 
   if (!recipientEmail || !recipientName) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const siteUrl     = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-  const recoveryUrl = `${siteUrl}/auth/login`
-  const isStaff     = role === 'staff'
-
-  // Build a simple but professional inquiry so admin can track recovery
-  // in Inquiries > Account Recovery (subject must contain "account recovery")
-  const inquirySubject = 'Account Recovery Request'
+  const isStaff = role === 'staff'
 
   const recoverySection = includeRecovery ? `
     <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:20px 0;">
@@ -39,7 +27,7 @@ export async function POST(req: NextRequest) {
         If you believe this was a mistake or would like to recover your account, you can submit a recovery request by replying to this email or by using the button below.
       </p>
       <div style="text-align:center;margin-top:12px;">
-        <a href="mailto:support@ememoria.site?subject=${encodeURIComponent(inquirySubject)}&body=Hello%2C%20I%20would%20like%20to%20recover%20my%20account.%20My%20email%20is%20${encodeURIComponent(recipientEmail)}."
+        <a href="mailto:support@ememoria.site?subject=Account%20Recovery%20Request&body=Hello%2C%20I%20would%20like%20to%20recover%20my%20account.%20My%20email%20is%20${encodeURIComponent(recipientEmail)}."
           style="display:inline-block;background:#15803d;color:#fff;padding:11px 28px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:bold;">
           Request Account Recovery
         </a>
@@ -62,12 +50,11 @@ export async function POST(req: NextRequest) {
     ? 'Your eMemoria Staff Account Has Been Closed'
     : 'Your eMemoria Account Has Been Deleted'
 
-  // The admin-composed email body is used as the main message
   const mainBody = emailBody
     ? emailBody.replace(/\n/g, '<br/>')
     : (isStaff
         ? `We are writing to inform you that your staff account at eMemoria Funeral Services has been deactivated.<br/><br/>If you have any questions regarding this matter, please contact our management team.`
-        : `We are writing to inform you that your account at eMemoria has been scheduled for deletion as requested.<br/><br/>Your account data will be removed from our system. If you did not request this, please contact us immediately.`)
+        : `We are writing to inform you that your account at eMemoria has been deleted.<br/><br/>If you did not request this or believe this was done in error, please contact us immediately.`)
 
   const html = `
 <!DOCTYPE html>
@@ -156,17 +143,6 @@ export async function POST(req: NextRequest) {
       subject,
       html,
     })
-
-    // If recovery is included, also create an inquiry entry in DB for admin tracking
-    if (includeRecovery) {
-      await supabaseAdmin.from('inquiries').insert({
-        name:    recipientName,
-        email:   recipientEmail,
-        subject: inquirySubject,
-        message: `Automated recovery link sent to ${recipientEmail} upon account deletion. Admin: ${deletedByName ?? 'Unknown'}. Reason: ${reason ?? 'Not specified'}.`,
-        is_read: false,
-      })
-    }
 
     return NextResponse.json({ ok: true })
   } catch (err: unknown) {
