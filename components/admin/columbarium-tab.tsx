@@ -12,6 +12,7 @@ import {
   Info, Banknote, BookOpen, Wrench, Tag, Settings,
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
+import { PhoneInput } from '@/components/ui/phone-input'
 import type { ColumbariumSlot, SlotStatus, UserRole } from '@/lib/supabase/types'
 
 // ── Constants ─────────────────────────────────────────────────
@@ -547,7 +548,7 @@ function ReserveWalkInModal({
   const supabase = createClient()
   const [step,      setStep]      = useState<'form' | 'review'>('form')
   const [name,      setName]      = useState('')
-  const [phone,     setPhone]     = useState('')
+  const [phone,     setPhone]     = useState('+63 9')
   const [email,     setEmail]     = useState('')
   const [seniorPwd, setSeniorPwd] = useState(false)
   const [loading,   setLoading]   = useState(false)
@@ -560,7 +561,7 @@ function ReserveWalkInModal({
   const handleNext = () => {
     setError('')
     if (!name.trim())  { setError('Client name is required.');  return }
-    if (!phone.trim()) { setError('Phone number is required.'); return }
+    if (phone.replace(/\D/g, '').length < 12) { setError('Enter a complete 10-digit phone number.'); return }
     setStep('review')
   }
 
@@ -670,10 +671,7 @@ function ReserveWalkInModal({
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Phone Number <span className="text-destructive">*</span>
                 </label>
-                <input
-                  type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  placeholder="09XX XXX XXXX" className={inputCls}
-                />
+                <PhoneInput value={phone} onChange={setPhone} className={inputCls} />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -826,7 +824,7 @@ function OccupyWalkInModal({
   const supabase = createClient()
   const [step,          setStep]          = useState<'form' | 'review'>('form')
   const [name,          setName]          = useState('')
-  const [phone,         setPhone]         = useState('')
+  const [phone,         setPhone]         = useState('+63 9')
   const [email,         setEmail]         = useState('')
   const [occupantName,  setOccupantName]  = useState('')
   const [birthDate,     setBirthDate]     = useState('')
@@ -842,7 +840,7 @@ function OccupyWalkInModal({
   const handleNext = () => {
     setError('')
     if (!name.trim())         { setError('Client name is required.');    return }
-    if (!phone.trim())        { setError('Phone number is required.');   return }
+    if (phone.replace(/\D/g, '').length < 12) { setError('Enter a complete 10-digit phone number.'); return }
     if (!occupantName.trim()) { setError('Occupant name is required.');  return }
     setStep('review')
   }
@@ -962,10 +960,7 @@ function OccupyWalkInModal({
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Phone Number <span className="text-destructive">*</span>
                 </label>
-                <input
-                  type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  placeholder="09XX XXX XXXX" className={inputCls}
-                />
+                <PhoneInput value={phone} onChange={setPhone} className={inputCls} />
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">

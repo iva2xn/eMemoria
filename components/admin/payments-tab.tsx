@@ -14,6 +14,7 @@ import {
   Printer, ChevronLeft, AlertTriangle, ChevronDown,
   Receipt,
 } from 'lucide-react'
+import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
 import { generateReceipt } from '@/lib/generate-receipt'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
@@ -408,7 +409,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   const supabase = createClient()
   const [step,        setStep]        = useState<'form' | 'review'>('form')
   const [name,        setName]        = useState('')
-  const [phone,       setPhone]       = useState('')
+  const [phone,       setPhone]       = useState('+63 9')
   const [email,       setEmail]       = useState('')
   const [serviceIdx,  setServiceIdx]  = useState<number | ''>('')
   const [customPrice, setCustomPrice] = useState('')
@@ -455,7 +456,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   const handleNext = () => {
     setError('')
     if (!name.trim())       { setError('Client name is required.'); return }
-    if (!phone.trim())      { setError('Phone number is required.'); return }
+    if (phone.replace(/\D/g, '').length < 12) { setError('Enter a complete 10-digit phone number.'); return }
     if (serviceIdx === '')  { setError('Please select a service.'); return }
     if (needsCustom && (!customPrice || Number(customPrice) <= 0)) { setError('Please enter the amount.'); return }
     if (isCremation && includeUrn && urnIdx === '') { setError('Please select an urn.'); return }
@@ -543,13 +544,9 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
               </div>
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Phone Number <span className="text-destructive">*</span></label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={phone}
-                  onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
-                  placeholder="+63 912 345 6789"
-                  maxLength={15}
-                  inputMode="numeric"
+                  onChange={setPhone}
                   className={inputCls}
                 />
               </div>
