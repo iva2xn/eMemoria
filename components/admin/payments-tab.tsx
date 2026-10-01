@@ -490,22 +490,32 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
       ? `Cremation Service + ${selectedUrn.label}`
       : selectedService?.label ?? null
 
-    const { error: err } = await supabase.from('payments').insert({
-      user_id:      profile?.id ?? null,
-      guest_name:   profile ? null : name.trim(),
-      guest_email:  profile ? null : (email.trim() || null),
-      guest_phone:  phone.trim(),
-      product_type: selectedService?.type ?? 'general',
-      product_ref:  productRef,
-      method:       'cash',
-      amount:       finalAmount,
-      status:       'approved',
-      notes,
-      approved_at:  new Date().toISOString(),
-      wake_id:      isPackage && wakeId ? wakeId : null,
+    // Use the server-side API route so the insert runs with the service
+    // role key — avoids RLS conflicts when user_id belongs to a different
+    // user than the logged-in staff/admin recording the payment.
+    const res = await fetch('/api/record-cash-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id:             profile?.id ?? null,
+        guest_name:          profile ? null : name.trim(),
+        guest_email:         profile ? null : (email.trim() || null),
+        guest_phone:         phone.trim(),
+        product_type:        selectedService?.type ?? 'general',
+        product_ref:         productRef,
+        amount:              finalAmount,
+        notes,
+        wake_id:             isPackage && wakeId ? wakeId : null,
+        senior_pwd_discount: seniorPwd,
+      }),
     })
     setLoading(false)
-    if (err) { setError(err.message); setStep('form'); return }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      setError(j.error ?? `Server error ${res.status}`)
+      setStep('form')
+      return
+    }
     onSuccess(); onClose()
   }
 

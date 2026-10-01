@@ -575,22 +575,29 @@ function ReserveWalkInModal({
         ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`
         : null
 
-      const { error: payErr, data: inserted } = await supabase.from('payments').insert({
-        user_id:      profile?.id ?? null,
-        guest_name:   profile ? null : name.trim(),
-        guest_email:  profile ? null : (email.trim() || null),
-        guest_phone:  phone.trim(),
-        product_type: 'columbarium',
-        product_ref:  slot.slot_code,
-        method:       'cash',
-        amount:       finalAmount,
-        status:       'approved',
-        notes,
-        approved_by:  user?.id ?? null,
-        approved_at:  new Date().toISOString(),
-      }).select('id').single()
+      const payRes = await fetch('/api/record-cash-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:             profile?.id ?? null,
+          guest_name:          profile ? null : name.trim(),
+          guest_email:         profile ? null : (email.trim() || null),
+          guest_phone:         phone.trim(),
+          product_type:        'columbarium',
+          product_ref:         slot.slot_code,
+          amount:              finalAmount,
+          notes,
+          senior_pwd_discount: seniorPwd,
+        }),
+      })
 
-      if (payErr) { setError(payErr.message); setStep('form'); setLoading(false); return }
+      if (!payRes.ok) {
+        const j = await payRes.json().catch(() => ({}))
+        setError(j.error ?? `Server error ${payRes.status}`)
+        setStep('form'); setLoading(false); return
+      }
+      const { id: paymentId } = await payRes.json()
+      const inserted = { id: paymentId }
 
       const now = new Date().toISOString()
       const { error: slotErr, data: updatedSlot } = await supabase
@@ -851,22 +858,29 @@ function OccupyWalkInModal({
         ? `Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`
         : null
 
-      const { error: payErr, data: inserted } = await supabase.from('payments').insert({
-        user_id:      profile?.id ?? null,
-        guest_name:   profile ? null : name.trim(),
-        guest_email:  profile ? null : (email.trim() || null),
-        guest_phone:  phone.trim(),
-        product_type: 'columbarium',
-        product_ref:  slot.slot_code,
-        method:       'cash',
-        amount:       finalAmount,
-        status:       'approved',
-        notes,
-        approved_by:  user?.id ?? null,
-        approved_at:  new Date().toISOString(),
-      }).select('id').single()
+      const payRes = await fetch('/api/record-cash-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:             profile?.id ?? null,
+          guest_name:          profile ? null : name.trim(),
+          guest_email:         profile ? null : (email.trim() || null),
+          guest_phone:         phone.trim(),
+          product_type:        'columbarium',
+          product_ref:         slot.slot_code,
+          amount:              finalAmount,
+          notes,
+          senior_pwd_discount: seniorPwd,
+        }),
+      })
 
-      if (payErr) { setError(payErr.message); setStep('form'); setLoading(false); return }
+      if (!payRes.ok) {
+        const j = await payRes.json().catch(() => ({}))
+        setError(j.error ?? `Server error ${payRes.status}`)
+        setStep('form'); setLoading(false); return
+      }
+      const { id: paymentId } = await payRes.json()
+      const inserted = { id: paymentId }
 
       const { error: slotErr, data: updatedSlot } = await supabase
         .from('columbarium_slots')
