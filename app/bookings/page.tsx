@@ -43,6 +43,11 @@ function StatusBadge({ status }: { status: DocumentSubmission['status'] }) {
       label: 'Cancelled',
       cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
     },
+    cancelled: {
+      icon: XCircle,
+      label: 'Cancelled',
+      cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
+    },
   }[status] ?? {
     icon: Clock,
     label: status,

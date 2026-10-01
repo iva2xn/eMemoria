@@ -925,16 +925,35 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       }).catch(() => {/* non-fatal */})
     }
 
-    const { error } = await supabase.rpc('admin_delete_user', {
-      target_user_id:  deleteTarget.id,
-      reason:          opts.reason,
-      actor_name_in:   actorName,
-      ban_email_in:    opts.banEmail,
-      ban_reason_in:   opts.banEmail ? opts.banReason : null,
-      ban_message_in:  opts.banEmail ? (opts.banMessage || null) : null,
-    })
-    if (error) {
-      setGeneralError(`Failed to delete account: ${error.message}`)
+    // Call via direct REST to avoid schema-cache overload resolution issues.
+    // Always send all 6 args — the function defaults handle missing values gracefully.
+    const rpcBody = {
+      target_user_id: deleteTarget.id,
+      reason:         opts.reason       || null,
+      actor_name_in:  actorName,
+      ban_email_in:   opts.banEmail,
+      ban_reason_in:  opts.banEmail ? (opts.banReason  || null) : null,
+      ban_message_in: opts.banEmail ? (opts.banMessage || null) : null,
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const rpcRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/admin_delete_user`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey':        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify(rpcBody),
+      }
+    )
+
+    if (!rpcRes.ok) {
+      let errMsg = `HTTP ${rpcRes.status}`
+      try { const j = await rpcRes.json(); errMsg = j?.message ?? j?.error ?? errMsg } catch { /* ignore */ }
+      setGeneralError(`Failed to delete account: ${errMsg}`)
       setDeleteTarget(null)
       return
     }
@@ -984,10 +1003,22 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
     }).catch(() => {/* fire and forget */})
 
     // Mark as restored in DB
-    await supabase.rpc('admin_mark_account_restored', {
-      deleted_account_id: account.id,
-      actor_name_in: actorName,
-    })
+    const { data: { session: restoreSession } } = await supabase.auth.getSession()
+    await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/admin_mark_account_restored`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey':        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${restoreSession?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          deleted_account_id: account.id,
+          actor_name_in:      actorName,
+        }),
+      }
+    ).catch(() => {/* non-fatal */})
 
     await logActivity({
       category: 'log',
@@ -1015,14 +1046,32 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Admin'
       : 'Admin'
 
-    const { error } = await supabase.rpc('admin_ban_email', {
-      email_in:      account.email,
-      reason_in:     banReason,
-      message_in:    banMessage || null,
-      actor_name_in: actorName,
-    })
+    const { data: { session } } = await supabase.auth.getSession()
+    const banRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/admin_ban_email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey':        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          email_in:      account.email,
+          reason_in:     banReason     || null,
+          message_in:    banMessage    || null,
+          actor_name_in: actorName,
+        }),
+      }
+    )
 
-    if (!error) {
+    let banError: string | null = null
+    if (!banRes.ok) {
+      try { const j = await banRes.json(); banError = j?.message ?? j?.error ?? `HTTP ${banRes.status}` }
+      catch { banError = `HTTP ${banRes.status}` }
+    }
+
+    if (!banError) {
       setDeletedRows(r => r.map(x =>
         x.id === account.id
           ? { ...x, is_banned: true, ban_reason: banReason, ban_message: banMessage || null, banned_at: new Date().toISOString(), banned_by_name: actorName, unbanned_at: null }
@@ -1039,7 +1088,7 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
         metadata: { email: account.email, name: account.name, reason: banReason },
       })
     } else {
-      setGeneralError(`Failed to ban email: ${error.message}`)
+      setGeneralError(`Failed to ban email: ${banError}`)
     }
     setBanTarget(null)
     setBanningId(null)
@@ -1053,12 +1102,30 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
       ? (await supabase.from('profiles').select('name').eq('id', user.id).single()).data?.name ?? 'Admin'
       : 'Admin'
 
-    const { error } = await supabase.rpc('admin_unban_email', {
-      email_in:      account.email,
-      actor_name_in: actorName,
-    })
+    const { data: { session } } = await supabase.auth.getSession()
+    const unbanRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/admin_unban_email`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey':        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          email_in:      account.email,
+          actor_name_in: actorName,
+        }),
+      }
+    )
 
-    if (!error) {
+    let unbanError: string | null = null
+    if (!unbanRes.ok) {
+      try { const j = await unbanRes.json(); unbanError = j?.message ?? j?.error ?? `HTTP ${unbanRes.status}` }
+      catch { unbanError = `HTTP ${unbanRes.status}` }
+    }
+
+    if (!unbanError) {
       setDeletedRows(r => r.map(x =>
         x.id === account.id
           ? { ...x, is_banned: false, unbanned_at: new Date().toISOString(), unbanned_by_name: actorName }
@@ -1075,7 +1142,7 @@ export function ProfilesTab({ currentRole, highlightDeletedEmail }: { currentRol
         metadata: { email: account.email, name: account.name },
       })
     } else {
-      setGeneralError(`Failed to unban email: ${error.message}`)
+      setGeneralError(`Failed to unban email: ${unbanError}`)
     }
     setUnbanTarget(null)
     setBanningId(null)

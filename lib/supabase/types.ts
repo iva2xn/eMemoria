@@ -1,9 +1,9 @@
 export type UserRole = 'client' | 'admin' | 'staff'
 export type SlotStatus = 'available' | 'reserved' | 'occupied'
 export type BookingStatus = 'pending' | 'active' | 'completed' | 'cancelled'
-export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'voided'
+export type PaymentStatus = 'pending' | 'approved' | 'rejected' | 'voided' | 'cancelled'
 export type PaymentMethod = 'gcash' | 'bdo_bank' | 'bpi_bank' | 'cash'
-export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected' | 'deleted'
+export type DocumentSubmissionStatus = 'pending_review' | 'approved' | 'rejected' | 'deleted' | 'cancelled'
 
 export interface DeletedAccount {
   id: string
