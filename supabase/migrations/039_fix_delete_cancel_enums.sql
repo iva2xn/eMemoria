@@ -12,12 +12,18 @@
 --   4. Rewrite admin_delete_user (6-arg) with all correct values.
 -- ================================================================
 
--- ── 1. Extend enums ───────────────────────────────────────────
-ALTER TYPE public.document_submission_status
-  ADD VALUE IF NOT EXISTS 'cancelled';
+-- ── 1. Extend enums (only if they exist) ─────────────────────
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'document_submission_status') THEN
+    ALTER TYPE public.document_submission_status ADD VALUE IF NOT EXISTS 'cancelled';
+  END IF;
+END $$;
 
-ALTER TYPE public.payment_status
-  ADD VALUE IF NOT EXISTS 'cancelled';
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    ALTER TYPE public.payment_status ADD VALUE IF NOT EXISTS 'cancelled';
+  END IF;
+END $$;
 
 -- booking_status and wake_extension_requests already have
 -- 'cancelled' in their enums — no change needed there.

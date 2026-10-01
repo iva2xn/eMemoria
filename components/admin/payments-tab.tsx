@@ -418,10 +418,10 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState('')
 
-  // Wake schedule — required for traditional packages
-  const [wakes,       setWakes]       = useState<{ id: string; deceased_name: string; wake_start_date: string | null }[]>([])
-  const [wakeId,      setWakeId]      = useState<string>('')
-  const [wakesLoading,setWakesLoading]= useState(false)
+  // Wake schedule — date pickers for traditional packages
+  const [wakePickupDate,    setWakePickupDate]    = useState<string>('')
+  const [wakeStartDate,     setWakeStartDate]     = useState<string>('')
+  const [wakeEndDate,       setWakeEndDate]       = useState<string>('')
 
   const selectedService = typeof serviceIdx === 'number' ? SERVICES[serviceIdx] : null
   const isCremation     = selectedService?.type === 'cremation'
@@ -440,28 +440,16 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
   const finalAmount  = basePrice - discount
   const needsCustom  = selectedService?.price === 0
 
-  // Load wakes whenever a traditional package is selected
-  useEffect(() => {
-    if (!isPackage) { setWakes([]); setWakeId(''); return }
-    setWakesLoading(true)
-    supabase
-      .from('wakes')
-      .select('id, deceased_name, wake_start_date')
-      .order('wake_start_date', { ascending: false })
-      .then(({ data }) => {
-        setWakes((data ?? []) as { id: string; deceased_name: string; wake_start_date: string | null }[])
-        setWakesLoading(false)
-      })
-  }, [isPackage, supabase])
-
-  // Reset urn when service changes away from cremation
+  // Reset date fields when service changes away from package
   const handleServiceChange = (val: string) => {
     setServiceIdx(val === '' ? '' : Number(val))
     setCustomPrice('')
     setSeniorPwd(false)
     setIncludeUrn(false)
     setUrnIdx('')
-    setWakeId('')
+    setWakePickupDate('')
+    setWakeStartDate('')
+    setWakeEndDate('')
   }
 
   const handleNext = () => {
@@ -471,7 +459,7 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     if (serviceIdx === '')  { setError('Please select a service.'); return }
     if (needsCustom && (!customPrice || Number(customPrice) <= 0)) { setError('Please enter the amount.'); return }
     if (isCremation && includeUrn && urnIdx === '') { setError('Please select an urn.'); return }
-    if (isPackage && !wakeId) { setError('Wake schedule is required for traditional packages.'); return }
+    if (isPackage && !wakeStartDate) { setError('Wake start date is required for traditional packages.'); return }
     setStep('review')
   }
 
@@ -483,6 +471,12 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
     if (seniorPwd) noteParts.push(`Senior/PWD 20% discount applied. Original: ${fmtAmt(basePrice)}`)
     if (isCremation && includeUrn && selectedUrn) noteParts.push(`Urn: ${selectedUrn.label} (+${fmtAmt(selectedUrn.price)})`)
     if (isCremation && !includeUrn) noteParts.push('Client using own urn')
+    if (isPackage) {
+      const fmt = (d: string) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }) : ''
+      if (wakePickupDate) noteParts.push(`Preferred pickup: ${fmt(wakePickupDate)}`)
+      if (wakeStartDate)  noteParts.push(`Wake start: ${fmt(wakeStartDate)}`)
+      if (wakeEndDate)    noteParts.push(`Wake end: ${fmt(wakeEndDate)}`)
+    }
     const notes = noteParts.join(' · ') || null
 
     // Build product_ref to include urn info
@@ -505,7 +499,6 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
         product_ref:         productRef,
         amount:              finalAmount,
         notes,
-        wake_id:             isPackage && wakeId ? wakeId : null,
         senior_pwd_discount: seniorPwd,
       }),
     })
@@ -614,32 +607,43 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                 </div>
               )}
 
-              {/* Wake schedule — required for traditional packages */}
+              {/* Wake schedule dates — required for traditional packages */}
               {isPackage && (
-                <div className="space-y-1.5">
+                <div className="space-y-3">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Wake Schedule <span className="text-destructive">*</span>
+                    Preferred Wake Dates <span className="text-destructive">*</span>
                   </label>
-                  {wakesLoading ? (
-                    <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-border bg-muted/20 text-xs text-muted-foreground">
-                      <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                      Loading schedules…
+                  <div className="grid grid-cols-1 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-muted-foreground">Pickup Date</label>
+                      <input
+                        type="date"
+                        value={wakePickupDate}
+                        onChange={e => setWakePickupDate(e.target.value)}
+                        className={inputCls}
+                      />
                     </div>
-                  ) : wakes.length === 0 ? (
-                    <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-950/20 text-xs text-amber-700 dark:text-amber-400">
-                      No wake schedules found. Create one in Wake Schedule first.
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-muted-foreground">Wake Start Date <span className="text-destructive">*</span></label>
+                      <input
+                        type="date"
+                        value={wakeStartDate}
+                        onChange={e => setWakeStartDate(e.target.value)}
+                        className={inputCls}
+                      />
                     </div>
-                  ) : (
-                    <select value={wakeId} onChange={e => setWakeId(e.target.value)} className={inputCls}>
-                      <option value="">— Select a wake schedule —</option>
-                      {wakes.map(w => (
-                        <option key={w.id} value={w.id}>
-                          {w.deceased_name}{w.wake_start_date ? ` · ${new Date(w.wake_start_date + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' })}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <p className="text-[10px] text-muted-foreground">Required for traditional burial packages. Links this payment to the client&apos;s wake record.</p>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] text-muted-foreground">Wake End Date</label>
+                      <input
+                        type="date"
+                        value={wakeEndDate}
+                        min={wakeStartDate || undefined}
+                        onChange={e => setWakeEndDate(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Preferred dates — staff will finalise the schedule in Wake Schedule tab.</p>
                 </div>
               )}
 
@@ -718,7 +722,18 @@ function CashModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () 
                     { label: 'Phone',   value: phone },
                     ...(email ? [{ label: 'Email', value: email }] : []),
                     { label: 'Service', value: selectedService?.label ?? '—' },
-                    ...(isPackage && wakeId ? [{ label: 'Wake Schedule', value: wakes.find(w => w.id === wakeId)?.deceased_name ?? wakeId }] : []),
+                    ...(isPackage && wakeStartDate ? [{
+                      label: 'Wake Start',
+                      value: new Date(wakeStartDate + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    }] : []),
+                    ...(isPackage && wakeEndDate ? [{
+                      label: 'Wake End',
+                      value: new Date(wakeEndDate + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    }] : []),
+                    ...(isPackage && wakePickupDate ? [{
+                      label: 'Pickup Date',
+                      value: new Date(wakePickupDate + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    }] : []),
                     ...(isCremation && includeUrn && selectedUrn ? [{ label: 'Urn', value: `${selectedUrn.label} (+${fmtAmt(urnPrice)})` }] : []),
                     ...(isCremation && !includeUrn ? [{ label: 'Urn', value: 'Client using own urn' }] : []),
                     { label: 'Method',  value: 'Cash' },
