@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { HeroHeader } from '@/components/header'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
@@ -31,21 +30,20 @@ function PasswordChecklist({ password }: { password: string }) {
 type Step = 'email' | 'code' | 'password'
 
 function ResetPasswordForm() {
-  const supabase     = createClient()
   const router       = useRouter()
   const searchParams = useSearchParams()
 
-  const [step,     setStep]     = useState<Step>('email')
-  const [email,    setEmail]    = useState('')
-  const [otp,      setOtp]      = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm,  setConfirm]  = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
-  const [success,  setSuccess]  = useState(false)
+  const [step,           setStep]           = useState<Step>('email')
+  const [email,          setEmail]          = useState('')
+  const [otp,            setOtp]            = useState('')
+  const [verifiedToken,  setVerifiedToken]  = useState('')
+  const [password,       setPassword]       = useState('')
+  const [confirm,        setConfirm]        = useState('')
+  const [loading,        setLoading]        = useState(false)
+  const [error,          setError]          = useState('')
+  const [success,        setSuccess]        = useState(false)
 
-  // When Supabase email sends "Enter Code →" it appends ?email=... to the redirectTo URL.
-  // Pre-fill the email and jump straight to the code-entry step.
+  // Pre-fill email from URL param if present
   useEffect(() => {
     const emailParam = searchParams.get('email')
     if (emailParam) {
@@ -54,49 +52,45 @@ function ResetPasswordForm() {
     }
   }, [searchParams])
 
-  // Also listen for PASSWORD_RECOVERY in case the user arrives via a magic-link
-  // flow instead of the OTP code flow.
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' && session) {
-        setStep('password')
-        if (session.user.email) setEmail(session.user.email)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [supabase])
-
-  // Step 1: send OTP reset email
+  // Step 1: send OTP reset email via Resend
   const handleSendLink = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!email) { setError('Please enter your email address.'); return }
     setLoading(true)
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password?email=${encodeURIComponent(email)}`,
+    const res = await fetch('/api/reset-password-otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
     })
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      setError(j.error ?? 'Failed to send reset code.')
+      return
+    }
     setStep('code')
   }
 
-  // Step 2: verify OTP code and get recovery session
+  // Step 2: verify OTP code
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!otp.trim()) { setError('Please enter the code from your email.'); return }
     setLoading(true)
-    const { error: err } = await supabase.auth.verifyOtp({
-      email,
-      token: otp.trim(),
-      type:  'recovery',
+    const res = await fetch('/api/reset-password-otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), code: otp.trim() }),
     })
+    const j = await res.json().catch(() => ({}))
     setLoading(false)
-    if (err) { setError('Invalid or expired code. Please try again.'); return }
+    if (!res.ok) { setError(j.error ?? 'Invalid or expired code.'); return }
+    setVerifiedToken(j.verifiedToken)
     setStep('password')
   }
 
-  // Step 3: set new password
+  // Step 3: set new password via admin API (no active session needed)
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -104,13 +98,15 @@ function ResetPasswordForm() {
     if (!isPasswordStrong(password)) { setError('Password does not meet the requirements.'); return }
     if (password !== confirm) { setError('Passwords do not match.'); return }
     setLoading(true)
-    const { error: err } = await supabase.auth.updateUser({ password })
+    const res = await fetch('/api/reset-password-otp/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password, verifiedToken }),
+    })
+    const j = await res.json().catch(() => ({}))
     setLoading(false)
-    if (err) { setError(err.message); return }
+    if (!res.ok) { setError(j.error ?? 'Failed to update password.'); return }
     setSuccess(true)
-    // Sign out so the session is cleared before redirecting to login —
-    // otherwise the navbar still reads the active session on the login page.
-    await supabase.auth.signOut()
     setTimeout(() => router.push('/auth/login'), 2500)
   }
 
