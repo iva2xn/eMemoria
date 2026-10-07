@@ -153,7 +153,7 @@ function StatusContent() {
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, string> = {}
-        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+        data.forEach(item => { if (item.signedUrl && item.path) map[item.path] = item.signedUrl })
         setSignedUrls(map)
       })
   }, [submission, supabase])

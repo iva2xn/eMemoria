@@ -83,14 +83,24 @@ const PRODUCT_LABELS: Record<string, string> = {
   wake_extension: 'Wake Extension',
 }
 
-const PERIOD_OPTIONS = [
+const PERIOD_OPTIONS_ADMIN = [
   { value: 'today',    label: 'Today' },
   { value: 'week',     label: 'This Week' },
   { value: 'month',    label: 'This Month' },
   { value: 'year',     label: 'This Year' },
   { value: 'all-time', label: 'All Time' },
 ] as const
-type PeriodFilter = typeof PERIOD_OPTIONS[number]['value']
+
+// Staff cannot see "All Time" — max visible period is 1 year
+const PERIOD_OPTIONS_STAFF = [
+  { value: 'today',    label: 'Today' },
+  { value: 'week',     label: 'This Week' },
+  { value: 'month',    label: 'This Month' },
+  { value: 'year',     label: 'This Year' },
+] as const
+
+const PERIOD_OPTIONS = PERIOD_OPTIONS_ADMIN // type alias for the full set
+type PeriodFilter = typeof PERIOD_OPTIONS_ADMIN[number]['value']
 
 function buildProductBreakdown(payments: { amount: number; product_type: string }[]) {
   const map: Record<string, number> = {}
@@ -268,6 +278,9 @@ function MetricCard({
 export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole; onNavigate: (tab: string, paymentId?: string, productFilter?: string, statusFilter?: string) => void }) {
   const supabase = createClient()
 
+  // Staff see a restricted set of period options (no "All Time"); max period = 1 year
+  const periodOptions = currentRole === 'staff' ? PERIOD_OPTIONS_STAFF : PERIOD_OPTIONS_ADMIN
+
   const [stats,            setStats]            = useState({ pending: 0, inquiries: 0, profiles: 0, thisMonthRevenue: 0, totalRevenue: 0, approvedCount: 0 })
   const [approvedPayments, setApprovedPayments] = useState<{ amount: number; approved_at: string | null; product_type: string }[]>([])
   const [allSubmissions,   setAllSubmissions]   = useState<{ created_at: string }[]>([])  // all payment rows for activity chart
@@ -347,18 +360,20 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const periodRevenue = (() => {
     const now   = new Date()
     const today = now.toISOString().slice(0, 10)
-    if (periodFilter === 'today') {
+    // Staff cannot select all-time; fall back to year if somehow set
+    const effectivePeriod = (currentRole === 'staff' && periodFilter === 'all-time') ? 'year' : periodFilter
+    if (effectivePeriod === 'today') {
       return approvedPayments.filter(p => p.approved_at?.startsWith(today)).reduce((s, p) => s + Number(p.amount), 0)
     }
-    if (periodFilter === 'week') {
+    if (effectivePeriod === 'week') {
       const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6)
       return approvedPayments.filter(p => p.approved_at && p.approved_at >= weekAgo.toISOString().slice(0, 10)).reduce((s, p) => s + Number(p.amount), 0)
     }
-    if (periodFilter === 'month') {
+    if (effectivePeriod === 'month') {
       const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
       return approvedPayments.filter(p => p.approved_at?.startsWith(mk)).reduce((s, p) => s + Number(p.amount), 0)
     }
-    if (periodFilter === 'all-time') {
+    if (effectivePeriod === 'all-time') {
       return approvedPayments.reduce((s, p) => s + Number(p.amount), 0)
     }
     // year
@@ -394,8 +409,8 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
 
   return (
     <div className="space-y-6 p-1">
-      {showReport && <SalesReportModal onClose={() => setShowReport(false)} defaultPeriod={reportPeriod} />}
-      {showTotalRevenue && <TotalRevenueModal onClose={() => setShowTotalRevenue(false)} />}
+      {showReport && <SalesReportModal onClose={() => setShowReport(false)} defaultPeriod={reportPeriod} currentRole={currentRole} />}
+      {currentRole === 'admin' && showTotalRevenue && <TotalRevenueModal onClose={() => setShowTotalRevenue(false)} />}
 
       {/* ── ROW 1: Metric Overview Blocks ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -419,7 +434,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue</p>
               <MiniSelect
                 value={periodFilter}
-                options={PERIOD_OPTIONS.map(o => ({ value: o.value, label: o.label }))}
+                options={periodOptions.map(o => ({ value: o.value, label: o.label }))}
                 onChange={v => setPeriodFilter(v as PeriodFilter)}
                 onClick={e => e.stopPropagation()}
               />
@@ -428,7 +443,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               ₱{periodRevenue.toLocaleString('en-PH')}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {PERIOD_OPTIONS.find(o => o.value === periodFilter)?.label} · approved
+              {periodOptions.find(o => o.value === periodFilter)?.label} · approved
             </p>
           </div>
         </div>
@@ -442,12 +457,14 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             trendType="up"
             onClick={() => onNavigate('payments')}
           />
-          <MetricCard
-            label="Total Revenue"
-            value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
-            subtitle="All time · approved"
-            onClick={() => setShowTotalRevenue(true)}
-          />
+          {currentRole === 'admin' && (
+            <MetricCard
+              label="Total Revenue"
+              value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
+              subtitle="All time · approved"
+              onClick={() => setShowTotalRevenue(true)}
+            />
+          )}
         </div>
 
         {/* Col 3 Tall Card: Users (With Donut) */}

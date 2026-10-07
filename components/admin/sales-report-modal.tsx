@@ -120,11 +120,15 @@ function SalesReportVoidModal({ row, onClose, onVoided, inputCls }: {
   )
 }
 
-export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose: () => void; defaultPeriod?: 'today' | 'week' | 'month' | 'year' | 'all-time' }) {
+export function SalesReportModal({ onClose, defaultPeriod = 'month', currentRole = 'admin' }: { onClose: () => void; defaultPeriod?: 'today' | 'week' | 'month' | 'year' | 'all-time'; currentRole?: string }) {
   const supabase = createClient()
 
   const today = new Date()
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
+
+  // For staff: the earliest date they can select (1 year ago from today)
+  const oneYearAgo = fmt(new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()))
+  const minDate    = currentRole === 'staff' ? oneYearAgo : undefined
 
   // Compute initial date range from defaultPeriod
   const initDates = (() => {
@@ -132,7 +136,10 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
     if (defaultPeriod === 'today')    return { from: t, to: t }
     if (defaultPeriod === 'week')     return { from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: t }
     if (defaultPeriod === 'year')     return { from: fmt(new Date(today.getFullYear(), 0, 1)), to: t }
-    if (defaultPeriod === 'all-time') return { from: '', to: '' }
+    // Staff cannot do all-time — fall back to this month
+    if (defaultPeriod === 'all-time') return currentRole === 'staff'
+      ? { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: t }
+      : { from: '', to: '' }
     // month (default)
     return { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: t }
   })()
@@ -421,8 +428,8 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
           {/* ── Filters — flat, no nested card ── */}
           <div className="px-6 pt-4 pb-3 border-b border-border/60 space-y-3 shrink-0">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className={inp} />
-              <input type="date" value={dateTo}   onChange={e => setDateTo(e.target.value)}   className={inp} />
+              <input type="date" value={dateFrom} min={minDate} onChange={e => setDateFrom(e.target.value)} className={inp} />
+              <input type="date" value={dateTo}   min={minDate} onChange={e => setDateTo(e.target.value)}   className={inp} />
               <select value={statusFilt} onChange={e => setStatusFilt(e.target.value as typeof statusFilt)} className={inp}>
                 <option value="all">All Statuses</option>
                 <option value="approved">Approved</option>
@@ -443,7 +450,8 @@ export function SalesReportModal({ onClose, defaultPeriod = 'month' }: { onClose
                 { label: 'This Week',  from: fmt(new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())), to: fmt(today) },
                 { label: 'This Month', from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) },
                 { label: 'This Year',  from: fmt(new Date(today.getFullYear(), 0, 1)), to: fmt(today) },
-                { label: 'All Time',   from: '', to: '' },
+                // "All Time" only available for admin
+                ...(currentRole !== 'staff' ? [{ label: 'All Time', from: '', to: '' }] : []),
               ].map(p => (
                 <button key={p.label} onClick={() => { setDateFrom(p.from); setDateTo(p.to) }}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${

@@ -931,7 +931,7 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
               : <><Receipt className="h-3.5 w-3.5" /> Download Receipt</>
             }
           </button>
-          {row.status === 'pending' && currentRole === 'admin' && (
+          {row.status === 'pending' && (currentRole === 'admin' || currentRole === 'staff') && (
             <button onClick={() => setReviewOpen(true)}
               className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold hover:bg-primary/90 transition-all">
               <Eye className="h-3.5 w-3.5" /> Review & Approve
@@ -1203,7 +1203,7 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
                       onChange={e => selectAll(e.target.checked)}
                       className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
                   </th>
-                  {['Client','Method','Reference','Amount','Date','Status', ...(currentRole === 'admin' ? ['Actions'] : [])].map(h => (
+                  {['Client','Method','Reference','Amount','Date','Status','Actions'].map(h => (
                     <th key={h} className="px-5 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b-2 border-border border-r border-border/30 last:border-r-0">{h}</th>
                   ))}
                 </tr>
@@ -1229,8 +1229,7 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
                       <td className="px-5 py-3 border-r border-border/30 font-bold text-primary">₱{Number(p.amount).toLocaleString()}</td>
                       <td className="px-5 py-3 border-r border-border/30 text-[10px] text-muted-foreground whitespace-nowrap">{fmtDate(p.created_at)}</td>
                       <td className="px-5 py-3 border-r border-border/30"><Badge label={p.status} variant={statusVariant2(p.status)} plain /></td>
-                      {currentRole === 'admin' && (
-                        <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                      <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {p.status === 'pending' && (
                               <button onClick={() => setReviewRow(p)}
@@ -1246,7 +1245,7 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
                                 <Receipt className="h-3 w-3" /> Receipt
                               </button>
                             )}
-                            {p.status !== 'voided' && (
+                            {p.status !== 'voided' && currentRole === 'admin' && (
                               <button onClick={() => setVoidRow(p)}
                                 className="inline-flex items-center gap-1 h-6 px-2 rounded-md border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10 transition-colors">
                                 <Ban className="h-2.5 w-2.5" /> Void
@@ -1255,7 +1254,6 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
                             {p.status === 'voided' && <span className="text-[10px] text-muted-foreground">Voided</span>}
                           </div>
                         </td>
-                      )}
                     </tr>
                   )
                 })}
@@ -1268,7 +1266,7 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
                   <td className="px-5 py-2.5 font-bold text-primary border-r border-border/30">
                     ₱{rows.filter(r => r.status === 'approved').reduce((s, r) => s + Number(r.amount), 0).toLocaleString()}
                   </td>
-                  <td colSpan={currentRole === 'admin' ? 3 : 2} />
+                  <td colSpan={3} />
                 </tr>
               </tfoot>
             </table>

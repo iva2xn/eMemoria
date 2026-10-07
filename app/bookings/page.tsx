@@ -43,6 +43,11 @@ function StatusBadge({ status }: { status: DocumentSubmission['status'] }) {
       label: 'Cancelled',
       cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
     },
+    cancelled: {
+      icon: XCircle,
+      label: 'Cancelled',
+      cls: 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400',
+    },
   }[status] ?? {
     icon: Clock,
     label: status,
@@ -300,7 +305,7 @@ function SubmittedDocumentsTab({ submissions }: { submissions: DocumentSubmissio
       .then(({ data }) => {
         if (!data) return
         const map: Record<string, string> = {}
-        data.forEach(item => { if (item.signedUrl) map[item.path] = item.signedUrl })
+        data.forEach(item => { if (item.signedUrl && item.path) map[item.path] = item.signedUrl })
         setSignedUrls(map)
       })
   }, [submissions, supabase])

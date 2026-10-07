@@ -1201,7 +1201,7 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
       {/* ── DELETED TAB ── */}
       {subTab === 'deleted' && (
         <>
-          {selectedIds.size > 0 && (
+          {selectedIds.size > 0 && currentRole === 'admin' && (
             <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-2.5">
               <span className="text-xs font-semibold text-foreground">{selectedIds.size} selected</span>
               <button onClick={() => setPermDelIds([...selectedIds])}
@@ -1219,12 +1219,14 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr>
-                      <th className="px-4 py-3 bg-muted/40 border-b-2 border-border border-r border-border/30 w-9">
-                        <input type="checkbox"
-                          checked={deletedRows.length > 0 && deletedRows.every(r => selectedIds.has(r.id))}
-                          onChange={e => setSelectedIds(e.target.checked ? new Set(deletedRows.map(r => r.id)) : new Set())}
-                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
-                      </th>
+                      {currentRole === 'admin' && (
+                        <th className="px-4 py-3 bg-muted/40 border-b-2 border-border border-r border-border/30 w-9">
+                          <input type="checkbox"
+                            checked={deletedRows.length > 0 && deletedRows.every(r => selectedIds.has(r.id))}
+                            onChange={e => setSelectedIds(e.target.checked ? new Set(deletedRows.map(r => r.id)) : new Set())}
+                            className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                        </th>
+                      )}
                       {['Client','Package','Delete Reason','Deleted','Expires In','Actions'].map(h => (
                         <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted/40 border-b-2 border-border border-r border-border/30 last:border-r-0">{h}</th>
                       ))}
@@ -1235,10 +1237,12 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                       const days = daysUntilPermanent(s.deleted_at)
                       return (
                         <tr key={s.id} className={`border-b border-border/40 opacity-70 ${i % 2 !== 0 ? 'bg-muted/[0.04]' : 'bg-card'}`}>
-                          <td className="px-4 py-3 border-r border-border/30">
-                            <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)}
-                              className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
-                          </td>
+                          {currentRole === 'admin' && (
+                            <td className="px-4 py-3 border-r border-border/30">
+                              <input type="checkbox" checked={selectedIds.has(s.id)} onChange={() => toggleSelect(s.id)}
+                                className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer" />
+                            </td>
+                          )}
                           <td className="px-4 py-3 border-r border-border/30">
                             <p className="font-semibold text-foreground">{clientName(s)}</p>
                             <p className="text-[9px] text-muted-foreground">{clientEmail(s)}</p>
@@ -1262,6 +1266,12 @@ export function DocumentSubmissionsTab({ currentRole = 'admin', initialProductFi
                                 <button onClick={() => setRecoverRow(s)}
                                   className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-primary/20 text-primary bg-primary/5 text-[10px] font-semibold hover:bg-primary/10 transition-colors">
                                   <RotateCcw className="h-3 w-3" /> Recover
+                                </button>
+                              )}
+                              {currentRole === 'staff' && (
+                                <button onClick={() => setDetailRow(s)}
+                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-border text-muted-foreground text-[10px] font-semibold hover:bg-muted/40 transition-colors">
+                                  <Eye className="h-3 w-3" /> View
                                 </button>
                               )}
                               {currentRole === 'admin' && (
