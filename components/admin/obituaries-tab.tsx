@@ -25,6 +25,8 @@ const DELETE_REASONS = [
   'Other',
 ]
 
+const SUFFIX_OPTIONS = ['No Suffix', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'V']
+
 // ── 2-Step Approve & Publish Modal ────────────────────────────
 function ApprovePublishModal({
   obituary,
@@ -350,15 +352,26 @@ function RecoverConfirmModal({
   )
 }
 
+// ── Client profile type for Publish To dropdown ───────────────
+interface ClientProfile {
+  userId: string
+  name: string
+  email: string
+}
+
 // ── Create Tarp Modal ─────────────────────────────────────────
 function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   useLockBodyScroll()
   const supabase = createClient()
   const fileRef  = useRef<HTMLInputElement>(null)
 
+  // Form step: 1 = form, 2 = review
+  const [step, setStep] = useState<1 | 2>(1)
+
   const [firstName,     setFirstName]     = useState('')
   const [middleName,    setMiddleName]    = useState('')
   const [lastName,      setLastName]      = useState('')
+  const [suffix,        setSuffix]        = useState('No Suffix')
   const [birthDate,     setBirthDate]     = useState('')
   const [deathDate,     setDeathDate]     = useState('')
   const [photo,         setPhoto]         = useState<File | null>(null)
@@ -370,8 +383,33 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   const [error,         setError]         = useState('')
   const [done,          setDone]          = useState(false)
 
+  // Publish Immediately toggle
+  const [publishImmediately, setPublishImmediately] = useState(false)
+
+  // Publish To (client dropdown)
+  const [publishTo, setPublishTo] = useState<ClientProfile | null>(null)
+  const [clients,   setClients]   = useState<ClientProfile[]>([])
+
   // Age is auto-computed from birth + death dates
   const computedAge = computeAge(birthDate, deathDate)
+
+  // Fetch clients on modal open
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id,name,email')
+        .eq('role', 'client')
+        .order('name')
+      if (data) {
+        setClients(data.map(c => ({ userId: c.id, name: c.name ?? '', email: c.email ?? '' })))
+      }
+    }
+    fetchClients()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Helper: strip digits from name input
+  const stripDigits = (val: string) => val.replace(/[0-9]/g, '')
 
   const handlePhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -396,16 +434,25 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Step 1 → Step 2: validate then show review
+  const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!firstName.trim())    { setError('First name is required.'); return }
-    if (!lastName.trim())     { setError('Last name is required.'); return }
-    if (!birthDate)           { setError('Date of birth is required.'); return }
-    if (!deathDate)           { setError('Date of death is required.'); return }
+    if (!firstName.trim()) { setError('First name is required.'); return }
+    if (!lastName.trim())  { setError('Last name is required.'); return }
+    if (!birthDate)        { setError('Date of birth is required.'); return }
+    if (!deathDate)        { setError('Date of death is required.'); return }
+    setStep(2)
+  }
 
+  const handleSubmit = async () => {
+    setError('')
     setLoading(true)
-    const fullName = [firstName.trim(), middleName.trim(), lastName.trim()].filter(Boolean).join(' ')
+
+    const suffixVal = suffix === 'No Suffix' ? '' : suffix
+    const fullName = [firstName.trim(), middleName.trim(), lastName.trim(), suffixVal]
+      .filter(Boolean)
+      .join(' ')
 
     // Compute numeric age for DB — 0 for babies under 1 year
     let ageNum: number | null = null
@@ -415,7 +462,7 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
       let years = d.getFullYear() - b.getFullYear()
       let months = d.getMonth() - b.getMonth()
       if (d.getDate() < b.getDate()) months--
-      if (months < 0) { years--; }
+      if (months < 0) { years-- }
       ageNum = years >= 0 ? years : 0
     }
 
@@ -430,133 +477,289 @@ function CreateTarpModal({ onClose, onSuccess }: { onClose: () => void; onSucces
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    const { error: insertErr } = await supabase.from('obituaries').insert({
-      full_name:      fullName.trim(),
-      birth_date:     birthDate || null,
-      death_date:     deathDate || null,
-      age:            ageNum,
-      image_path:     imagePath,
-      is_published:   false,
-      is_approved:    false,
-      created_by:     user?.id ?? null,
-    })
+    const insertPayload: Record<string, unknown> = {
+      full_name:    fullName.trim(),
+      birth_date:   birthDate || null,
+      death_date:   deathDate || null,
+      age:          ageNum,
+      image_path:   imagePath,
+      is_published: publishImmediately,
+      is_approved:  publishImmediately,
+      created_by:   user?.id ?? null,
+    }
+
+    if (publishImmediately && publishTo) {
+      insertPayload.submitter_name  = publishTo.name
+      insertPayload.submitter_email = publishTo.email
+    }
+
+    const { error: insertErr } = await supabase.from('obituaries').insert(insertPayload)
 
     setLoading(false)
     if (insertErr) { setError(insertErr.message); return }
     setDone(true)
   }
 
-  useLockBodyScroll()
+  const reviewFullName = (() => {
+    const suffixVal = suffix === 'No Suffix' ? '' : suffix
+    return [firstName.trim(), middleName.trim(), lastName.trim(), suffixVal].filter(Boolean).join(' ')
+  })()
+
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-2">
-              <ScrollText className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">Create Tarpaulin / Obituary</h2>
-            </div>
-            <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-4 w-4" />
-            </button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <ScrollText className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-bold text-foreground">
+              {step === 1 ? 'Create Tarpaulin / Obituary' : 'Review Before Creating'}
+            </h2>
           </div>
+          <button onClick={onClose} className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-          {done ? (
-            <div className="px-6 py-12 flex flex-col items-center gap-4 text-center">
-              <div className="h-14 w-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Check className="h-7 w-7 text-primary" />
-              </div>
-              <h3 className="font-serif text-xl font-bold text-foreground">Tarp Created</h3>
-              <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-                The obituary record has been saved as a draft.
-              </p>
-              <Button onClick={() => { onSuccess(); onClose() }} className="rounded-xl px-8 mt-2">Done</Button>
+        {done ? (
+          <div className="px-6 py-12 flex flex-col items-center gap-4 text-center">
+            <div className="h-14 w-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Check className="h-7 w-7 text-primary" />
             </div>
-          ) : (
-            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
-              <div className="space-y-1.5">
-                <p className={lbl}>Live Tarpaulin Preview</p>
-                <TarpPreview
-                  firstName={firstName || 'FIRST NAME'}
-                  middleName={middleName}
-                  lastName={lastName || 'LAST NAME'}
-                  birthDate={birthDate}
-                  deathDate={deathDate}
-                  age={computedAge}
-                  photoUrl={photoPreview}
-                />
+            <h3 className="font-serif text-xl font-bold text-foreground">Tarp Created</h3>
+            <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
+              {publishImmediately ? 'Published immediately.' : 'Saved as draft.'}
+            </p>
+            <Button onClick={() => { onSuccess(); onClose() }} className="rounded-xl px-8 mt-2">Done</Button>
+          </div>
+        ) : step === 2 ? (
+          /* ── Review Step ── */
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+            <div className="space-y-1.5">
+              <p className={lbl}>Tarpaulin Preview</p>
+              <TarpPreview
+                firstName={firstName || 'FIRST NAME'}
+                middleName={middleName}
+                lastName={lastName || 'LAST NAME'}
+                birthDate={birthDate}
+                deathDate={deathDate}
+                age={computedAge}
+                photoUrl={photoPreview}
+              />
+            </div>
+
+            <div className="bg-muted/40 border border-border rounded-xl px-4 py-3 space-y-2 text-xs">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Summary</p>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Full Name</span>
+                <span className="font-bold text-foreground">{reviewFullName || '—'}</span>
+              </div>
+              {suffix !== 'No Suffix' && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Suffix</span>
+                  <span className="text-foreground">{suffix}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date of Birth</span>
+                <span className="text-foreground">{birthDate ? new Date(birthDate + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date of Death</span>
+                <span className="text-foreground">{deathDate ? new Date(deathDate + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Photo</span>
+                <span className="text-foreground">{photo ? 'Yes' : 'No'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Publish Immediately</span>
+                <span className={`font-bold ${publishImmediately ? 'text-primary' : 'text-muted-foreground'}`}>
+                  {publishImmediately ? 'Yes — will be published' : 'No — saved as draft'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Target Client</span>
+                <span className="text-foreground">
+                  {publishTo ? `${publishTo.name} (${publishTo.email})` : '— No specific client'}
+                </span>
+              </div>
+            </div>
+
+            {error && <AlertBanner variant="error" message={error} />}
+
+            <div className="flex gap-3 pt-1">
+              <Button type="button" variant="ghost" onClick={() => setStep(1)} className="flex-1 h-11 rounded-xl">← Back</Button>
+              <Button type="button" onClick={handleSubmit} disabled={loading} className="flex-1 h-11 font-bold rounded-xl">
+                {loading ? 'Creating…' : publishImmediately ? 'Create & Publish' : 'Create Tarp'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          /* ── Form Step ── */
+          <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+            <div className="space-y-1.5">
+              <p className={lbl}>Live Tarpaulin Preview</p>
+              <TarpPreview
+                firstName={firstName || 'FIRST NAME'}
+                middleName={middleName}
+                lastName={lastName || 'LAST NAME'}
+                birthDate={birthDate}
+                deathDate={deathDate}
+                age={computedAge}
+                photoUrl={photoPreview}
+              />
+            </div>
+
+            {error && <AlertBanner variant="error" message={error} />}
+
+            <form onSubmit={handleReview} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* First Name */}
+                <div className="sm:col-span-2">
+                  <label className={lbl}>First Name of Deceased <span className="text-primary">*</span></label>
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={firstName}
+                    onKeyDown={e => { if (/[0-9]/.test(e.key)) e.preventDefault() }}
+                    onChange={e => setFirstName(stripDigits(e.target.value))}
+                    className={inp}
+                  />
+                </div>
+                {/* Middle Name */}
+                <div>
+                  <label className={lbl}>Middle Name (optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Santos"
+                    value={middleName}
+                    onKeyDown={e => { if (/[0-9]/.test(e.key)) e.preventDefault() }}
+                    onChange={e => setMiddleName(stripDigits(e.target.value))}
+                    className={inp}
+                  />
+                </div>
+                {/* Last Name */}
+                <div>
+                  <label className={lbl}>Last Name / Surname <span className="text-primary">*</span></label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dela Cruz"
+                    value={lastName}
+                    onKeyDown={e => { if (/[0-9]/.test(e.key)) e.preventDefault() }}
+                    onChange={e => setLastName(stripDigits(e.target.value))}
+                    className={inp}
+                  />
+                </div>
+                {/* Suffix */}
+                <div className="sm:col-span-2">
+                  <label className={lbl}>Suffix (optional)</label>
+                  <select
+                    value={suffix}
+                    onChange={e => setSuffix(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    {SUFFIX_OPTIONS.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+                {/* Birth Date */}
+                <div>
+                  <label className={lbl}>Date of Birth <span className="text-primary">*</span></label>
+                  <input type="date" value={birthDate} max={new Date().toISOString().split('T')[0]} onChange={e => setBirthDate(e.target.value)} className={inp} />
+                </div>
+                {/* Death Date */}
+                <div>
+                  <label className={lbl}>Date of Death <span className="text-primary">*</span></label>
+                  <input type="date" value={deathDate} max={new Date().toISOString().split('T')[0]} onChange={e => setDeathDate(e.target.value)} className={inp} />
+                </div>
+                {computedAge && (
+                  <div className="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Age</span>
+                    <span className="text-sm font-bold text-primary">{computedAge}</span>
+                    <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
+                  </div>
+                )}
               </div>
 
-              {error && <AlertBanner variant="error" message={error} />}
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className={lbl}>First Name of Deceased <span className="text-primary">*</span></label>
-                    <input type="text" placeholder="" value={firstName} onChange={e => setFirstName(e.target.value)} className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Middle Name (optional)</label>
-                    <input type="text" placeholder="e.g. Santos" value={middleName} onChange={e => setMiddleName(e.target.value)} className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Last Name / Surname <span className="text-primary">*</span></label>
-                    <input type="text" placeholder="e.g. Dela Cruz" value={lastName} onChange={e => setLastName(e.target.value)} className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Date of Birth <span className="text-primary">*</span></label>
-                    <input type="date" value={birthDate} max={new Date().toISOString().split('T')[0]} onChange={e => setBirthDate(e.target.value)} className={inp} />
-                  </div>
-                  <div>
-                    <label className={lbl}>Date of Death <span className="text-primary">*</span></label>
-                    <input type="date" value={deathDate} max={new Date().toISOString().split('T')[0]} onChange={e => setDeathDate(e.target.value)} className={inp} />
-                  </div>
-                  {computedAge && (
-                    <div className="sm:col-span-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary/70">Age</span>
-                      <span className="text-sm font-bold text-primary">{computedAge}</span>
-                      <span className="text-[10px] text-muted-foreground ml-1">(auto-computed)</span>
-                    </div>
+              {/* Photo upload */}
+              <div>
+                <label className={lbl}>Photo of Deceased</label>
+                <div
+                  className={`relative border border-dashed rounded-xl p-4 text-center transition-all bg-background cursor-pointer group ${bgRemoving ? 'border-primary/40 animate-pulse pointer-events-none' : 'border-border hover:border-primary/50'}`}
+                  onClick={() => !bgRemoving && fileRef.current?.click()}
+                >
+                  <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
+                  {bgRemoving ? (
+                    <>
+                      <Wand2 className="h-5 w-5 text-primary mx-auto mb-1.5 animate-bounce" />
+                      <p className="text-xs font-semibold text-primary">Removing background…</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">This may take a few seconds</p>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
+                      <p className="text-xs font-semibold text-foreground truncate px-4">{fileName || 'Click to upload photo'}</p>
+                      {bgRemoved ? (
+                        <p className="text-[10px] text-primary font-semibold mt-0.5 flex items-center justify-center gap-1">
+                          <Wand2 className="h-3 w-3" /> Background removed automatically
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">Background will be removed automatically · max 10 MB</p>
+                      )}
+                    </>
                   )}
                 </div>
+              </div>
 
+              {/* Publish Immediately toggle */}
+              <div className="flex items-center justify-between bg-muted/30 border border-border/60 rounded-xl px-4 py-3">
                 <div>
-                  <label className={lbl}>Photo of Deceased</label>
-                  <div
-                    className={`relative border border-dashed rounded-xl p-4 text-center transition-all bg-background cursor-pointer group ${bgRemoving ? 'border-primary/40 animate-pulse pointer-events-none' : 'border-border hover:border-primary/50'}`}
-                    onClick={() => !bgRemoving && fileRef.current?.click()}
-                  >
-                    <input ref={fileRef} type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
-                    {bgRemoving ? (
-                      <>
-                        <Wand2 className="h-5 w-5 text-primary mx-auto mb-1.5 animate-bounce" />
-                        <p className="text-xs font-semibold text-primary">Removing background…</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">This may take a few seconds</p>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud className="h-5 w-5 text-muted-foreground group-hover:text-primary mx-auto mb-1.5 transition-colors" />
-                        <p className="text-xs font-semibold text-foreground truncate px-4">{fileName || 'Click to upload photo'}</p>
-                        {bgRemoved ? (
-                          <p className="text-[10px] text-primary font-semibold mt-0.5 flex items-center justify-center gap-1">
-                            <Wand2 className="h-3 w-3" /> Background removed automatically
-                          </p>
-                        ) : (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Background will be removed automatically · max 10 MB</p>
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <p className="text-sm font-semibold text-foreground">Publish Immediately</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">If ON, sets is_published and is_approved to true on creation.</p>
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={publishImmediately}
+                  onClick={() => setPublishImmediately(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 ${publishImmediately ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition-transform ${publishImmediately ? 'translate-x-5' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
 
-                <div className="flex gap-3 pt-1">
-                  <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-11 rounded-xl">Cancel</Button>
-                  <Button type="submit" disabled={loading} className="flex-1 h-11 font-bold rounded-xl">
-                    {loading ? 'Creating…' : 'Create Tarp'}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          )}
+              {/* Publish To (client dropdown) */}
+              <div>
+                <label className={lbl}>Publish To (client)</label>
+                <select
+                  value={publishTo?.userId ?? ''}
+                  onChange={e => {
+                    const found = clients.find(c => c.userId === e.target.value) ?? null
+                    setPublishTo(found)
+                  }}
+                  className="w-full h-10 px-3 rounded-xl bg-background border border-border/80 text-sm text-foreground focus:border-primary/60 focus:ring-1 focus:ring-primary/10 outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">-- No specific client (admin tarp) --</option>
+                  {clients.map(c => (
+                    <option key={c.userId} value={c.userId}>
+                      {c.name} – {c.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="ghost" onClick={onClose} className="flex-1 h-11 rounded-xl">Cancel</Button>
+                <Button type="submit" className="flex-1 h-11 font-bold rounded-xl">
+                  Create Tarp →
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>,
     document.body
@@ -579,6 +782,10 @@ function RecentlyDeletedPane() {
   const [permanentTarget, setPermanentTarget] = useState<Obituary | null>(null)
   const [recoverTarget, setRecoverTarget] = useState<Obituary | null>(null)
 
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
   const fetchDeleted = async () => {
     const { data } = await supabase
       .from('obituaries')
@@ -595,6 +802,7 @@ function RecentlyDeletedPane() {
     if (!permanentTarget) return
     await supabase.from('obituaries').delete().eq('id', permanentTarget.id)
     setRows(r => r.filter(x => x.id !== permanentTarget.id))
+    setSelectedIds(prev => { const next = new Set(prev); next.delete(permanentTarget.id); return next })
     setPermanentTarget(null)
   }
 
@@ -624,7 +832,35 @@ function RecentlyDeletedPane() {
     })
 
     setRows(r => r.filter(x => x.id !== recoverTarget.id))
+    setSelectedIds(prev => { const next = new Set(prev); next.delete(recoverTarget.id); return next })
     setRecoverTarget(null)
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleting(true)
+    const ids = [...selectedIds]
+    await supabase.from('obituaries').delete().in('id', ids)
+    setRows(r => r.filter(x => !selectedIds.has(x.id)))
+    setSelectedIds(new Set())
+    setBulkDeleting(false)
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === rows.length && rows.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(rows.map(r => r.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   if (loading) return (
@@ -632,6 +868,9 @@ function RecentlyDeletedPane() {
       <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
     </div>
   )
+
+  const allSelected = rows.length > 0 && selectedIds.size === rows.length
+  const someSelected = selectedIds.size > 0 && selectedIds.size < rows.length
 
   return (
     <div className="space-y-4">
@@ -645,63 +884,116 @@ function RecentlyDeletedPane() {
       {rows.length === 0 ? (
         <EmptyState message="No recently deleted obituaries." />
       ) : (
-        <div className="space-y-3">
-          {rows.map(o => {
-            const daysLeft = o.deleted_at ? daysUntilPermanentDelete(o.deleted_at) : 0
-            const photoUrl = o.image_path && o.image_path !== 'obituaries/placeholder.png'
-              ? supabase.storage.from('obituaries').getPublicUrl(o.image_path).data.publicUrl
-              : null
-            const nameParts = o.full_name.trim().split(' ')
-            const initials = [nameParts[0]?.[0], nameParts[nameParts.length - 1]?.[0]].filter(Boolean).join('').toUpperCase()
-            return (
-              <div key={o.id} className="bg-card border border-border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-start gap-4">
-                {/* Photo thumbnail */}
-                <div className="h-16 w-16 rounded-xl overflow-hidden bg-muted/40 border border-border shrink-0 flex items-center justify-center">
-                  {photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoUrl} alt={o.full_name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg font-bold text-muted-foreground">{initials}</span>
-                  )}
-                </div>
+        <>
+          {/* Select all + bulk action bar */}
+          <div className="flex items-center justify-between gap-3 px-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                ref={el => { if (el) el.indeterminate = someSelected }}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+              />
+              <span className="text-xs text-muted-foreground">
+                {allSelected ? 'Deselect all' : `Select all (${rows.length})`}
+              </span>
+            </label>
 
-                {/* Details */}
-                <div className="flex-1 min-w-0 space-y-1">
-                  <p className="font-bold text-sm text-foreground">{o.full_name}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
-                    {o.birth_date && <span>Born: {new Date(o.birth_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
-                    {o.death_date && <span>Died: {new Date(o.death_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
-                    {o.venue_address && <span className="truncate max-w-[200px]">Venue: {o.venue_address}</span>}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Deleted {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
-                    {o.delete_reason ? ` · Reason: ${o.delete_reason}` : ''}
-                    {o.delete_comment ? ` (${o.delete_comment})` : ''}
-                  </p>
-                  <p className={`text-[11px] font-bold ${daysLeft <= 3 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {daysLeft} day{daysLeft !== 1 ? 's' : ''} until permanent deletion
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0 sm:self-center">
-                  <button
-                    onClick={() => setRecoverTarget(o)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
-                  >
-                    <RotateCcw className="h-3 w-3" /> Recover
-                  </button>
-                  <button
-                    onClick={() => setPermanentTarget(o)}
-                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
-                  >
-                    <Trash2 className="h-3 w-3" /> Delete Forever
-                  </button>
-                </div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-semibold">{selectedIds.size} selected</span>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {bulkDeleting ? 'Deleting…' : 'Delete Forever'}
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-border text-muted-foreground text-[11px] font-bold hover:bg-muted/40 transition-colors"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </button>
               </div>
-            )
-          })}
-        </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {rows.map(o => {
+              const daysLeft = o.deleted_at ? daysUntilPermanentDelete(o.deleted_at) : 0
+              const photoUrl = o.image_path && o.image_path !== 'obituaries/placeholder.png'
+                ? supabase.storage.from('obituaries').getPublicUrl(o.image_path).data.publicUrl
+                : null
+              const nameParts = o.full_name.trim().split(' ')
+              const initials = [nameParts[0]?.[0], nameParts[nameParts.length - 1]?.[0]].filter(Boolean).join('').toUpperCase()
+              const isChecked = selectedIds.has(o.id)
+              return (
+                <div
+                  key={o.id}
+                  className={`bg-card border rounded-2xl p-4 flex flex-col sm:flex-row sm:items-start gap-4 transition-all ${isChecked ? 'border-primary/50 bg-primary/5' : 'border-border'}`}
+                >
+                  {/* Checkbox */}
+                  <div className="flex items-start pt-1 shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleSelect(o.id)}
+                      className="h-4 w-4 rounded border-border accent-primary cursor-pointer"
+                      aria-label={`Select ${o.full_name}`}
+                    />
+                  </div>
+
+                  {/* Photo thumbnail */}
+                  <div className="h-16 w-16 rounded-xl overflow-hidden bg-muted/40 border border-border shrink-0 flex items-center justify-center">
+                    {photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoUrl} alt={o.full_name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg font-bold text-muted-foreground">{initials}</span>
+                    )}
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="font-bold text-sm text-foreground">{o.full_name}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                      {o.birth_date && <span>Born: {new Date(o.birth_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
+                      {o.death_date && <span>Died: {new Date(o.death_date + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>}
+                      {o.venue_address && <span className="truncate max-w-[200px]">Venue: {o.venue_address}</span>}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Deleted {o.deleted_at ? new Date(o.deleted_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
+                      {o.delete_reason ? ` · Reason: ${o.delete_reason}` : ''}
+                      {o.delete_comment ? ` (${o.delete_comment})` : ''}
+                    </p>
+                    <p className={`text-[11px] font-bold ${daysLeft <= 3 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                      {daysLeft} day{daysLeft !== 1 ? 's' : ''} until permanent deletion
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 shrink-0 sm:self-center">
+                    <button
+                      onClick={() => setRecoverTarget(o)}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold hover:bg-primary/20 transition-colors"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Recover
+                    </button>
+                    <button
+                      onClick={() => setPermanentTarget(o)}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-[11px] font-bold hover:bg-destructive/20 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3" /> Delete Forever
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
       {permanentTarget && (
@@ -775,6 +1067,8 @@ export function ObituariesTab() {
 
   const saveEdit = async () => {
     if (!selected) return
+    // Capture id immediately to avoid stale closure
+    const editingId = selected.id
     setSaving(true)
     setSaveError('')
     setSaveOk(false)
@@ -786,9 +1080,9 @@ export function ObituariesTab() {
       death_date: editDeath || null,
       age:        editAge ? Number(editAge) : null,
     }
-    const { error } = await supabase.from('obituaries').update(updates).eq('id', selected.id)
+    const { error } = await supabase.from('obituaries').update(updates).eq('id', editingId)
     if (error) { setSaveError(error.message); setSaving(false); return }
-    setRows(r => r.map(x => x.id === selected.id ? { ...x, ...updates } : x))
+    setRows(r => r.map(x => x.id === editingId ? { ...x, ...updates } : x))
     setSelected(prev => prev ? { ...prev, ...updates } : null)
     setSaving(false)
     setSaveOk(true)
@@ -799,7 +1093,7 @@ export function ObituariesTab() {
       : 'Staff'
     await logActivity({
       category: 'log', event_type: 'obituary_edited',
-      entity_table: 'obituaries', entity_id: selected.id,
+      entity_table: 'obituaries', entity_id: editingId,
       actor_id: user?.id, actor_name: actorName,
       message: `${actorName} edited obituary for ${fullName}`,
       metadata: { full_name: fullName },
@@ -1039,8 +1333,10 @@ export function ObituariesTab() {
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-3 pt-2">                    {saveError && <p className="text-xs text-destructive col-span-full">{saveError}</p>}
-                    {saveOk    && <p className="text-xs text-primary col-span-full">✓ Saved successfully</p>}
+                  {/* Save error/success ABOVE the button row */}
+                  {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+                  {saveOk    && <p className="text-xs text-primary">✓ Saved successfully</p>}
+                  <div className="flex gap-3 pt-2">
                     <Button onClick={saveEdit} disabled={saving} className="flex-1 h-10 font-bold rounded-xl">
                       {saving ? 'Saving…' : saveOk ? '✓ Saved' : 'Save Changes'}
                     </Button>

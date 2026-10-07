@@ -30,6 +30,111 @@ const DEFAULT_ROW_PRICES: Record<number, number> = {
   1: 25000, 2: 35000, 3: 25000, 4: 20000, 5: 20000, 6: 20000,
 }
 
+// ── Security Gate Modal ────────────────────────────────────────
+// Verifies the admin's identity by re-authenticating with their password
+// before allowing sensitive operations (open editor / save prices).
+function SecurityGateModal({
+  onConfirm,
+  onCancel,
+}: {
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const supabase = createClient()
+  const [password,  setPassword]  = useState('')
+  const [gateError, setGateError] = useState('')
+  const [verifying, setVerifying] = useState(false)
+
+  const handleVerify = async () => {
+    if (!password.trim()) { setGateError('Password is required.'); return }
+    setVerifying(true)
+    setGateError('')
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.email) { setGateError('Unable to retrieve account info.'); setVerifying(false); return }
+      const { error } = await supabase.auth.signInWithPassword({ email: user.email, password })
+      if (error) {
+        setGateError('Incorrect password.')
+        setVerifying(false)
+        return
+      }
+      setVerifying(false)
+      onConfirm()
+    } catch (e) {
+      setGateError(e instanceof Error ? e.message : 'Verification failed.')
+      setVerifying(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleVerify()
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-xs bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Settings className="h-4 w-4 text-primary" />
+            <div>
+              <p className="font-bold text-sm text-foreground">Confirm Identity</p>
+              <p className="text-[10px] text-muted-foreground">Admin authentication required</p>
+            </div>
+          </div>
+          <button
+            onClick={onCancel}
+            className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-5 space-y-4">
+          {gateError && <AlertBanner variant="error" message={gateError} />}
+
+          <div className="space-y-1.5">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Enter your password to continue
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className={inputCls}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onCancel}
+              className="flex-1 h-10 rounded-xl border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleVerify}
+              disabled={verifying}
+              className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+            >
+              {verifying ? 'Verifying…' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 // ── Admin-only Level Pricing Editor ───────────────────────────
 function LevelPricingEditor({
   rowPrices,
@@ -39,13 +144,24 @@ function LevelPricingEditor({
   onSaved: (updated: Record<number, number>) => void
 }) {
   const supabase = createClient()
-  const [open,    setOpen]    = useState(false)
-  const [draft,   setDraft]   = useState<Record<number, string>>({})
-  const [saving,  setSaving]  = useState(false)
-  const [error,   setError]   = useState('')
-  const [success, setSuccess] = useState(false)
+  const [open,      setOpen]      = useState(false)
+  const [draft,     setDraft]     = useState<Record<number, string>>({})
+  const [saving,    setSaving]    = useState(false)
+  const [error,     setError]     = useState('')
+  const [success,   setSuccess]   = useState(false)
+  // Security gate state
+  const [gateOpen,  setGateOpen]  = useState(false)
+  const [gatePhase, setGatePhase] = useState<'open' | 'save'>('open')
 
-  const openEditor = () => {
+  // Called when "Edit Level Prices" button is clicked — show gate first
+  const requestOpen = () => {
+    setGatePhase('open')
+    setGateOpen(true)
+  }
+
+  // Called after gate passes for 'open' phase
+  const handleGateConfirmOpen = () => {
+    setGateOpen(false)
     const initial: Record<number, string> = {}
     for (let r = 1; r <= 6; r++) initial[r] = String(rowPrices[r] ?? DEFAULT_ROW_PRICES[r])
     setDraft(initial)
@@ -54,9 +170,9 @@ function LevelPricingEditor({
     setOpen(true)
   }
 
-  const handleSave = async () => {
-    setError('')
-    // Validate all values are positive numbers
+  // Called when "Save Prices" button is clicked — show gate first
+  const requestSave = () => {
+    // Validate before showing gate to avoid annoyance on bad input
     for (let r = 1; r <= 6; r++) {
       const v = Number(draft[r])
       if (!draft[r] || isNaN(v) || v <= 0) {
@@ -64,10 +180,23 @@ function LevelPricingEditor({
         return
       }
     }
+    setError('')
+    setGatePhase('save')
+    setGateOpen(true)
+  }
+
+  // Called after gate passes for 'save' phase
+  const handleGateConfirmSave = () => {
+    setGateOpen(false)
+    executeSave()
+  }
+
+  const executeSave = async () => {
     setSaving(true)
+    setError('')
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      // Upsert each row price
+      // Update each row price
       for (let r = 1; r <= 6; r++) {
         const { error: err } = await supabase
           .from('columbarium_level_prices')
@@ -102,12 +231,20 @@ function LevelPricingEditor({
   return (
     <>
       <button
-        onClick={openEditor}
+        onClick={requestOpen}
         className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-all"
       >
         <Settings className="h-3.5 w-3.5" />
         Edit Level Prices
       </button>
+
+      {/* Security gate — rendered via portal, z-[300] above the editor z-[200] */}
+      {gateOpen && (
+        <SecurityGateModal
+          onConfirm={gatePhase === 'open' ? handleGateConfirmOpen : handleGateConfirmSave}
+          onCancel={() => setGateOpen(false)}
+        />
+      )}
 
       {open && createPortal(
         <div
@@ -168,7 +305,7 @@ function LevelPricingEditor({
                   Cancel
                 </button>
                 <button
-                  onClick={handleSave}
+                  onClick={requestSave}
                   disabled={saving || success}
                   className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                 >

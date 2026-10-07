@@ -11,17 +11,26 @@ const supabaseAdmin = createSupabaseClient(
 )
 
 export async function POST(req: NextRequest) {
-  // Verify the caller is an authenticated staff or admin
+  // Try cookie-based auth first, then fall back to Bearer token
+  const authHeader = req.headers.get('Authorization')
+  let userId: string | null = null
+
   const supabase = await createClient()
-  const { data: { user }, error: authErr } = await supabase.auth.getUser()
-  if (authErr || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    userId = user.id
+  } else if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7)
+    const { data: { user: tokenUser } } = await supabaseAdmin.auth.getUser(token)
+    if (tokenUser) userId = tokenUser.id
   }
+
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: callerProfile } = await supabaseAdmin
     .from('profiles')
     .select('role, name')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (!callerProfile || !['admin', 'staff'].includes(callerProfile.role)) {
@@ -62,7 +71,7 @@ export async function POST(req: NextRequest) {
     notes:               notes               ?? null,
     wake_id:             wake_id             ?? null,
     senior_pwd_discount: senior_pwd_discount ?? false,
-    approved_by:         user.id,
+    approved_by:         userId,
     approved_at:         new Date().toISOString(),
   }).select('id').single()
 

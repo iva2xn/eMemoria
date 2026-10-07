@@ -54,6 +54,27 @@ export default function ColumbariumPage() {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [supabase])
+
+  // Real-time: update slot statuses live when admin reserves/occupies a slot
+  useEffect(() => {
+    const channel = supabase
+      .channel('columbarium-slots-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'columbarium_slots' },
+        (payload) => {
+          if (payload.eventType === 'UPDATE') {
+            const updated = payload.new as ColumbariumSlot
+            setSlots(prev => prev.map(s => s.id === updated.id ? updated : s))
+            // Also update the modal if this slot is currently open
+            setModal(prev => prev?.id === updated.id ? updated : prev)
+          }
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [supabase])
+
   const counts = {
     available: slots.filter(s => s.status === 'available').length,
     reserved:  slots.filter(s => s.status === 'reserved').length,
