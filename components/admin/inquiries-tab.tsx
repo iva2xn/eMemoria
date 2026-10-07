@@ -472,6 +472,45 @@ export function InquiriesTab({
   const isRecovery = (inq: Inquiry) => RECOVERY_KEYWORDS.some(kw => inq.subject.toLowerCase().includes(kw))
   const recoveryRows = rows.filter(isRecovery)
 
+  // ── Auto-clear stale recovery inquiries ──────────────────────
+  // When the recovery tab is viewed, cross-check each recovery inquiry's email
+  // against deleted_accounts. If the account was already restored (restored_at IS NOT NULL)
+  // or no deleted_account record exists for that email at all, the inquiry is stale
+  // and should be removed from the queue automatically.
+  useEffect(() => {
+    if (activeView !== 'recovery' || currentRole !== 'admin' || recoveryRows.length === 0) return
+
+    const autoClean = async () => {
+      // Collect distinct emails from recovery inquiries
+      const emails = [...new Set(recoveryRows.map(r => r.email.toLowerCase().trim()))]
+      if (!emails.length) return
+
+      // Check which emails still have an active (non-restored) deleted_account
+      const { data: activeDeleted } = await supabase
+        .from('deleted_accounts')
+        .select('email')
+        .in('email', emails)
+        .is('restored_at', null)
+
+      const activeEmails = new Set((activeDeleted ?? []).map((r: { email: string }) => r.email.toLowerCase().trim()))
+
+      // Find recovery inquiries whose email is NOT in the active deleted set
+      const staleIds = recoveryRows
+        .filter(r => !activeEmails.has(r.email.toLowerCase().trim()))
+        .map(r => r.id)
+
+      if (!staleIds.length) return
+
+      // Delete stale recovery inquiries from DB
+      await supabase.from('inquiries').delete().in('id', staleIds)
+
+      // Remove from local state
+      setRows(prev => prev.filter(r => !staleIds.includes(r.id)))
+    }
+
+    autoClean()
+  }, [activeView, currentRole]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Staff never sees recovery inquiries at all
   const staffVisibleRows = currentRole === 'admin' ? rows : rows.filter(r => !isRecovery(r))
 
