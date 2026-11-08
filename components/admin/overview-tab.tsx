@@ -81,6 +81,49 @@ const PRODUCT_LABELS: Record<string, string> = {
   urn:            'Urn',
   general:        'General',
   wake_extension: 'Wake Extension',
+  addon:          'Add-on',
+}
+
+// ── ROI Margin estimates per product type ─────────────────────────────────
+// These are conservative industry estimates for a small-medium funeral parlor.
+// Traditional burial packages: high cost (casket, embalming, labor, flowers) ≈ 30% margin
+// Cremation: lower variable cost ≈ 40% margin
+// Urns: resale items ≈ 55% margin
+// Columbarium: mainly space cost ≈ 65% margin
+// Wake extension: mainly labor/space ≈ 50% margin
+// Add-ons: varies ≈ 45% average
+const ROI_MARGINS: Record<string, number> = {
+  package:        0.30,   // 30%
+  cremation:      0.40,   // 40%
+  urn:            0.55,   // 55%
+  columbarium:    0.65,   // 65%
+  wake_extension: 0.50,   // 50%
+  addon:          0.45,   // 45%
+  general:        0.35,   // 35% fallback
+}
+
+function estimateROI(payments: { amount: number; product_type: string }[]): number {
+  return payments.reduce((s, p) => {
+    const margin = ROI_MARGINS[p.product_type] ?? ROI_MARGINS['general']
+    return s + Number(p.amount) * margin
+  }, 0)
+}
+
+function buildROIBreakdown(payments: { amount: number; product_type: string }[]) {
+  const map: Record<string, { revenue: number; roi: number }> = {}
+  payments.forEach(p => {
+    const label  = PRODUCT_LABELS[p.product_type] ?? p.product_type
+    const margin = ROI_MARGINS[p.product_type] ?? ROI_MARGINS['general']
+    if (!map[label]) map[label] = { revenue: 0, roi: 0 }
+    map[label].revenue += Number(p.amount)
+    map[label].roi += Number(p.amount) * margin
+  })
+  return Object.entries(map).map(([name, v]) => ({
+    name,
+    revenue: v.revenue,
+    roi: v.roi,
+    margin: v.revenue > 0 ? Math.round((v.roi / v.revenue) * 100) : 0,
+  })).sort((a, b) => b.roi - a.roi).slice(0, 6)
 }
 
 const PERIOD_OPTIONS_ADMIN = [
@@ -120,8 +163,8 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-/* ── Total Revenue Modal (all-time, approved only, no filters) ── */
-interface TotalRevenueRow {
+/* ── ROI Breakdown Modal ─────────────────────────────────────── */
+interface RevenueRow {
   id: string
   created_at: string
   approved_at: string | null
@@ -132,9 +175,9 @@ interface TotalRevenueRow {
   amount: number
 }
 
-function TotalRevenueModal({ onClose }: { onClose: () => void }) {
+function ROIModal({ onClose }: { onClose: () => void }) {
   const supabase = createClient()
-  const [rows,    setRows]    = useState<TotalRevenueRow[]>([])
+  const [rows,    setRows]    = useState<RevenueRow[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -143,13 +186,15 @@ function TotalRevenueModal({ onClose }: { onClose: () => void }) {
       .select('id,created_at,approved_at,guest_name,product_type,method,reference_number,amount')
       .eq('status', 'approved')
       .order('approved_at', { ascending: false })
-      .then(({ data }) => { setRows((data ?? []) as TotalRevenueRow[]); setLoading(false) })
+      .then(({ data }) => { setRows((data ?? []) as RevenueRow[]); setLoading(false) })
   }, [supabase])
 
-  const total = rows.reduce((s, r) => s + Number(r.amount), 0)
+  const totalRevenue = rows.reduce((s, r) => s + Number(r.amount), 0)
+  const totalROI     = estimateROI(rows)
+  const breakdown    = buildROIBreakdown(rows)
 
-  const PRODUCT_LABELS: Record<string, string> = {
-    package: 'Burial', cremation: 'Cremation', columbarium: 'Columbarium', urn: 'Urn', general: 'General', wake_extension: 'Wake Extension',
+  const PRODUCT_LABELS_LOCAL: Record<string, string> = {
+    package: 'Burial', cremation: 'Cremation', columbarium: 'Columbarium', urn: 'Urn', general: 'General', wake_extension: 'Wake Extension', addon: 'Add-on',
   }
 
   return createPortal(
@@ -163,8 +208,8 @@ function TotalRevenueModal({ onClose }: { onClose: () => void }) {
               <TrendingUp className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-foreground">Total Revenue</h2>
-              <p className="text-[10px] text-muted-foreground">All time · approved transactions</p>
+              <h2 className="text-sm font-bold text-foreground">Revenue & ROI Breakdown</h2>
+              <p className="text-[10px] text-muted-foreground">All time · approved transactions · estimated profit margins</p>
             </div>
           </div>
           <button onClick={onClose} className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
@@ -173,19 +218,48 @@ function TotalRevenueModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Summary strip */}
-        <div className="px-6 py-3 border-b border-border/60 flex items-center gap-6 shrink-0 bg-muted/20">
+        <div className="px-6 py-3 border-b border-border/60 flex items-center gap-6 shrink-0 bg-muted/20 flex-wrap">
           <div>
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total Revenue</p>
-            <p className="text-lg font-bold text-primary">₱{total.toLocaleString('en-PH')}</p>
+            <p className="text-lg font-bold text-foreground">₱{totalRevenue.toLocaleString('en-PH')}</p>
           </div>
-          <div className="w-px h-8 bg-border/60" />
+          <div className="w-px h-8 bg-border/60 hidden sm:block" />
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Estimated ROI</p>
+            <p className="text-lg font-bold text-primary">₱{totalROI.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</p>
+          </div>
+          <div className="w-px h-8 bg-border/60 hidden sm:block" />
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Avg Margin</p>
+            <p className="text-lg font-bold text-foreground">
+              {totalRevenue > 0 ? Math.round((totalROI / totalRevenue) * 100) : 0}%
+            </p>
+          </div>
+          <div className="w-px h-8 bg-border/60 hidden sm:block" />
           <div>
             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Transactions</p>
             <p className="text-lg font-bold text-foreground">{rows.length}</p>
           </div>
+          <p className="w-full text-[9px] text-muted-foreground italic">* ROI is estimated based on industry margin rates per service type. Actual profit may vary.</p>
         </div>
 
-        {/* Table */}
+        {/* ROI by Service Type */}
+        {!loading && breakdown.length > 0 && (
+          <div className="px-6 py-4 border-b border-border/40 shrink-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">ROI by Service Type</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {breakdown.map(b => (
+                <div key={b.name} className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2.5">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{b.name}</p>
+                  <p className="text-sm font-bold text-primary mt-0.5">₱{b.roi.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</p>
+                  <p className="text-[9px] text-muted-foreground">of ₱{b.revenue.toLocaleString('en-PH')} · {b.margin}% margin</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Transaction table */}
         <div className="overflow-y-auto flex-1 px-6 py-4">
           {loading ? (
             <div className="py-12 flex justify-center">
@@ -198,39 +272,49 @@ function TotalRevenueModal({ onClose }: { onClose: () => void }) {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border">
-                    {['Date Approved', 'Client', 'Product', 'Method', 'Reference', 'Amount'].map((h, i) => (
+                    {['Date Approved', 'Client', 'Product', 'Revenue', 'Est. ROI', 'Margin'].map((h, i) => (
                       <th key={i} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap border-r border-border/30 last:border-r-0">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={r.id} className={`border-b border-border/40 hover:bg-muted/10 transition-colors ${i % 2 !== 0 ? 'bg-muted/[0.03]' : ''}`}>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground whitespace-nowrap border-r border-border/20">
-                        {r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' }) : '—'}
-                      </td>
-                      <td className="px-4 py-2.5 font-semibold text-foreground border-r border-border/20 whitespace-nowrap">
-                        {r.guest_name ?? '—'}
-                      </td>
-                      <td className="px-4 py-2.5 capitalize text-foreground border-r border-border/20">
-                        {PRODUCT_LABELS[r.product_type] ?? r.product_type}
-                      </td>
-                      <td className="px-4 py-2.5 uppercase text-[10px] text-muted-foreground border-r border-border/20 whitespace-nowrap">
-                        {r.method.replace('_', ' ')}
-                      </td>
-                      <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground border-r border-border/20">
-                        {r.reference_number ?? '—'}
-                      </td>
-                      <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">
-                        ₱{Number(r.amount).toLocaleString('en-PH')}
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((r, i) => {
+                    const margin = ROI_MARGINS[r.product_type] ?? ROI_MARGINS['general']
+                    const roi    = Number(r.amount) * margin
+                    return (
+                      <tr key={r.id} className={`border-b border-border/40 hover:bg-muted/10 transition-colors ${i % 2 !== 0 ? 'bg-muted/[0.03]' : ''}`}>
+                        <td className="px-4 py-2.5 font-mono text-[10px] text-muted-foreground whitespace-nowrap border-r border-border/20">
+                          {r.approved_at ? new Date(r.approved_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' }) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5 font-semibold text-foreground border-r border-border/20 whitespace-nowrap">
+                          {r.guest_name ?? '—'}
+                        </td>
+                        <td className="px-4 py-2.5 capitalize text-foreground border-r border-border/20">
+                          {PRODUCT_LABELS_LOCAL[r.product_type] ?? r.product_type}
+                        </td>
+                        <td className="px-4 py-2.5 font-bold text-foreground whitespace-nowrap border-r border-border/20">
+                          ₱{Number(r.amount).toLocaleString('en-PH')}
+                        </td>
+                        <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap border-r border-border/20">
+                          ₱{roi.toLocaleString('en-PH', { maximumFractionDigits: 0 })}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">
+                            {Math.round(margin * 100)}%
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-muted/30 border-t border-border">
-                    <td colSpan={5} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</td>
-                    <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">₱{total.toLocaleString('en-PH')}</td>
+                    <td colSpan={3} className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</td>
+                    <td className="px-4 py-2.5 font-bold text-foreground whitespace-nowrap">₱{totalRevenue.toLocaleString('en-PH')}</td>
+                    <td className="px-4 py-2.5 font-bold text-primary whitespace-nowrap">₱{totalROI.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</td>
+                    <td className="px-4 py-2.5 font-bold text-foreground">
+                      {totalRevenue > 0 ? Math.round((totalROI / totalRevenue) * 100) : 0}%
+                    </td>
                   </tr>
                 </tfoot>
               </table>
@@ -291,7 +375,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   const [loading,          setLoading]          = useState(true)
   const [showReport,       setShowReport]       = useState(false)
   const [reportPeriod,     setReportPeriod]     = useState<PeriodFilter>('month')
-  const [showTotalRevenue, setShowTotalRevenue] = useState(false)
+  const [showROIModal,     setShowROIModal]      = useState(false)
   const [expandedInq,         setExpandedInq]         = useState<string | null>(null)
   const [periodFilter,        setPeriodFilter]        = useState<PeriodFilter>('month')
   const [salesChartDays,      setSalesChartDays]      = useState<7 | 14 | 30 | 90>(14)
@@ -410,7 +494,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
   return (
     <div className="space-y-6 p-1">
       {showReport && <SalesReportModal onClose={() => setShowReport(false)} defaultPeriod={reportPeriod} currentRole={currentRole} />}
-      {currentRole === 'admin' && showTotalRevenue && <TotalRevenueModal onClose={() => setShowTotalRevenue(false)} />}
+      {currentRole === 'admin' && showROIModal && <ROIModal onClose={() => setShowROIModal(false)} />}
 
       {/* ── ROW 1: Metric Overview Blocks ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -431,7 +515,7 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
             className="h-[130px] bg-card border border-border/60 rounded-2xl p-5 flex flex-col justify-between shadow-sm cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.99] transition-all duration-200"
           >
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue</p>
+              <p className="text-[11px] font-bold text-muted-foreground tracking-widest uppercase">Revenue (ROI)</p>
               <MiniSelect
                 value={periodFilter}
                 options={periodOptions.map(o => ({ value: o.value, label: o.label }))}
@@ -440,10 +524,19 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
               />
             </div>
             <p className="text-[32px] font-bold leading-none tracking-tight text-foreground">
-              ₱{periodRevenue.toLocaleString('en-PH')}
+              ₱{estimateROI(approvedPayments.filter(p => {
+                const now   = new Date()
+                const today = now.toISOString().slice(0, 10)
+                const effectivePeriod = (currentRole === 'staff' && periodFilter === 'all-time') ? 'year' : periodFilter
+                if (effectivePeriod === 'today')    return p.approved_at?.startsWith(today)
+                if (effectivePeriod === 'week')     { const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6); return p.approved_at && p.approved_at >= weekAgo.toISOString().slice(0, 10) }
+                if (effectivePeriod === 'month')    { const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`; return p.approved_at?.startsWith(mk) }
+                if (effectivePeriod === 'all-time') return true
+                return p.approved_at?.startsWith(String(now.getFullYear()))
+              })).toLocaleString('en-PH', { maximumFractionDigits: 0 })}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {periodOptions.find(o => o.value === periodFilter)?.label} · approved
+              {periodOptions.find(o => o.value === periodFilter)?.label} · est. profit
             </p>
           </div>
         </div>
@@ -459,10 +552,10 @@ export function OverviewTab({ currentRole, onNavigate }: { currentRole: UserRole
           />
           {currentRole === 'admin' && (
             <MetricCard
-              label="Total Revenue"
-              value={`₱${stats.totalRevenue.toLocaleString('en-PH')}`}
-              subtitle="All time · approved"
-              onClick={() => setShowTotalRevenue(true)}
+              label="Total ROI"
+              value={`₱${estimateROI(approvedPayments).toLocaleString('en-PH', { maximumFractionDigits: 0 })}`}
+              subtitle={`of ₱${stats.totalRevenue.toLocaleString('en-PH')} revenue · est. profit`}
+              onClick={() => setShowROIModal(true)}
             />
           )}
         </div>

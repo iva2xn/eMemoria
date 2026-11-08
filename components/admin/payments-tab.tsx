@@ -9,10 +9,11 @@ import {
   FilterPills, SearchInput, inputCls, type BadgeVariant,
 } from './admin-primitives'
 import { PaymentInfoCard } from './payment-info-card'
+import { AddonOrdersPanel } from './addon-orders-panel'
 import {
   Check, Banknote, X, Ban, Eye, Download,
   Printer, ChevronLeft, AlertTriangle, ChevronDown,
-  Receipt,
+  Receipt, ShoppingCart,
 } from 'lucide-react'
 import { PhoneInput } from '@/components/ui/phone-input'
 import { logActivity } from '@/lib/activity-log'
@@ -1273,6 +1274,22 @@ export function PaymentsTab({ currentRole, highlightPaymentId, onHighlightClear,
           </div>
         </div>
       )}
+
+      {/* ── Add-on Orders section ─────────────────────────────── */}
+      <div className="pt-2">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/60 flex items-center gap-2.5">
+            <ShoppingCart className="h-4 w-4 text-primary" />
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Add-on Orders</h3>
+              <p className="text-[10px] text-muted-foreground">Client orders for Traditional service add-ons</p>
+            </div>
+          </div>
+          <div className="p-5">
+            <AddonOrdersPanel />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

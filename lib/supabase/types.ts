@@ -330,6 +330,49 @@ export interface WakeScheduleRequest {
   updated_at: string
 }
 
+// ── Add-ons System (migration 040) ───────────────────────────────────────
+
+export type AddonOrderStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'cancelled'
+
+export interface FuneralAddon {
+  id: string
+  name: string
+  description: string
+  price: number
+  image_path: string
+  max_qty: number        // 99 means unlimited
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface AddonOrder {
+  id: string
+  user_id: string
+  document_submission_id: string | null
+  status: AddonOrderStatus
+  total_amount: number
+  rejection_reason: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  payment_id: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AddonOrderItem {
+  id: string
+  order_id: string
+  addon_id: string
+  quantity: number
+  unit_price: number
+  created_at: string
+  // Joined fields (when fetched with addon data)
+  addon?: FuneralAddon
+}
+
 // Convenience type for the full DB shape (used by createClient generics)
 export interface Database {
   public: {
@@ -348,6 +391,9 @@ export interface Database {
       wake_extension_price_config: { Row: WakeExtensionPriceConfig; Insert: never; Update: Partial<Omit<WakeExtensionPriceConfig, 'id' | 'updated_at'>> }
       columbarium_level_prices: { Row: ColumbariumLevelPrice; Insert: never; Update: Partial<Omit<ColumbariumLevelPrice, 'row_number' | 'updated_at'>> }
       funeral_service_config: { Row: FuneralServiceConfig; Insert: Omit<FuneralServiceConfig, 'updated_at'>; Update: Partial<Omit<FuneralServiceConfig, 'service_key' | 'updated_at'>> }
+      funeral_addons: { Row: FuneralAddon; Insert: Omit<FuneralAddon, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<FuneralAddon, 'id' | 'created_at' | 'updated_at'>> }
+      addon_orders: { Row: AddonOrder; Insert: Omit<AddonOrder, 'id' | 'created_at' | 'updated_at'>; Update: Partial<Omit<AddonOrder, 'id' | 'created_at' | 'updated_at'>> }
+      addon_order_items: { Row: AddonOrderItem; Insert: Omit<AddonOrderItem, 'id' | 'created_at'>; Update: never }
     }
     Functions: {
       admin_delete_user: {

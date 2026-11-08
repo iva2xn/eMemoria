@@ -14,7 +14,7 @@ import {
   Download, Filter, ChevronDown, ChevronUp,
   FileText, FileSpreadsheet, X, AlertTriangle,
   RotateCcw, Eye, ArrowUpDown, ArrowUp, ArrowDown,
-  Receipt, Ban,
+  Receipt, Ban, TrendingUp,
 } from 'lucide-react'
 import type { Payment, PaymentStatus, UserRole } from '@/lib/supabase/types'
 
@@ -33,7 +33,7 @@ type SortDir   = 'asc' | 'desc'
 
 type ExportFormat  = 'pdf' | 'xlsx' | 'docx'
 type ExportScope   = 'filtered' | 'selected' | 'all'
-type ActiveSubTab  = 'register' | 'voided'
+type ActiveSubTab  = 'register' | 'voided' | 'revenue'
 
 const PRODUCT_TYPES  = ['all','columbarium','package','urn','cremation','general'] as const
 const PAYMENT_METHODS = ['all','gcash','bdo_bank','cash'] as const
@@ -1270,6 +1270,200 @@ function VoidedTab({ rows, onRecover, onBulkRecover, currentRole }: {
   )
 }
 
+// ═══════════════════════════════════════════════════════════
+// ROI CONSTANTS & REVENUE TAB
+// ═══════════════════════════════════════════════════════════
+
+const ROI_MARGINS_TX: Record<string, number> = {
+  package:        0.30,
+  cremation:      0.40,
+  urn:            0.55,
+  columbarium:    0.65,
+  wake_extension: 0.50,
+  addon:          0.45,
+  general:        0.35,
+}
+
+const PRODUCT_LABELS_TX: Record<string, string> = {
+  package:        'Burial Package',
+  cremation:      'Cremation',
+  columbarium:    'Columbarium',
+  urn:            'Urn',
+  general:        'General',
+  wake_extension: 'Wake Extension',
+  addon:          'Add-on',
+}
+
+function RevenueTab({ rows }: { rows: TxRow[] }) {
+  // Only approved payments count as income
+  const approvedRows = rows.filter(r => r.status === 'approved')
+  const totalRevenue = approvedRows.reduce((s, r) => s + Number(r.amount), 0)
+  const totalROI     = approvedRows.reduce((s, r) => {
+    const margin = ROI_MARGINS_TX[r.product_type] ?? ROI_MARGINS_TX['general']
+    return s + Number(r.amount) * margin
+  }, 0)
+  const avgMargin = totalRevenue > 0 ? Math.round((totalROI / totalRevenue) * 100) : 0
+
+  // Breakdown by service type
+  const breakdownMap: Record<string, { revenue: number; roi: number; count: number }> = {}
+  approvedRows.forEach(r => {
+    const key = r.product_type
+    if (!breakdownMap[key]) breakdownMap[key] = { revenue: 0, roi: 0, count: 0 }
+    const margin = ROI_MARGINS_TX[key] ?? ROI_MARGINS_TX['general']
+    breakdownMap[key].revenue += Number(r.amount)
+    breakdownMap[key].roi     += Number(r.amount) * margin
+    breakdownMap[key].count   += 1
+  })
+  const breakdown = Object.entries(breakdownMap)
+    .map(([type, v]) => ({
+      type,
+      label: PRODUCT_LABELS_TX[type] ?? type,
+      ...v,
+      margin: v.revenue > 0 ? Math.round((v.roi / v.revenue) * 100) : 0,
+    }))
+    .sort((a, b) => b.roi - a.roi)
+
+  if (approvedRows.length === 0) {
+    return (
+      <div className="py-16 text-center space-y-2">
+        <TrendingUp className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+        <p className="text-sm text-muted-foreground">No approved transactions to calculate revenue.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-card border border-border/60 rounded-2xl p-5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Income</p>
+          <p className="text-2xl font-bold text-foreground mt-1">₱{totalRevenue.toLocaleString('en-PH')}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{approvedRows.length} approved transactions</p>
+        </div>
+        <div className="bg-card border border-primary/30 rounded-2xl p-5 ring-1 ring-primary/10">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary/70">Est. Revenue (ROI)</p>
+          <p className="text-2xl font-bold text-primary mt-1">₱{totalROI.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Based on industry margin rates</p>
+        </div>
+        <div className="bg-card border border-border/60 rounded-2xl p-5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Average Margin</p>
+          <p className="text-2xl font-bold text-foreground mt-1">{avgMargin}%</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Blended across all service types</p>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground italic">
+        * Revenue/ROI is estimated using standard industry margin rates per service type. Actual profit will vary based on actual operating costs.
+      </p>
+
+      {/* Breakdown by service type */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Revenue by Service Type</p>
+        <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border">
+                {['Service Type', 'Transactions', 'Total Income', 'Est. ROI', 'Margin %', 'ROI Bar'].map(h => (
+                  <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 last:border-r-0 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {breakdown.map((b, i) => (
+                <tr key={b.type} className={`border-b border-border/40 ${i % 2 !== 0 ? 'bg-muted/[0.03]' : 'bg-card'}`}>
+                  <td className="px-4 py-3 font-semibold text-foreground border-r border-border/20 whitespace-nowrap">{b.label}</td>
+                  <td className="px-4 py-3 text-center text-muted-foreground border-r border-border/20">{b.count}</td>
+                  <td className="px-4 py-3 font-bold text-foreground border-r border-border/20 whitespace-nowrap">₱{b.revenue.toLocaleString('en-PH')}</td>
+                  <td className="px-4 py-3 font-bold text-primary border-r border-border/20 whitespace-nowrap">₱{b.roi.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</td>
+                  <td className="px-4 py-3 border-r border-border/20">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">{b.margin}%</span>
+                  </td>
+                  <td className="px-4 py-3 min-w-[120px]">
+                    <div className="w-full bg-muted/40 rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${totalROI > 0 ? Math.round((b.roi / totalROI) * 100) : 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{totalROI > 0 ? Math.round((b.roi / totalROI) * 100) : 0}% of total ROI</p>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-muted/30 border-t-2 border-border">
+                <td className="px-4 py-3 font-bold text-foreground border-r border-border/20">Total</td>
+                <td className="px-4 py-3 text-center font-bold text-foreground border-r border-border/20">{approvedRows.length}</td>
+                <td className="px-4 py-3 font-bold text-foreground border-r border-border/20 whitespace-nowrap">₱{totalRevenue.toLocaleString('en-PH')}</td>
+                <td className="px-4 py-3 font-bold text-primary border-r border-border/20 whitespace-nowrap">₱{totalROI.toLocaleString('en-PH', { maximumFractionDigits: 0 })}</td>
+                <td className="px-4 py-3 font-bold border-r border-border/20">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">{avgMargin}%</span>
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Per-transaction table */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Per-Transaction Revenue Breakdown</p>
+        <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border">
+                  {['#', 'Date', 'Client', 'Service', 'Amount Collected', 'Est. ROI', 'Margin'].map(h => (
+                    <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-r border-border/30 last:border-r-0 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {approvedRows.slice(0, 50).map((r, i) => {
+                  const margin = ROI_MARGINS_TX[r.product_type] ?? ROI_MARGINS_TX['general']
+                  const roi = Number(r.amount) * margin
+                  return (
+                    <tr key={r.id} className={`border-b border-border/40 ${i % 2 !== 0 ? 'bg-muted/[0.03]' : 'bg-card'}`}>
+                      <td className="px-4 py-2.5 text-[10px] text-muted-foreground font-mono border-r border-border/20">{i + 1}</td>
+                      <td className="px-4 py-2.5 text-[10px] text-muted-foreground whitespace-nowrap border-r border-border/20">
+                        {new Date(r.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-2.5 font-semibold text-foreground border-r border-border/20 whitespace-nowrap">
+                        {r.profileName ?? r.guest_name ?? '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-foreground border-r border-border/20 capitalize">
+                        {PRODUCT_LABELS_TX[r.product_type] ?? r.product_type}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold text-foreground border-r border-border/20 whitespace-nowrap">
+                        ₱{Number(r.amount).toLocaleString('en-PH')}
+                      </td>
+                      <td className="px-4 py-2.5 font-bold text-primary border-r border-border/20 whitespace-nowrap">
+                        ₱{roi.toLocaleString('en-PH', { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">
+                          {Math.round(margin * 100)}%
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          {approvedRows.length > 50 && (
+            <div className="px-4 py-2.5 border-t border-border/40 bg-muted/10 text-center">
+              <p className="text-[10px] text-muted-foreground">Showing first 50 of {approvedRows.length} transactions. Use date filters to narrow results.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ═══════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -1518,6 +1712,11 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
             <span className="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-destructive/10 text-destructive text-[8px] font-black">{voidedRows.length}</span>
           )}
         </button>
+        <button onClick={() => setSubTab('revenue')}
+          className={`px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 ${subTab === 'revenue' ? 'bg-card shadow-sm text-foreground border border-border/60' : 'text-muted-foreground hover:text-foreground'}`}>
+          <TrendingUp className="h-3 w-3" />
+          Revenue
+        </button>
       </div>
 
       {/* Tab content */}
@@ -1533,6 +1732,8 @@ export function TransactionRegisterTab({ currentRole }: { currentRole: UserRole 
           onToggleSelect={toggleSelect}
           onSelectAll={selectAll}
         />
+      ) : subTab === 'revenue' ? (
+        <RevenueTab rows={activeRows} />
       ) : (
         <VoidedTab rows={voidedRows} onRecover={onRecovered} onBulkRecover={onBulkRecovered} currentRole={currentRole} />
       )}
