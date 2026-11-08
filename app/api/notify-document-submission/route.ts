@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   const resend = new Resend(process.env.RESEND_API_KEY)
-  const { availmentId, status, recipientEmail, recipientName, packageLabel, packagePrice, productType, rejectionReason, seniorPwdDiscount } =
+  const { availmentId, status, recipientEmail, recipientName, packageLabel, packagePrice, addonTotal, productType, rejectionReason, seniorPwdDiscount } =
     await req.json()
 
   if (!availmentId || !status || !recipientEmail) {
@@ -19,11 +19,23 @@ export async function POST(req: NextRequest) {
 
   const isApproved = status === 'approved'
 
-  // Build billing URL with full context so the billing page can pre-fill correctly
+  // If addonTotal wasn't passed by the caller, fall back to fetching from DB
+  let resolvedAddonTotal: number = Number(addonTotal ?? 0)
+  if (isApproved && !addonTotal) {
+    const { data: addonOrders } = await supabaseAdmin
+      .from('addon_orders')
+      .select('total_amount')
+      .eq('document_submission_id', availmentId)
+      .in('status', ['pending', 'approved', 'paid'])
+    resolvedAddonTotal = (addonOrders ?? []).reduce((s: number, o: { total_amount: number }) => s + (o.total_amount ?? 0), 0)
+  }
+
+  // Build billing URL — price = package price + add-ons total
+  const totalBillingPrice = Number(packagePrice ?? 0) + resolvedAddonTotal
   const billingParams = new URLSearchParams({ document_submission_id: availmentId })
   if (productType)  billingParams.set('product', productType)
   if (packageLabel) billingParams.set('label', packageLabel)
-  if (packagePrice) billingParams.set('price', String(packagePrice))
+  if (totalBillingPrice > 0) billingParams.set('price', String(totalBillingPrice))
   if (seniorPwdDiscount) billingParams.set('senior_pwd', '1')
   const billingUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/billing?${billingParams.toString()}`
 

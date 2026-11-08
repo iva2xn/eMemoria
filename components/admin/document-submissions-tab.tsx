@@ -13,7 +13,20 @@ import {
   AlertTriangle, ChevronLeft, Printer,
 } from 'lucide-react'
 import { logActivity } from '@/lib/activity-log'
-import type { DocumentSubmission, DocumentSubmissionStatus, UserRole } from '@/lib/supabase/types'
+import type { DocumentSubmission, DocumentSubmissionStatus, UserRole, FuneralAddon } from '@/lib/supabase/types'
+
+// ── Addon order row type (for admin review) ───────────────────
+interface AddonOrderRow {
+  id: string
+  status: string
+  total_amount: number
+  addon_order_items: Array<{
+    id: string
+    quantity: number
+    unit_price: number
+    addon: FuneralAddon | null
+  }>
+}
 import { FuneralServiceConfigPanel } from './funeral-service-config-panel'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -138,9 +151,25 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Addon orders for this submission
+  const [addonOrders, setAddonOrders] = useState<AddonOrderRow[]>([])
+  useEffect(() => {
+    supabase
+      .from('addon_orders')
+      .select('id, status, total_amount, addon_order_items(id, quantity, unit_price, addon:funeral_addons(*))')
+      .eq('document_submission_id', submission.id)
+      .in('status', ['pending', 'approved', 'paid'])
+      .then(({ data }) => setAddonOrders((data ?? []) as unknown as AddonOrderRow[]))
+  }, [supabase, submission.id])
+
+  const addonTotal = addonOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0)
+
   const basePrice = submission.product_price ?? 0
-  const discountedPrice = seniorPwd ? Math.round(basePrice * 0.8 * 100) / 100 : basePrice
-  const discountAmount  = basePrice - discountedPrice
+  const priceAfterDiscount = seniorPwd ? Math.round(basePrice * 0.8 * 100) / 100 : basePrice
+  const discountAmount  = basePrice - priceAfterDiscount
+  const totalPayable    = priceAfterDiscount + addonTotal
+  // Keep old name for compat with existing approve handler
+  const discountedPrice = priceAfterDiscount
 
   const docs = [
     { path: submission.doc_death_certificate,  label: 'Death Certificate' },
@@ -179,6 +208,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
             recipientEmail, recipientName: clientName(submission),
             packageLabel: submission.product_label ?? submission.product_type,
             packagePrice: seniorPwd ? discountedPrice : submission.product_price,
+            addonTotal,
             productType: submission.product_type,
             seniorPwdDiscount: seniorPwd,
           }),
@@ -286,7 +316,7 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                   { label: 'Phone',    value: clientPhone(submission) },
                   { label: 'Submitted', value: fmtDate(submission.created_at) },
                   { label: 'Package',  value: submission.product_label ?? submission.product_type },
-                  { label: 'Price',    value: submission.product_price ? `₱${Number(submission.product_price).toLocaleString('en-PH')}` : '—' },
+                  { label: 'Base Price', value: submission.product_price ? `₱${Number(submission.product_price).toLocaleString('en-PH')}` : '—' },
                 ].map(f => (
                   <div key={f.label} className="bg-muted/30 rounded-xl px-3 py-2">
                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">{f.label}</p>
@@ -294,6 +324,34 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                   </div>
                 ))}
               </div>
+
+              {/* Add-ons summary */}
+              {addonOrders.length > 0 && (
+                <div className="bg-muted/30 border border-border/60 rounded-xl overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Add-ons (submitted with booking)</p>
+                    <span className="text-[10px] font-bold text-primary">+₱{addonTotal.toLocaleString('en-PH')}</span>
+                  </div>
+                  <div className="divide-y divide-border/30">
+                    {addonOrders.flatMap(o => o.addon_order_items).map(item => (
+                      <div key={item.id} className="flex items-center justify-between px-4 py-2 text-xs">
+                        <span className="text-foreground font-medium">{item.addon?.name ?? 'Add-on'} × {item.quantity}</span>
+                        <span className="font-semibold text-foreground">₱{(item.unit_price * item.quantity).toLocaleString('en-PH')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Total payable summary */}
+              {(basePrice > 0 || addonTotal > 0) && (
+                <div className="bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground font-semibold">
+                    {seniorPwd ? 'Total after discount + add-ons' : 'Total payable (package + add-ons)'}
+                  </span>
+                  <span className="text-primary font-bold text-sm">₱{totalPayable.toLocaleString('en-PH')}</span>
+                </div>
+              )}
 
               {/* Documents */}
               <div>
@@ -330,7 +388,9 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
                     <div className="bg-card border border-border/60 rounded-xl p-3 space-y-1.5 text-xs">
                       <div className="flex justify-between"><span className="text-muted-foreground">Original Price</span><span className="font-mono">₱{basePrice.toLocaleString('en-PH')}</span></div>
                       <div className="flex justify-between text-primary"><span>20% Discount</span><span className="font-mono">− ₱{discountAmount.toLocaleString('en-PH')}</span></div>
-                      <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1.5"><span>Amount Payable</span><span className="font-mono">₱{discountedPrice.toLocaleString('en-PH')}</span></div>
+                      <div className="flex justify-between font-semibold"><span className="text-muted-foreground">After Discount</span><span className="font-mono">₱{priceAfterDiscount.toLocaleString('en-PH')}</span></div>
+                      {addonTotal > 0 && <div className="flex justify-between font-semibold"><span className="text-muted-foreground">Add-ons</span><span className="font-mono">+ ₱{addonTotal.toLocaleString('en-PH')}</span></div>}
+                      <div className="flex justify-between font-bold text-primary border-t border-border/40 pt-1.5"><span>Total Payable</span><span className="font-mono">₱{totalPayable.toLocaleString('en-PH')}</span></div>
                     </div>
                   )}
                 </div>
@@ -751,10 +811,22 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
   onBack: () => void
   onUpdated: (updated: Partial<SubmissionRow> & { id: string }) => void
 }) {
+  const supabase = createClient()
   const [reviewOpen, setReviewOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [lightbox,   setLightbox]   = useState<{ url: string; label: string } | null>(null)
   const [exporting,  setExporting]  = useState(false)
+  const [addonOrders, setAddonOrders] = useState<AddonOrderRow[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('addon_orders')
+      .select('id, status, total_amount, addon_order_items(id, quantity, unit_price, addon:funeral_addons(*))')
+      .eq('document_submission_id', submission.id)
+      .then(({ data }) => setAddonOrders((data ?? []) as unknown as AddonOrderRow[]))
+  }, [supabase, submission.id])
+
+  const addonTotal = addonOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0)
 
   const docs = [
     { path: submission.doc_death_certificate,  label: 'Death Certificate' },
@@ -838,7 +910,12 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
               { label: 'Package',  value: submission.product_label ?? submission.product_type },
               { label: 'Product',  value: submission.product_type },
               { label: 'Ref',      value: submission.product_ref ?? '—' },
-              { label: 'Price',    value: submission.product_price ? `₱${Number(submission.product_price).toLocaleString('en-PH')}` : '—' },
+              { label: 'Base Price', value: submission.product_price ? `₱${Number(submission.product_price).toLocaleString('en-PH')}` : '—' },
+              { label: 'Add-ons Total', value: addonTotal > 0 ? `₱${addonTotal.toLocaleString('en-PH')}` : '—' },
+              ...(submission.product_price
+                ? [{ label: 'Total Payable', value: `₱${(Number(submission.discounted_price ?? submission.product_price) + addonTotal).toLocaleString('en-PH')}` }]
+                : []
+              ),
               { label: 'Reviewed', value: submission.reviewed_at ? fmtDate(submission.reviewed_at) : '—' },
             ].map(f => (
               <div key={f.label} className="bg-muted/30 rounded-xl px-3 py-2.5">
@@ -847,6 +924,27 @@ function RecordDetail({ submission, currentRole, onBack, onUpdated }: {
               </div>
             ))}
           </div>
+
+          {/* Add-ons breakdown */}
+          {addonOrders.length > 0 && (
+            <div className="bg-muted/30 border border-border/60 rounded-xl overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/50">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Add-ons Ordered</p>
+              </div>
+              <div className="divide-y divide-border/30">
+                {addonOrders.flatMap(o => o.addon_order_items).map(item => (
+                  <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-xs">
+                    <span className="text-foreground font-medium">{item.addon?.name ?? 'Add-on'} × {item.quantity}</span>
+                    <span className="font-semibold text-foreground">₱{(item.unit_price * item.quantity).toLocaleString('en-PH')}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 bg-primary/5 border-t border-primary/20 text-xs">
+                <span className="text-[9px] font-black uppercase tracking-widest text-primary/70">Add-ons Total</span>
+                <span className="font-bold text-primary">₱{addonTotal.toLocaleString('en-PH')}</span>
+              </div>
+            </div>
+          )}
 
           {/* Senior/PWD discount */}
           {submission.senior_pwd_discount && (
