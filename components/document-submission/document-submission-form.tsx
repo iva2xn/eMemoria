@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { AlertBanner } from '@/components/ui/alert-banner'
 import { Button } from '@/components/ui/button'
 import { AuthGateModal } from '@/components/billing/auth-gate-modal'
-import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X, MapPin, Loader2 } from 'lucide-react'
+import { UploadCloud, User, FileText, Info, ShieldCheck, Check, ChevronLeft, AlertTriangle, X, MapPin, Loader2, Package, Plus, Minus, ChevronDown, ChevronUp, Sparkles, Flower2, Music, Bird, Lightbulb, Gift } from 'lucide-react'
+import type { FuneralAddon } from '@/lib/supabase/types'
 import { useDraftForm } from '@/lib/hooks/use-draft-form'
 import { ToastContainer, showToast } from '@/components/ui/toast-notification'
 import { PhoneInput } from '@/components/ui/phone-input'
@@ -209,6 +210,59 @@ function UrnPicker({ value, onChange }: {
   )
 }
 
+// ── Add-ons helpers ───────────────────────────────────────────
+function AddonIcon({ name }: { name: string }) {
+  const lower = name.toLowerCase()
+  if (lower.includes('flower')) return <Flower2 className="h-5 w-5 text-rose-400" />
+  if (lower.includes('music') || lower.includes('band')) return <Music className="h-5 w-5 text-violet-400" />
+  if (lower.includes('dove')) return <Bird className="h-5 w-5 text-sky-400" />
+  if (lower.includes('light')) return <Lightbulb className="h-5 w-5 text-amber-400" />
+  if (lower.includes('token') || lower.includes('remembrance')) return <Gift className="h-5 w-5 text-pink-400" />
+  return <Sparkles className="h-5 w-5 text-primary" />
+}
+
+function AddonMiniCard({
+  addon, qty, onChange,
+}: {
+  addon: FuneralAddon; qty: number; onChange: (delta: number) => void
+}) {
+  const isMaxed = qty >= addon.max_qty
+  return (
+    <div className={`flex flex-col rounded-xl border-2 overflow-hidden transition-all duration-150 ${
+      qty > 0 ? 'border-primary/50 bg-primary/5 shadow-sm' : 'border-border bg-card hover:border-border/70'
+    }`}>
+      {/* Icon area */}
+      <div className="flex items-center justify-center py-4 bg-muted/20 relative">
+        <AddonIcon name={addon.name} />
+        {qty > 0 && (
+          <span className="absolute top-1.5 right-1.5 h-4.5 w-4.5 h-5 w-5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center shadow">
+            {qty}
+          </span>
+        )}
+      </div>
+      {/* Info */}
+      <div className="px-2.5 pt-2 pb-1 flex-1 flex flex-col gap-1">
+        <p className="text-[10px] font-bold text-foreground leading-tight line-clamp-2">{addon.name}</p>
+        <p className="text-[10px] font-bold text-primary mt-auto">
+          +₱{addon.price.toLocaleString('en-PH')}
+        </p>
+      </div>
+      {/* Stepper */}
+      <div className="flex items-center gap-1 px-2 pb-2.5 pt-1">
+        <button type="button" onClick={() => onChange(-1)} disabled={qty === 0}
+          className="h-6 w-6 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-muted/40 disabled:opacity-30 transition-colors">
+          <Minus className="h-2.5 w-2.5" />
+        </button>
+        <span className="flex-1 text-center text-[11px] font-bold text-foreground">{qty}</span>
+        <button type="button" onClick={() => onChange(1)} disabled={isMaxed}
+          className="h-6 w-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-30 transition-colors">
+          <Plus className="h-2.5 w-2.5" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Review Step helpers ───────────────────────────────────────
 function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -372,7 +426,35 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
   const supabase = createClient()
   const router   = useRouter()
 
-  const isCremation = productType === 'cremation'
+  const isCremation    = productType === 'cremation'
+  const isTraditional  = productType === 'package'
+
+  // ── Add-ons state (traditional packages only) ─────────────
+  const [addons,         setAddons]         = useState<FuneralAddon[]>([])
+  const [addonCart,      setAddonCart]      = useState<Record<string, number>>({})
+  const [addonsExpanded, setAddonsExpanded] = useState(true)
+
+  useEffect(() => {
+    if (!isTraditional) return
+    createClient()
+      .from('funeral_addons')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => setAddons((data ?? []) as FuneralAddon[]))
+  }, [isTraditional])
+
+  const handleAddonQty = (addonId: string, delta: number) => {
+    setAddonCart(prev => {
+      const next = Math.max(0, (prev[addonId] ?? 0) + delta)
+      if (next === 0) { const c = { ...prev }; delete c[addonId]; return c }
+      return { ...prev, [addonId]: next }
+    })
+  }
+
+  const addonCartItems = addons.filter(a => (addonCart[a.id] ?? 0) > 0)
+    .map(a => ({ addon: a, qty: addonCart[a.id]! }))
+  const addonTotal = addonCartItems.reduce((s, i) => s + i.addon.price * i.qty, 0)
 
   // ── Step state: 1 = fill, 2 = review ─────────────────────
   const [step, setStep] = useState<1 | 2>(1)
@@ -454,7 +536,7 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
     ? FALLBACK_URNS.find(u => u.name === urnChoice) ?? null
     : null
   const urnPrice      = selectedUrn?.price ?? 0
-  const totalPrice    = productPrice + urnPrice
+  const totalPrice    = productPrice + urnPrice + addonTotal
 
   // ── GPS locate ───────────────────────────────────────────────
   const handleLocate = () => {
@@ -587,6 +669,31 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
         await supabase.from('profiles').update({ phone: phone.trim() }).eq('id', user.id)
       }
 
+      // Create addon_order if any add-ons were selected
+      if (isTraditional && addonCartItems.length > 0 && user) {
+        const { data: addonOrder, error: addonOrderErr } = await supabase
+          .from('addon_orders')
+          .insert({
+            user_id:                user.id,
+            document_submission_id: submission.id,
+            total_amount:           addonTotal,
+            status:                 'pending',
+          })
+          .select('id')
+          .single()
+
+        if (!addonOrderErr && addonOrder) {
+          await supabase.from('addon_order_items').insert(
+            addonCartItems.map(item => ({
+              order_id:   addonOrder.id,
+              addon_id:   item.addon.id,
+              quantity:   item.qty,
+              unit_price: item.addon.price,
+            }))
+          )
+        }
+      }
+
       clearDraft()
       router.push(`/document-submission/status?id=${submission.id}`)
     } catch (err: unknown) {
@@ -661,6 +768,13 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
                 value={urnChoice === OWN_URN ? 'Own urn (no fee)' : `${urnChoice} (+₱${urnPrice.toLocaleString('en-PH')})`}
               />
             )}
+            {isTraditional && addonCartItems.length > 0 && addonCartItems.map(item => (
+              <ReviewRow
+                key={item.addon.id}
+                label={`Add-on: ${item.addon.name}`}
+                value={`${item.qty} × ₱${item.addon.price.toLocaleString('en-PH')} = ₱${(item.addon.price * item.qty).toLocaleString('en-PH')}`}
+              />
+            ))}
             {totalPrice > 0 && (
               <ReviewRow
                 label="Total"
@@ -739,7 +853,13 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
               <span className="font-semibold text-foreground">+₱{urnPrice.toLocaleString('en-PH')}</span>
             </p>
           )}
-          {isCremation && urnChoice && (
+          {isTraditional && addonTotal > 0 && (
+            <p className="text-muted-foreground">
+              Add-ons ({addonCartItems.length} item{addonCartItems.length !== 1 ? 's' : ''}):{' '}
+              <span className="font-semibold text-foreground">+₱{addonTotal.toLocaleString('en-PH')}</span>
+            </p>
+          )}
+          {(isCremation && urnChoice || isTraditional && addonTotal > 0) && (
             <p className="font-bold text-primary pt-0.5">
               Total: ₱{totalPrice.toLocaleString('en-PH')}
             </p>
@@ -879,6 +999,52 @@ export function DocumentSubmissionForm({ productType, productRef, productLabel, 
           <div className="px-6 py-5">
             <UrnPicker value={urnChoice} onChange={setUrnChoice} />
           </div>
+        </div>
+      )}
+
+      {/* Add-ons — traditional packages only */}
+      {isTraditional && addons.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          {/* Header — click to expand/collapse */}
+          <button
+            type="button"
+            onClick={() => setAddonsExpanded(v => !v)}
+            className="w-full px-6 py-4 border-b border-border/60 flex items-center justify-between gap-2 hover:bg-muted/20 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-bold text-foreground">
+                Optional Add-ons
+              </h3>
+              {addonCartItems.length > 0 && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                  {addonCartItems.reduce((s, i) => s + i.qty, 0)} selected · +₱{addonTotal.toLocaleString('en-PH')}
+                </span>
+              )}
+            </div>
+            {addonsExpanded
+              ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+              : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            }
+          </button>
+
+          {addonsExpanded && (
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Personalize the service with optional items. These will be submitted for staff approval alongside your booking.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {addons.map(addon => (
+                  <AddonMiniCard
+                    key={addon.id}
+                    addon={addon}
+                    qty={addonCart[addon.id] ?? 0}
+                    onChange={delta => handleAddonQty(addon.id, delta)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,8 +1,7 @@
 /**
  * generate-receipt.ts
- * Formal official receipt — A5 portrait.
- * Clean two-column layout with company header, OR details,
- * item breakdown, total box, and signature block.
+ * Exact replica of standard Philippine "SERVICE INVOICE" / Non-VAT Receipt.
+ * Layout: A5 Landscape format with left-side settlement table and right-side invoice details.
  */
 
 export interface ReceiptPayload {
@@ -11,12 +10,15 @@ export interface ReceiptPayload {
   guest_name?: string | null
   guest_email?: string | null
   guest_phone?: string | null
+  guest_address?: string | null
+  tin?: string | null
   profileName?: string
   profileEmail?: string
   product_type: string
   product_ref?: string | null
   method: string
   amount: number
+  withholding_tax?: number
   status: string
   notes?: string | null
   approved_at?: string | null
@@ -24,333 +26,348 @@ export interface ReceiptPayload {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
-const resolveName  = (p: ReceiptPayload) => p.profileName  ?? p.guest_name  ?? 'Guest'
-const resolveEmail = (p: ReceiptPayload) => p.profileEmail ?? p.guest_email ?? ''
+const resolveName = (p: ReceiptPayload) => p.profileName ?? p.guest_name ?? ''
 
-function fmtLong(iso: string) {
-  return new Date(iso).toLocaleDateString('en-PH', {
-    year: 'numeric', month: 'long', day: 'numeric',
-  })
-}
-function fmtTimestamp(iso: string) {
-  return new Date(iso).toLocaleString('en-PH', {
-    year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-function fmtPeso(n: number) {
-  return 'PHP ' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-}
-function methodLabel(m: string): string {
-  const map: Record<string, string> = {
-    gcash: 'GCash', bdo_bank: 'BDO Bank Transfer',
-    bpi_bank: 'BPI Bank Transfer', cash: 'Cash',
+function fmtCurrencyParts(n: number) {
+  const parts = Number(n || 0).toFixed(2).split('.')
+  return {
+    pesos: Number(parts[0]).toLocaleString('en-PH'),
+    cents: parts[1],
+    full: Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
   }
-  return map[m] ?? m.replace(/_/g, ' ').toUpperCase()
 }
+
 function serviceLabel(p: ReceiptPayload): string {
   if (p.product_ref) return p.product_ref
   const map: Record<string, string> = {
-    package: 'Traditional Burial Package', cremation: 'Cremation Service',
-    urn: 'Memorial Urn', columbarium: 'Columbarium Slot',
-    wake_extension: 'Wake Extension', addon: 'Service Add-on',
-    general: 'General Service',
+    package: 'Traditional Burial Package',
+    cremation: 'Cremation Service',
+    urn: 'Memorial Urn',
+    columbarium: 'Columbarium Slot',
+    wake_extension: 'Wake Extension',
+    addon: 'Service Add-on',
+    general: 'General Services',
   }
   return map[p.product_type] ?? p.product_type
 }
-function orNumber(p: ReceiptPayload): string {
-  return p.id.replace(/-/g, '').slice(-8).toUpperCase()
+
+function formatInvoiceNo(id: string): string {
+  const num = id.replace(/\D/g, '')
+  return (num ? num.slice(-4) : '0001').padStart(4, '0')
 }
 
-// ── Main ──────────────────────────────────────────────────────
+// Converts numbers into words for the "The sum of..." line
+function numberToWords(num: number): string {
+  if (!num || num === 0) return 'Zero'
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  const scales = ['', 'Thousand', 'Million', 'Billion']
+
+  const splitIntoGroups = (n: number) => {
+    const groups: number[] = []
+    let temp = Math.floor(n)
+    while (temp > 0) {
+      groups.push(temp % 1000)
+      temp = Math.floor(temp / 1000)
+    }
+    return groups
+  }
+
+  const groupToWords = (g: number): string => {
+    let str = ''
+    if (g >= 100) {
+      str += ones[Math.floor(g / 100)] + ' Hundred '
+      g %= 100
+    }
+    if (g >= 20) {
+      str += tens[Math.floor(g / 10)] + (g % 10 !== 0 ? '-' + ones[g % 10] : '') + ' '
+    } else if (g > 0) {
+      str += ones[g] + ' '
+    }
+    return str.trim()
+  }
+
+  const intPart = Math.floor(num)
+  const cents = Math.round((num - intPart) * 100)
+  const groups = splitIntoGroups(intPart)
+  const groupWords: string[] = []
+
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i]
+    if (g > 0) {
+      const w = groupToWords(g)
+      groupWords.unshift(scales[i] ? `${w} ${scales[i]}` : w)
+    }
+  }
+
+  let result = groupWords.join(' ').trim()
+  if (cents > 0) {
+    result += ` and ${cents}/100`
+  }
+  return result
+}
+
+// ── Main Function ─────────────────────────────────────────────
 export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
   const { default: jsPDF } = await import('jspdf')
 
-  // A5 portrait: 148 x 210 mm
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' })
-  const W   = 148
-  const H   = 210
-  const ML  = 10   // margin left
-  const MR  = W - 10  // margin right
-  const CW  = MR - ML
+  // A5 Landscape: 210mm x 148mm
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' })
 
-  // ── Colour palette ───────────────────────────────────────
-  const BLACK:   [number,number,number] = [20,  20,  20 ]
-  const DARKGN:  [number,number,number] = [22,  78,  50 ]   // deep forest green
-  const MIDGN:   [number,number,number] = [34,  107, 66 ]   // primary brand green
-  const LGRAY:   [number,number,number] = [100, 100, 100]
-  const MGRAY:   [number,number,number] = [160, 160, 160]
-  const BGRAY:   [number,number,number] = [245, 245, 245]
-  const WHITE:   [number,number,number] = [255, 255, 255]
-  const BGGN:    [number,number,number] = [240, 248, 244]   // very light green
+  const clientName = resolveName(payment)
+  const clientAddress = payment.guest_address ?? ''
+  const clientTIN = payment.tin ?? ''
+  const invNumber = formatInvoiceNo(payment.id)
+  const grossAmount = payment.amount || 0
+  const wtax = payment.withholding_tax || 0
+  const netAmount = grossAmount - wtax
 
-  doc.setTextColor(...BLACK)
-  doc.setDrawColor(...BLACK)
+  const isCash = payment.method.toLowerCase().includes('cash')
+  const isCheck = payment.method.toLowerCase().includes('check') || payment.method.toLowerCase().includes('bank')
 
-  const issuedDate  = payment.approved_at ? fmtLong(payment.approved_at) : fmtLong(payment.created_at)
-  const clientName  = resolveName(payment)
-  const clientEmail = resolveEmail(payment)
-  const OR          = orNumber(payment)
+  // Outer Border Box
+  doc.setDrawColor(30, 30, 30)
+  doc.setLineWidth(0.4)
+  doc.rect(7, 7, 196, 134)
 
-  // ── Outer border ─────────────────────────────────────────
-  doc.setLineWidth(0.5)
-  doc.setDrawColor(...MIDGN)
-  doc.rect(6, 6, W - 12, H - 12)
-  doc.setDrawColor(...DARKGN)
-  doc.setLineWidth(0.2)
-  doc.rect(7.5, 7.5, W - 15, H - 15)
+  // =========================================================================
+  // LEFT COLUMN: SETTLEMENT TABLE
+  // =========================================================================
+  const tblX = 13
+  const tblY = 12
+  const tblW = 62
+  const colParticularsW = 34
+  const colAmountW = 28
+  const centsSplitW = 7 // sub-column for centavos
 
-  // ── Header bar (green background) ────────────────────────
-  doc.setFillColor(...MIDGN)
-  doc.roundedRect(6, 6, W - 12, 36, 3, 3, 'F')
-  // Square off the bottom corners
-  doc.rect(6, 30, W - 12, 12, 'F')
+  doc.setLineWidth(0.25)
+  doc.rect(tblX, tblY, tblW, 122)
 
-  // Logo
-  try {
-    const res  = await fetch('/logo.png')
-    const blob = await res.blob()
-    const b64  = await new Promise<string>(resolve => {
-      const r = new FileReader()
-      r.onloadend = () => resolve(r.result as string)
-      r.readAsDataURL(blob)
-    })
-    doc.addImage(b64, 'PNG', ML + 2, 10, 18, 18)
-  } catch { /* skip */ }
-
-  // Company name
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.setTextColor(...WHITE)
-  doc.text('eMEMORIA', ML + 24, 21)
-
+  // Header 1: "IN SETTLEMENT OF THE FOLLOWING:"
+  doc.rect(tblX, tblY, tblW, 5.5)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(7)
-  doc.setTextColor(210, 235, 220)
-  doc.text('FUNERAL SERVICES', ML + 24, 27)
+  doc.setTextColor(30, 30, 30)
+  doc.text('IN SETTLEMENT OF THE FOLLOWING:', tblX + tblW / 2, tblY + 4, { align: 'center' })
 
-  // "OFFICIAL RECEIPT" label on the right
+  // Header 2: "PARTICULARS" & "Amount"
+  const h2Y = tblY + 5.5
+  doc.rect(tblX, h2Y, tblW, 5.5)
+  doc.line(tblX + colParticularsW, h2Y, tblX + colParticularsW, tblY + 88) // Vertical division line
+
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(11)
-  doc.setTextColor(...WHITE)
-  doc.text('OFFICIAL RECEIPT', MR, 21, { align: 'right' })
+  doc.setFontSize(7.5)
+  doc.text('PARTICULARS', tblX + colParticularsW / 2, h2Y + 4, { align: 'center' })
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
-  doc.setTextColor(210, 235, 220)
-  doc.text('Sariaya, Quezon  •  support@ememoria.site', MR, 27, { align: 'right' })
+  doc.text('Amount', tblX + colParticularsW + colAmountW / 2, h2Y + 4, { align: 'center' })
 
-  let y = 46
+  // Centavo division line down the amount column
+  const centsLineX = tblX + tblW - centsSplitW
+  doc.line(centsLineX, h2Y + 5.5, centsLineX, tblY + 88)
 
-  // ── OR No. & Date row ────────────────────────────────────
-  doc.setFillColor(...BGGN)
-  doc.rect(ML, y - 2, CW, 10, 'F')
-  doc.setDrawColor(...MIDGN)
-  doc.setLineWidth(0.3)
-  doc.line(ML, y + 8, MR, y + 8)
+  // Empty Grid Rows (Particulars area)
+  const rowH = 4.8
+  let currentY = h2Y + 5.5
+  const numGridRows = 12
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...LGRAY)
-  doc.text('OR No.', ML + 2, y + 3)
-  doc.text('Date Issued', W / 2 + 2, y + 3)
+  for (let i = 0; i < numGridRows; i++) {
+    doc.line(tblX, currentY + rowH, tblX + tblW, currentY + rowH)
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...DARKGN)
-  doc.text(OR, ML + 16, y + 3)
-  doc.text(issuedDate, W / 2 + 20, y + 3)
+    // Render item details on the first row
+    if (i === 0) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.text(serviceLabel(payment).slice(0, 22), tblX + 1.5, currentY + 3.4)
 
-  // Vertical divider
-  doc.setDrawColor(...MIDGN)
-  doc.setLineWidth(0.2)
-  doc.line(W / 2, y - 2, W / 2, y + 8)
-
-  y += 14
-
-  // ── CLIENT SECTION ───────────────────────────────────────
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...MIDGN)
-  doc.text('RECEIVED FROM', ML + 1, y)
-
-  y += 5
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(10)
-  doc.setTextColor(...BLACK)
-  doc.text(clientName, ML + 1, y)
-
-  // Underline
-  doc.setDrawColor(...MGRAY)
-  doc.setLineWidth(0.3)
-  doc.line(ML, y + 1.5, MR, y + 1.5)
-
-  if (clientEmail) {
-    y += 5
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(...LGRAY)
-    doc.text(clientEmail, ML + 1, y)
-  }
-  if (payment.guest_phone) {
-    const xPhone = clientEmail ? ML + 70 : ML + 1
-    const yPhone = clientEmail ? y : y + 5
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(...LGRAY)
-    doc.text(payment.guest_phone, xPhone, y)
+      const parts = fmtCurrencyParts(grossAmount)
+      doc.text(parts.pesos, centsLineX - 1.5, currentY + 3.4, { align: 'right' })
+      doc.text(parts.cents, tblX + tblW - 1.5, currentY + 3.4, { align: 'right' })
+    }
+    currentY += rowH
   }
 
-  y += 10
-
-  // ── PAYMENT DETAILS SECTION ──────────────────────────────
-  // Light green label bar
-  doc.setFillColor(...BGGN)
-  doc.setDrawColor(...MIDGN)
-  doc.setLineWidth(0.2)
-  doc.rect(ML, y - 2, CW, 7, 'FD')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.5)
-  doc.setTextColor(...MIDGN)
-  doc.text('PAYMENT DETAILS', ML + 2, y + 3)
-
-  y += 10
-
-  // Two-column detail rows
-  const detailRows = [
-    { label: 'Payment Method', value: methodLabel(payment.method) },
-    { label: 'Reference No.',  value: payment.reference_number ?? '—' },
-    { label: 'Service',        value: serviceLabel(payment) },
-    { label: 'Status',         value: payment.status.toUpperCase() },
+  // Calculation Rows: Gross Sales, Less WTax, Net Amount
+  const summaryLabels = [
+    { label: 'GROSS SALES', amt: grossAmount },
+    { label: 'LESS: WITHHOLDING TAX', amt: wtax },
+    { label: 'NET AMOUNT', amt: netAmount },
   ]
 
-  detailRows.forEach((row, i) => {
-    const isEven = i % 2 === 0
-    if (isEven) {
-      doc.setFillColor(...BGRAY)
-      doc.rect(ML, y - 3, CW, 7.5, 'F')
-    }
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.5)
-    doc.setTextColor(...LGRAY)
-    doc.text(row.label, ML + 2, y + 1)
-
+  summaryLabels.forEach((item) => {
+    doc.line(tblX, currentY + rowH, tblX + tblW, currentY + rowH)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...BLACK)
-    // If value is too long, clip it
-    const maxW = CW - 42
-    const lines = doc.splitTextToSize(row.value, maxW) as string[]
-    doc.text(lines[0], ML + 38, y + 1)
+    doc.setFontSize(6)
+    doc.text(item.label, tblX + 1.5, currentY + 3.3)
 
-    y += 8
+    if (item.amt > 0 || item.label === 'GROSS SALES') {
+      const parts = fmtCurrencyParts(item.amt)
+      doc.setFont('helvetica', 'normal')
+      doc.text(parts.pesos, centsLineX - 1.5, currentY + 3.3, { align: 'right' })
+      doc.text(parts.cents, tblX + tblW - 1.5, currentY + 3.3, { align: 'right' })
+    }
+    currentY += rowH
   })
 
-  y += 4
-
-  // ── TOTAL BOX ────────────────────────────────────────────
-  const BOX_H  = 22
-  const BOX_Y  = H - 58
-
-  // Green left accent bar
-  doc.setFillColor(...MIDGN)
-  doc.rect(ML, BOX_Y, 3, BOX_H, 'F')
-
-  // Box outline
-  doc.setFillColor(...BGGN)
-  doc.setDrawColor(...MIDGN)
-  doc.setLineWidth(0.4)
-  doc.rect(ML, BOX_Y, CW, BOX_H, 'FD')
-
+  // Header: "FORM OF PAYMENT"
+  doc.line(tblX, currentY + 4.5, tblX + tblW, currentY + 4.5)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.setTextColor(...LGRAY)
-  doc.text('TOTAL AMOUNT', ML + 6, BOX_Y + 8)
+  doc.setFontSize(7)
+  doc.text('FORM OF PAYMENT', tblX + tblW / 2, currentY + 3.5, { align: 'center' })
+  currentY += 4.5
+
+  // Row: [ ] CASH   [ ] CHECK  |  P
+  const checkRowH = 5
+  doc.line(tblX, currentY + checkRowH, tblX + tblW, currentY + checkRowH)
+  doc.line(tblX + 34, currentY, tblX + 34, currentY + checkRowH)
+
+  // Checkbox: CASH
+  doc.rect(tblX + 4, currentY + 1.2, 2.6, 2.6)
+  if (isCash) {
+    doc.setFont('helvetica', 'bold')
+    doc.text('✓', tblX + 4.5, currentY + 3.2)
+  }
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
-  doc.setTextColor(...MGRAY)
-  doc.text('Philippine Peso', ML + 6, BOX_Y + 14)
+  doc.text('CASH', tblX + 8, currentY + 3.3)
 
-  // Amount — large and right-aligned
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(18)
-  doc.setTextColor(...DARKGN)
-  doc.text(fmtPeso(payment.amount), MR - 2, BOX_Y + 15, { align: 'right' })
-
-  // ── PAID stamp ───────────────────────────────────────────
-  if (payment.status === 'approved') {
-    const sx = MR - 30
-    const sy = BOX_Y - 18
-    const sw = 28
-    const sh = 14
-
-    // Stamp background
-    doc.setFillColor(240, 255, 245)
-    doc.roundedRect(sx, sy, sw, sh, 2, 2, 'F')
-
-    doc.setDrawColor(...MIDGN)
-    doc.setLineWidth(1.0)
-    doc.roundedRect(sx, sy, sw, sh, 2, 2, 'S')
-    doc.setLineWidth(0.4)
-    doc.roundedRect(sx + 1.2, sy + 1.2, sw - 2.4, sh - 2.4, 1.5, 1.5, 'S')
-
+  // Checkbox: CHECK
+  doc.rect(tblX + 18, currentY + 1.2, 2.6, 2.6)
+  if (isCheck) {
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.setTextColor(...MIDGN)
-    doc.text('PAID', sx + sw / 2, sy + 7.5, { align: 'center' })
+    doc.text('✓', tblX + 18.5, currentY + 3.2)
+  }
+  doc.setFont('helvetica', 'normal')
+  doc.text('CHECK', tblX + 22, currentY + 3.3)
 
+  // P amount box in form of payment
+  doc.text('P', tblX + 36, currentY + 3.5)
+  if (grossAmount > 0) {
+    doc.setFontSize(6)
+    doc.text(fmtCurrencyParts(grossAmount).full, tblX + tblW - 2, currentY + 3.5, { align: 'right' })
+  }
+  currentY += checkRowH
+
+  // Bank, Check No., Check Date rows
+  const metaRows = [
+    { label: 'Bank', val: isCheck && payment.method.includes('bdo') ? 'BDO' : (isCheck && payment.method.includes('bpi') ? 'BPI' : '') },
+    { label: 'Check No.', val: isCheck ? (payment.reference_number ?? '') : '' },
+    { label: 'Check Date', val: '' },
+  ]
+
+  metaRows.forEach((r) => {
+    const h = 4.8
+    doc.line(tblX, currentY + h, tblX + tblW, currentY + h)
+    doc.line(tblX + 19, currentY, tblX + 19, currentY + h)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(5.5)
-    doc.setTextColor(...LGRAY)
-    doc.text(issuedDate, sx + sw / 2, sy + 12, { align: 'center' })
+    doc.setFontSize(6.5)
+    doc.text(r.label, tblX + 1.5, currentY + 3.4)
+    if (r.val) {
+      doc.text(r.val, tblX + 21, currentY + 3.4)
+    }
+    currentY += h
+  })
+
+  // =========================================================================
+  // RIGHT COLUMN: INVOICE DETAILS
+  // =========================================================================
+  const rightX = 84
+  const lineEndX = 196
+
+  // Header Details (Issuer Name, Address, TIN)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.text('MARIA SANTOS', 140, 17, { align: 'center' })
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.text('5 Masinop St. Diliman, Quezon City', 140, 22, { align: 'center' })
+  doc.text('NON-VAT TIN: XXX-XXX-XXX-XXXXX', 140, 26, { align: 'center' })
+
+  // Red Invoice Number: No. 0001
+  doc.setFont('times', 'bold')
+  doc.setFontSize(14)
+  doc.setTextColor(220, 20, 20)
+  doc.text('No.', 166, 36)
+  doc.setFontSize(15)
+  doc.text(invNumber, 181, 36)
+
+  // Title: SERVICE INVOICE
+  doc.setTextColor(30, 30, 30)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('SERVICE INVOICE', rightX, 50)
+
+  // Form Fields & Horizontal Underlines
+  let formY = 61
+  const lineGap = 7.5
+
+  // 1. RECEIVED from
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
+  doc.text('RECEIVED from', rightX, formY)
+  doc.line(rightX + 19, formY + 0.5, lineEndX, formY + 0.5)
+  if (clientName) {
+    doc.setFont('helvetica', 'bold')
+    doc.text(clientName, rightX + 22, formY - 0.5)
   }
 
-  // ── SIGNATURE BLOCK ──────────────────────────────────────
-  const SIG_Y   = BOX_Y + BOX_H + 8
-  const SIG_COL = (CW - 8) / 2
-  const S1X     = ML
-  const S2X     = ML + SIG_COL + 8
-  const LINE_Y  = SIG_Y + 14
-
-  doc.setDrawColor(...MGRAY)
-  doc.setLineWidth(0.4)
-  doc.line(S1X,       LINE_Y, S1X + SIG_COL,       LINE_Y)
-  doc.line(S2X,       LINE_Y, S2X + SIG_COL,       LINE_Y)
-
-  // Pre-fill client name above their line in light gray
+  // 2. Address at
+  formY += lineGap
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
-  doc.setTextColor(...MGRAY)
-  doc.text(clientName, S1X + SIG_COL / 2, LINE_Y - 3, { align: 'center' })
+  doc.text('Address at', rightX, formY)
+  doc.line(rightX + 13, formY + 0.5, lineEndX, formY + 0.5)
+  if (clientAddress) {
+    doc.text(clientAddress, rightX + 16, formY - 0.5)
+  }
+
+  // 3. Line with TIN
+  formY += lineGap
+  const tinSplitX = rightX + 62
+  doc.line(rightX, formY + 0.5, tinSplitX, formY + 0.5)
+  doc.text('with TIN', tinSplitX + 2, formY)
+  doc.line(tinSplitX + 12, formY + 0.5, lineEndX, formY + 0.5)
+  if (clientTIN) {
+    doc.text(clientTIN, tinSplitX + 15, formY - 0.5)
+  }
+
+  // 4. The sum of
+  formY += lineGap
+  doc.text('The sum of', rightX, formY)
+  doc.line(rightX + 14, formY + 0.5, lineEndX, formY + 0.5)
+  const words = numberToWords(grossAmount)
+  doc.text(words, rightX + 16, formY - 0.5)
+
+  // 5. Pesos (P)
+  formY += lineGap
+  const pWordX = lineEndX - 45
+  doc.line(rightX, formY + 0.5, pWordX, formY + 0.5)
+  doc.text('Pesos (P', pWordX + 2, formY)
+  doc.line(pWordX + 13, formY + 0.5, lineEndX - 2, formY + 0.5)
+  doc.text(')', lineEndX - 1.5, formY)
+  doc.setFont('helvetica', 'bold')
+  doc.text(fmtCurrencyParts(grossAmount).full, pWordX + 15, formY - 0.5)
+
+  // 6. In full / partial payment for
+  formY += lineGap
+  doc.setFont('helvetica', 'normal')
+  doc.text('In full / partial payment for', rightX, formY)
+  doc.line(rightX + 30, formY + 0.5, lineEndX, formY + 0.5)
+  doc.text(serviceLabel(payment), rightX + 32, formY - 0.5)
+
+  // Signature Block at Bottom Right
+  const sigY = 106
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.text('By:', rightX + 68, sigY)
+  doc.line(rightX + 75, sigY + 0.5, lineEndX - 1, sigY + 0.5)
 
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.5)
-  doc.setTextColor(...LGRAY)
-  doc.text('Client / Authorized Representative', S1X + SIG_COL / 2, LINE_Y + 5, { align: 'center' })
-  doc.text('Cashier / Prepared by', S2X + SIG_COL / 2, LINE_Y + 5, { align: 'center' })
+  doc.text('Authorized Signature', (rightX + 75 + lineEndX) / 2, sigY + 4, { align: 'center' })
 
-  // ── FOOTER ───────────────────────────────────────────────
-  const FT_Y = H - 16
-  // Thin divider
-  doc.setDrawColor(...MIDGN)
-  doc.setLineWidth(0.5)
-  doc.line(ML, FT_Y - 5, MR, FT_Y - 5)
-  doc.setLineWidth(0.15)
-  doc.line(ML, FT_Y - 3.5, MR, FT_Y - 3.5)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(5.5)
-  doc.setTextColor(...MGRAY)
-  doc.text(
-    'This is an official computer-generated receipt. Keep this for your records.',
-    W / 2, FT_Y, { align: 'center' },
-  )
-  doc.text(
-    `Generated: ${fmtTimestamp(new Date().toISOString())}   •   OR No. ${OR}`,
-    W / 2, FT_Y + 4.5, { align: 'center' },
-  )
-
-  // ── Save ─────────────────────────────────────────────────
-  const safeName = clientName.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 24)
-  doc.save(`OR_${OR}_${safeName}.pdf`)
+  // Save the PDF
+  const safeName = (clientName || 'Invoice').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 20)
+  doc.save(`Service_Invoice_${invNumber}_${safeName}.pdf`)
 }
