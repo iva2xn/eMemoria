@@ -277,13 +277,14 @@ export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
 
   // Header Details (Issuer Name, Address, TIN)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.text('MARIA SANTOS', 140, 17, { align: 'center' })
+  doc.setFontSize(10)
+  doc.text('M.P. GAYETA FUNERAL SERVICES', 140, 16, { align: 'center' })
 
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
-  doc.text('5 Masinop St. Diliman, Quezon City', 140, 22, { align: 'center' })
-  doc.text('NON-VAT TIN: XXX-XXX-XXX-XXXXX', 140, 26, { align: 'center' })
+  doc.setFontSize(7)
+  doc.text('Maharlika Highway, Sitio Sta. Clara, Brgy. Sampaloc 2, Sariaya, Quezon', 140, 21, { align: 'center' })
+  doc.text('Tel: +63 918 901 9978  |  mgayetafuneralhome@gmail.com', 140, 25.5, { align: 'center' })
+  doc.text('NON-VAT TIN: [TIN HERE]', 140, 30, { align: 'center' })
 
   // Red Invoice Number: No. 0001
   doc.setFont('times', 'bold')
