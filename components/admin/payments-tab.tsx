@@ -72,6 +72,21 @@ function statusVariant(s: string): BadgeVariant {
   return 'red'
 }
 
+// ── Addon helpers (parses ADDON_ITEMS JSON from payment notes) ─
+interface AddonLineItem { n: string; q: number; p: number }
+function parseAddonItems(notes: string | null | undefined): AddonLineItem[] {
+  if (!notes) return []
+  const match = notes.match(/ADDON_ITEMS:(\[.*?\])/)
+  if (!match) return []
+  try { return JSON.parse(match[1]) as AddonLineItem[] } catch { return [] }
+}
+function extractAddonTotal(notes: string | null | undefined): number {
+  if (!notes) return 0
+  const match = notes.match(/Add-ons total:\s*₱([\d,]+(?:\.\d+)?)/i)
+  if (!match) return 0
+  return parseFloat(match[1].replace(/,/g, '')) || 0
+}
+
 // ── Void Modal ─────────────────────────────────────────────────
 function VoidModal({ row, onClose, onVoided }: {
   row: PaymentRow; onClose: () => void; onVoided: (id: string) => void
@@ -372,7 +387,40 @@ function ReviewApproveModal({ row, onClose, onApproved, onRejected }: {
               {row.notes && (
                 <div className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2">
                   <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">Notes</p>
-                  <p className="text-xs text-foreground">{row.notes}</p>
+                  {(() => {
+                    const items    = parseAddonItems(row.notes)
+                    const addonAmt = items.length > 0
+                      ? items.reduce((s, i) => s + i.p * i.q, 0)
+                      : extractAddonTotal(row.notes)
+                    if (addonAmt > 0) {
+                      const serviceAmt = row.amount - addonAmt
+                      return (
+                        <div className="space-y-0.5 mt-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-muted-foreground">Service</span>
+                            <span className="font-semibold">{fmtAmt(serviceAmt)}</span>
+                          </div>
+                          {items.length > 0 ? items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-xs pl-2">
+                              <span className="text-muted-foreground">+ {item.n} × {item.q}</span>
+                              <span className="font-semibold">{fmtAmt(item.p * item.q)}</span>
+                            </div>
+                          )) : (
+                            <div className="flex justify-between text-xs pl-2">
+                              <span className="text-muted-foreground">+ Add-ons</span>
+                              <span className="font-semibold">{fmtAmt(addonAmt)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-xs border-t border-border/40 pt-1 font-bold">
+                            <span>Total</span>
+                            <span className="text-primary">{fmtAmt(row.amount)}</span>
+                          </div>
+                        </div>
+                      )
+                    }
+                    const displayNotes = row.notes.replace(/ADDON_ITEMS:\[.*?\]\s*·?\s*/g, '').trim()
+                    return <p className="text-xs text-foreground">{displayNotes}</p>
+                  })()}
                 </div>
               )}
               {rejectMode && (
@@ -988,7 +1036,42 @@ function PaymentDetail({ row, currentRole, onBack, onUpdated }: {
           {row.notes && (
             <div className="bg-muted/20 border border-border/60 rounded-xl px-3 py-2.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
-              <p className="text-xs text-foreground">{row.notes}</p>
+              {/* Show addon breakdown if present */}
+              {(() => {
+                const items   = parseAddonItems(row.notes)
+                const addonAmt = items.length > 0
+                  ? items.reduce((s, i) => s + i.p * i.q, 0)
+                  : extractAddonTotal(row.notes)
+                if (addonAmt > 0) {
+                  const serviceAmt = row.amount - addonAmt
+                  return (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Service</span>
+                        <span className="font-semibold text-foreground">{fmtAmt(serviceAmt)}</span>
+                      </div>
+                      {items.length > 0 ? items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-xs pl-2">
+                          <span className="text-muted-foreground">+ {item.n} × {item.q}</span>
+                          <span className="font-semibold text-foreground">{fmtAmt(item.p * item.q)}</span>
+                        </div>
+                      )) : (
+                        <div className="flex justify-between text-xs pl-2">
+                          <span className="text-muted-foreground">+ Add-ons</span>
+                          <span className="font-semibold text-foreground">{fmtAmt(addonAmt)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-xs border-t border-border/40 pt-1 mt-1">
+                        <span className="font-bold text-foreground">Total</span>
+                        <span className="font-bold text-primary">{fmtAmt(row.amount)}</span>
+                      </div>
+                    </div>
+                  )
+                }
+                // Fallback: show notes as plain text (strip internal JSON blob)
+                const displayNotes = row.notes.replace(/ADDON_ITEMS:\[.*?\]\s*·?\s*/g, '').trim()
+                return <p className="text-xs text-foreground">{displayNotes}</p>
+              })()}
             </div>
           )}
           {receiptUrl && (

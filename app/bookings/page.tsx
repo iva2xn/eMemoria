@@ -11,7 +11,7 @@ import {
   ClipboardList, FileText, Clock, CheckCircle2, XCircle,
   ArrowRight, Layers, X, ZoomIn, CreditCard,
 } from 'lucide-react'
-import type { DocumentSubmission, Payment } from '@/lib/supabase/types'
+import type { DocumentSubmission, Payment, AddonOrder } from '@/lib/supabase/types'
 
 // ── Helpers ───────────────────────────────────────────────────
 function formatDate(iso: string) {
@@ -162,7 +162,20 @@ function DocCard({ label, url }: { label: string; url: string | null }) {
 }
 
 // ── Availed Services tab ──────────────────────────────────────
-function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubmission[]; paidIds: Set<string> }) {
+interface ApprovedAddonSummary {
+  orderId: string
+  total_amount: number
+}
+
+function AvaledServicesTab({
+  submissions,
+  paidIds,
+  approvedAddonsBySubmission,
+}: {
+  submissions: DocumentSubmission[]
+  paidIds: Set<string>
+  approvedAddonsBySubmission: Record<string, ApprovedAddonSummary[]>
+}) {
   if (submissions.length === 0) {
     return (
       <div className="py-20 text-center space-y-3">
@@ -181,9 +194,15 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
     <div className="space-y-4">
       {submissions.map(sub => {
         // Use discounted_price when admin approved a Senior/PWD discount, otherwise original price.
-        // No visual indication — the client just sees the effective price.
         const effectivePrice = (sub.senior_pwd_discount && sub.discounted_price) ? sub.discounted_price : (sub.product_price ?? 0)
-        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${effectivePrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}`
+
+        // Add unpaid approved addon orders total to the payment price
+        const pendingAddons = approvedAddonsBySubmission[sub.id] ?? []
+        const addonTotal    = pendingAddons.reduce((s, a) => s + Number(a.total_amount), 0)
+        const addonOrderIds = pendingAddons.map(a => a.orderId).join(',')
+        const totalPrice    = effectivePrice + addonTotal
+
+        const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${totalPrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}${addonOrderIds ? `&addon_order_ids=${encodeURIComponent(addonOrderIds)}` : ''}${addonTotal > 0 ? `&addon_total=${addonTotal}` : ''}`
         const isPaid = paidIds.has(sub.id)
 
         return (
@@ -230,6 +249,17 @@ function AvaledServicesTab({ submissions, paidIds }: { submissions: DocumentSubm
                     <p className="font-serif font-bold text-primary text-base">
                       ₱{Number(effectivePrice).toLocaleString('en-PH')}
                     </p>
+                  )}
+                  {/* Addon breakdown */}
+                  {addonTotal > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      <p className="text-[10px] text-muted-foreground">
+                        + ₱{Number(addonTotal).toLocaleString('en-PH')} add-ons
+                      </p>
+                      <p className="font-mono text-xs font-bold text-foreground">
+                        Total: ₱{Number(totalPrice).toLocaleString('en-PH')}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -368,17 +398,19 @@ export default function BookingsPage() {
   const supabase = createClient()
   const router   = useRouter()
 
-  const [submissions, setSubmissions] = useState<DocumentSubmission[]>([])
-  const [paidIds,     setPaidIds]     = useState<Set<string>>(new Set())
-  const [loading,     setLoading]     = useState(true)
-  const [tab,         setTab]         = useState<TabId>('services')
+  const [submissions,    setSubmissions]    = useState<DocumentSubmission[]>([])
+  const [paidIds,        setPaidIds]        = useState<Set<string>>(new Set())
+  // approved addon orders grouped by document_submission_id, with no linked payment yet
+  const [approvedAddonsBySubmission, setApprovedAddonsBySubmission] = useState<Record<string, ApprovedAddonSummary[]>>({})
+  const [loading,        setLoading]        = useState(true)
+  const [tab,            setTab]            = useState<TabId>('services')
 
   const load = useCallback(async () => {
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.replace('/auth/login?next=/bookings'); return }
 
-    const [{ data: subs }, { data: payments }] = await Promise.all([
+    const [{ data: subs }, { data: payments }, { data: addonOrders }] = await Promise.all([
       supabase
         .from('document_submissions')
         .select('*')
@@ -391,6 +423,13 @@ export default function BookingsPage() {
         .eq('user_id', user.id)
         .eq('status', 'approved')
         .not('document_submission_id', 'is', null),
+      // Fetch approved addon orders that haven't been linked to a payment yet
+      supabase
+        .from('addon_orders')
+        .select('id, document_submission_id, total_amount, payment_id')
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+        .is('payment_id', null),
     ])
 
     setSubmissions((subs as DocumentSubmission[]) ?? [])
@@ -398,6 +437,16 @@ export default function BookingsPage() {
       ((payments as Pick<Payment, 'document_submission_id'>[]) ?? [])
         .map(p => p.document_submission_id!)
     ))
+
+    // Group approved unpaid addon orders by document_submission_id
+    const addonMap: Record<string, ApprovedAddonSummary[]> = {}
+    for (const order of (addonOrders as Pick<AddonOrder, 'id' | 'document_submission_id' | 'total_amount' | 'payment_id'>[] ?? [])) {
+      if (!order.document_submission_id) continue
+      if (!addonMap[order.document_submission_id]) addonMap[order.document_submission_id] = []
+      addonMap[order.document_submission_id].push({ orderId: order.id, total_amount: Number(order.total_amount) })
+    }
+    setApprovedAddonsBySubmission(addonMap)
+
     setLoading(false)
   }, [supabase, router])
 
@@ -471,7 +520,7 @@ export default function BookingsPage() {
               <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : tab === 'services' ? (
-            <AvaledServicesTab submissions={submissions} paidIds={paidIds} />
+            <AvaledServicesTab submissions={submissions} paidIds={paidIds} approvedAddonsBySubmission={approvedAddonsBySubmission} />
           ) : (
             <SubmittedDocumentsTab submissions={submissions} />
           )}

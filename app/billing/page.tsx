@@ -22,6 +22,10 @@ function BillingContent() {
   const documentSubmissionId = params.get('document_submission_id') ?? null   // set when coming from an approved document submission
   // senior_pwd=1 is set by admin when approving a document submission with discount
   const seniorPwdDiscount = params.get('senior_pwd') === '1'
+  // addon_order_ids: comma-separated addon_order UUIDs to link to this payment
+  const addonOrderIds = (params.get('addon_order_ids') ?? '').split(',').filter(Boolean)
+  // addon_total: sum of approved unpaid addon orders included in prePrice
+  const addonTotal = Number(params.get('addon_total') ?? 0)
   // wake extension params
   const wakeId              = params.get('wake_id') ?? null
   const extensionRequestId  = params.get('extension_request_id') ?? null
@@ -87,12 +91,35 @@ function BillingContent() {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    // If there are addon orders, fetch their line items so the receipt can show per-item breakdown
+    let addonItemsJson = ''
+    if (addonOrderIds.length > 0 && addonTotal > 0) {
+      const { data: addonItems } = await supabase
+        .from('addon_order_items')
+        .select('quantity, unit_price, addon:funeral_addons(name)')
+        .in('order_id', addonOrderIds)
+      if (addonItems && addonItems.length > 0) {
+        // Store compact JSON: [{n:"Flower Arrangement",q:2,p:1500},...]
+        // Supabase returns joined rows as an array, so addon may be Array<{name}> or {name} or null
+        type RawItem = { quantity: number; unit_price: number; addon: unknown }
+        const items = (addonItems as RawItem[]).map(i => {
+          const a = i.addon
+          const name = Array.isArray(a) ? ((a[0] as { name?: string })?.name ?? 'Add-on')
+            : (a as { name?: string } | null)?.name ?? 'Add-on'
+          return { n: name, q: i.quantity, p: Number(i.unit_price) }
+        })
+        addonItemsJson = `ADDON_ITEMS:${JSON.stringify(items)}`
+      }
+    }
+
     const notesArr = [
       preLevel ? `Level: ${preLevel}` : '',
       isColumbarium && prePrice ? `Full price: ₱${prePrice.toLocaleString('en-PH')}` : '',
       isUrn && includeServiceFee  ? `Includes ₱25,000 cremation service fee` : '',
       isUrn && !includeServiceFee ? `Urn only (service fee waived)` : '',
       isWakeExtension ? `Wake date extension payment` : '',
+      addonTotal > 0 ? `Add-ons total: ₱${addonTotal.toLocaleString('en-PH')}` : '',
+      addonItemsJson,
       notes.trim(),
     ].filter(Boolean).join(' · ') || null
 
@@ -114,8 +141,16 @@ function BillingContent() {
       wake_id:              wakeId ?? null,
     }
 
-    const { error: insertErr } = await supabase.from('payments').insert(payload)
+    const { error: insertErr, data: newPayment } = await supabase.from('payments').insert(payload).select('id').single()
     if (insertErr) throw new Error(insertErr.message)
+
+    // Link any approved addon orders to this payment
+    if (addonOrderIds.length > 0 && newPayment) {
+      await supabase
+        .from('addon_orders')
+        .update({ payment_id: newPayment.id, status: 'paid' })
+        .in('id', addonOrderIds)
+    }
 
     // Save phone to profile for future prefill
     if (user && phone.trim()) {
@@ -176,6 +211,7 @@ function BillingContent() {
       prefillPhone={prefillPhone}
       seniorPwdDiscount={seniorPwdDiscount}
       documentSubmissionId={documentSubmissionId}
+      addonTotal={addonTotal}
       // Submit handler
       onSubmit={handleSubmit}
     />

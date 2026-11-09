@@ -28,6 +28,23 @@ export interface ReceiptPayload {
 // ── Helpers ───────────────────────────────────────────────────
 const resolveName = (p: ReceiptPayload) => p.profileName ?? p.guest_name ?? ''
 
+/** Extracts the addon total stored in the notes field, e.g. "Add-ons total: ₱5,000.00" */
+function extractAddonTotal(notes: string | null | undefined): number {
+  if (!notes) return 0
+  const match = notes.match(/Add-ons total:\s*₱([\d,]+(?:\.\d+)?)/i)
+  if (!match) return 0
+  return parseFloat(match[1].replace(/,/g, '')) || 0
+}
+
+/** Extracts addon line items stored as ADDON_ITEMS:[{n,q,p},...] in notes */
+interface AddonItem { n: string; q: number; p: number }
+function extractAddonItems(notes: string | null | undefined): AddonItem[] {
+  if (!notes) return []
+  const match = notes.match(/ADDON_ITEMS:(\[.*?\])/)
+  if (!match) return []
+  try { return JSON.parse(match[1]) as AddonItem[] } catch { return [] }
+}
+
 function fmtCurrencyParts(n: number) {
   const parts = Number(n || 0).toFixed(2).split('.')
   return {
@@ -123,6 +140,12 @@ export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
   const grossAmount = payment.amount || 0
   const wtax = payment.withholding_tax || 0
   const netAmount = grossAmount - wtax
+  // Extract addon items from notes — prefer itemised JSON, fall back to just the total
+  const addonItems  = extractAddonItems(payment.notes)
+  const addonAmount = addonItems.length > 0
+    ? addonItems.reduce((s, i) => s + i.p * i.q, 0)
+    : extractAddonTotal(payment.notes)
+  const baseAmount  = addonAmount > 0 ? grossAmount - addonAmount : grossAmount
 
   const isCash = payment.method.toLowerCase().includes('cash')
   const isCheck = payment.method.toLowerCase().includes('check') || payment.method.toLowerCase().includes('bank')
@@ -172,16 +195,28 @@ export async function generateReceipt(payment: ReceiptPayload): Promise<void> {
   let currentY = h2Y + 5.5
   const numGridRows = 12
 
+  // Build the line items we want to show in the settlement table
+  // Row 0: primary service (base amount)
+  // Rows 1+: each addon item (if present) or a single add-ons subtotal row
+  const settlementLines: { label: string; amount: number }[] = [
+    { label: serviceLabel(payment).slice(0, 22), amount: addonAmount > 0 ? baseAmount : grossAmount },
+    ...(addonItems.length > 0
+      ? addonItems.map(i => ({ label: `  + ${i.n} x${i.q}`.slice(0, 22), amount: i.p * i.q }))
+      : addonAmount > 0
+        ? [{ label: '  + Add-ons', amount: addonAmount }]
+        : [])
+  ]
+
   for (let i = 0; i < numGridRows; i++) {
     doc.line(tblX, currentY + rowH, tblX + tblW, currentY + rowH)
 
-    // Render item details on the first row
-    if (i === 0) {
+    const line = settlementLines[i]
+    if (line) {
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.5)
-      doc.text(serviceLabel(payment).slice(0, 22), tblX + 1.5, currentY + 3.4)
+      doc.text(line.label, tblX + 1.5, currentY + 3.4)
 
-      const parts = fmtCurrencyParts(grossAmount)
+      const parts = fmtCurrencyParts(line.amount)
       doc.text(parts.pesos, centsLineX - 1.5, currentY + 3.4, { align: 'right' })
       doc.text(parts.cents, tblX + tblW - 1.5, currentY + 3.4, { align: 'right' })
     }

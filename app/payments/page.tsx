@@ -54,6 +54,21 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+// ── Parse addon items from notes ──────────────────────────────
+interface AddonLineItem { n: string; q: number; p: number }
+function parseAddonItems(notes: string | null | undefined): AddonLineItem[] {
+  if (!notes) return []
+  const match = notes.match(/ADDON_ITEMS:(\[.*?\])/)
+  if (!match) return []
+  try { return JSON.parse(match[1]) as AddonLineItem[] } catch { return [] }
+}
+function extractAddonTotalFromNotes(notes: string | null | undefined): number {
+  if (!notes) return 0
+  const match = notes.match(/Add-ons total:\s*₱([\d,]+(?:\.\d+)?)/i)
+  if (!match) return 0
+  return parseFloat(match[1].replace(/,/g, '')) || 0
+}
+
 // ── Inline receipt block — shown when payment is approved ─────
 function InlineReceipt({ payment, profileName, profileEmail }: {
   payment: Payment; profileName: string; profileEmail: string
@@ -66,6 +81,12 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
     await generateReceipt({ ...payment, profileName, profileEmail })
     setExporting(false)
   }
+
+  const addonItems  = parseAddonItems(payment.notes)
+  const addonTotal  = addonItems.length > 0
+    ? addonItems.reduce((s, i) => s + i.p * i.q, 0)
+    : extractAddonTotalFromNotes(payment.notes)
+  const serviceAmt  = addonTotal > 0 ? payment.amount - addonTotal : payment.amount
 
   return (
     <div className="border-t border-border bg-primary/5 dark:bg-primary/10">
@@ -104,6 +125,27 @@ function InlineReceipt({ payment, profileName, profileEmail }: {
                 {payment.product_ref ?? payment.product_type}
               </span>
             </div>
+            {/* Service amount when there are addons */}
+            {addonTotal > 0 && (
+              <div className="flex justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Service amount</span>
+                <span className="font-semibold text-foreground">{formatAmount(serviceAmt)}</span>
+              </div>
+            )}
+            {/* Addon line items */}
+            {addonItems.length > 0 && addonItems.map((item, idx) => (
+              <div key={idx} className="flex justify-between px-4 py-2 bg-muted/20">
+                <span className="text-muted-foreground pl-2">↳ {item.n} × {item.q}</span>
+                <span className="font-semibold text-foreground">{formatAmount(item.p * item.q)}</span>
+              </div>
+            ))}
+            {/* Addon subtotal line when we only have a total (no items) */}
+            {addonTotal > 0 && addonItems.length === 0 && (
+              <div className="flex justify-between px-4 py-2.5">
+                <span className="text-muted-foreground">Add-ons</span>
+                <span className="font-semibold text-foreground">{formatAmount(addonTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between px-4 py-2.5">
               <span className="text-muted-foreground">Payment method</span>
               <span className="font-semibold text-foreground">{methodLabel(payment.method)}</span>

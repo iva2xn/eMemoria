@@ -107,6 +107,7 @@ type BillingFormProps = {
   prefillName: string; prefillEmail: string; prefillPhone: string
   seniorPwdDiscount?: boolean
   documentSubmissionId?: string | null
+  addonTotal?: number   // sum of approved unpaid addon order totals (already included in prePrice)
   onSubmit: (fields: {
     name: string; email: string; phone: string
     method: string; refNum: string; amount: string
@@ -252,18 +253,22 @@ export function BillingForm({
   authReady, returnUrl, prefillName, prefillEmail, prefillPhone,
   seniorPwdDiscount,
   documentSubmissionId,
+  addonTotal = 0,
   onSubmit,
 }: BillingFormProps) {
   const supabase = createClient()
 
   const [includeServiceFee, setIncludeServiceFee] = useState(isUrn)
 
-  const discountAmount  = seniorPwdDiscount && prePrice > 0 ? Math.round(prePrice * 0.2 * 100) / 100 : 0
-  const discountedBase  = prePrice - discountAmount
+  // prePrice already includes addonTotal (baked in from billing URL), so base service price is:
+  const baseServicePrice = prePrice - addonTotal
+  // Discount applies to the base service price only (not addons)
+  const discountAmount  = seniorPwdDiscount && baseServicePrice > 0 ? Math.round(baseServicePrice * 0.2 * 100) / 100 : 0
+  const discountedBase  = baseServicePrice - discountAmount
 
   const defaultAmount = isColumbarium
-    ? String(discountedBase)
-    : isUrn ? String(discountedBase + (isUrn ? SERVICE_FEE : 0)) : discountedBase > 0 ? String(discountedBase) : ''
+    ? String(discountedBase + addonTotal)
+    : isUrn ? String(discountedBase + addonTotal + (isUrn ? SERVICE_FEE : 0)) : (discountedBase + addonTotal) > 0 ? String(discountedBase + addonTotal) : ''
 
   const [step, setStep] = useState<1 | 2>(1)
 
@@ -310,8 +315,8 @@ export function BillingForm({
   )
 
   useEffect(() => {
-    if (isUrn) setAmount(String(discountedBase + (includeServiceFee ? SERVICE_FEE : 0)))
-  }, [includeServiceFee, isUrn, discountedBase, SERVICE_FEE])
+    if (isUrn) setAmount(String(discountedBase + addonTotal + (includeServiceFee ? SERVICE_FEE : 0)))
+  }, [includeServiceFee, isUrn, discountedBase, addonTotal, SERVICE_FEE])
 
   // Clear ref num when method changes
   useEffect(() => { setRefNum('') }, [method])
@@ -454,6 +459,9 @@ export function BillingForm({
   function PriceBreakdown() {
     const rows: { label: string; value: string; highlight?: boolean; strike?: boolean }[] = []
 
+    // The base service price is prePrice minus the addon total (addons already baked into prePrice)
+    const baseServicePrice = prePrice - addonTotal
+
     if (isColumbarium && prePrice > 0) {
       rows.push({ label: 'Slot price', value: `₱${prePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
       if (seniorPwdDiscount && discountAmount > 0) {
@@ -467,11 +475,21 @@ export function BillingForm({
       if (includeServiceFee) {
         rows.push({ label: 'Cremation service fee', value: `₱${SERVICE_FEE.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
       }
+    } else if (baseServicePrice > 0) {
+      rows.push({ label: preLabel || 'Service', value: `₱${baseServicePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
+      if (seniorPwdDiscount && discountAmount > 0) {
+        rows.push({ label: 'Senior/PWD discount (20%)', value: `− ₱${discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
+      }
     } else if (prePrice > 0) {
       rows.push({ label: preLabel || 'Service', value: `₱${prePrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
       if (seniorPwdDiscount && discountAmount > 0) {
         rows.push({ label: 'Senior/PWD discount (20%)', value: `− ₱${discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
       }
+    }
+
+    // Add addon subtotal row if applicable
+    if (addonTotal > 0) {
+      rows.push({ label: 'Add-ons', value: `₱${addonTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` })
     }
 
     if (rows.length === 0) return null
@@ -695,7 +713,7 @@ export function BillingForm({
                           {isColumbarium ? 'Slot price' : isUrn ? 'Urn price' : 'Service price'}
                         </span>
                         <span className={`font-semibold ${seniorPwdDiscount && discountAmount > 0 ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                          ₱{prePrice.toLocaleString('en-PH')}
+                          ₱{(prePrice - addonTotal).toLocaleString('en-PH')}
                         </span>
                       </div>
                       {seniorPwdDiscount && discountAmount > 0 && (
@@ -709,6 +727,12 @@ export function BillingForm({
                             <span className="font-bold text-primary">₱{discountedBase.toLocaleString('en-PH')}</span>
                           </div>
                         </>
+                      )}
+                      {addonTotal > 0 && (
+                        <div className="flex justify-between text-[11px]">
+                          <span className="text-muted-foreground">Add-ons</span>
+                          <span className="font-semibold text-foreground">₱{addonTotal.toLocaleString('en-PH')}</span>
+                        </div>
                       )}
                       {isUrn && includeServiceFee && (
                         <div className="flex justify-between text-[11px]">
