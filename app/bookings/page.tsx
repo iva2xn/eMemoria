@@ -167,14 +167,21 @@ interface ApprovedAddonSummary {
   total_amount: number
 }
 
+interface PendingAddonSummary {
+  orderId: string
+  total_amount: number
+}
+
 function AvaledServicesTab({
   submissions,
   paidIds,
   approvedAddonsBySubmission,
+  pendingAddonsBySubmission,
 }: {
   submissions: DocumentSubmission[]
   paidIds: Set<string>
   approvedAddonsBySubmission: Record<string, ApprovedAddonSummary[]>
+  pendingAddonsBySubmission: Record<string, PendingAddonSummary[]>
 }) {
   if (submissions.length === 0) {
     return (
@@ -197,10 +204,14 @@ function AvaledServicesTab({
         const effectivePrice = (sub.senior_pwd_discount && sub.discounted_price) ? sub.discounted_price : (sub.product_price ?? 0)
 
         // Add unpaid approved addon orders total to the payment price
-        const pendingAddons = approvedAddonsBySubmission[sub.id] ?? []
-        const addonTotal    = pendingAddons.reduce((s, a) => s + Number(a.total_amount), 0)
-        const addonOrderIds = pendingAddons.map(a => a.orderId).join(',')
-        const totalPrice    = effectivePrice + addonTotal
+        const pendingAddons  = approvedAddonsBySubmission[sub.id] ?? []
+        const addonTotal     = pendingAddons.reduce((s, a) => s + Number(a.total_amount), 0)
+        const addonOrderIds  = pendingAddons.map(a => a.orderId).join(',')
+        const totalPrice     = effectivePrice + addonTotal
+
+        // Pending (not-yet-approved) addon orders — shown as "awaiting approval"
+        const waitingAddons      = pendingAddonsBySubmission[sub.id] ?? []
+        const waitingAddonTotal  = waitingAddons.reduce((s, a) => s + Number(a.total_amount), 0)
 
         const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${totalPrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}${addonOrderIds ? `&addon_order_ids=${encodeURIComponent(addonOrderIds)}` : ''}${addonTotal > 0 ? `&addon_total=${addonTotal}` : ''}`
         const isPaid = paidIds.has(sub.id)
@@ -232,7 +243,7 @@ function AvaledServicesTab({
 
             {/* Details */}
             <div className="px-5 py-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-              {effectivePrice > 0 && (
+              {(effectivePrice > 0 || addonTotal > 0 || waitingAddonTotal > 0) && (
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Price</p>
                   {sub.senior_pwd_discount && sub.discounted_price ? (
@@ -245,12 +256,12 @@ function AvaledServicesTab({
                         ₱{Number(effectivePrice).toLocaleString('en-PH')}
                       </p>
                     </div>
-                  ) : (
+                  ) : effectivePrice > 0 ? (
                     <p className="font-serif font-bold text-primary text-base">
                       ₱{Number(effectivePrice).toLocaleString('en-PH')}
                     </p>
-                  )}
-                  {/* Addon breakdown */}
+                  ) : null}
+                  {/* Approved addons — included in billing total */}
                   {addonTotal > 0 && (
                     <div className="mt-1.5 space-y-0.5">
                       <p className="text-[10px] text-muted-foreground">
@@ -258,6 +269,14 @@ function AvaledServicesTab({
                       </p>
                       <p className="font-mono text-xs font-bold text-foreground">
                         Total: ₱{Number(totalPrice).toLocaleString('en-PH')}
+                      </p>
+                    </div>
+                  )}
+                  {/* Pending addons — awaiting admin approval, not yet in billing total */}
+                  {waitingAddonTotal > 0 && (
+                    <div className="mt-1.5 space-y-0.5">
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                        + ₱{Number(waitingAddonTotal).toLocaleString('en-PH')} add-ons (awaiting approval)
                       </p>
                     </div>
                   )}
@@ -402,6 +421,8 @@ export default function BookingsPage() {
   const [paidIds,        setPaidIds]        = useState<Set<string>>(new Set())
   // approved addon orders grouped by document_submission_id, with no linked payment yet
   const [approvedAddonsBySubmission, setApprovedAddonsBySubmission] = useState<Record<string, ApprovedAddonSummary[]>>({})
+  // pending addon orders grouped by document_submission_id (awaiting admin review)
+  const [pendingAddonsBySubmission,  setPendingAddonsBySubmission]  = useState<Record<string, PendingAddonSummary[]>>({})
   const [loading,        setLoading]        = useState(true)
   const [tab,            setTab]            = useState<TabId>('services')
 
@@ -423,12 +444,12 @@ export default function BookingsPage() {
         .eq('user_id', user.id)
         .eq('status', 'approved')
         .not('document_submission_id', 'is', null),
-      // Fetch approved addon orders that haven't been linked to a payment yet
+      // Fetch approved AND pending addon orders that haven't been linked to a payment yet
       supabase
         .from('addon_orders')
-        .select('id, document_submission_id, total_amount, payment_id')
+        .select('id, document_submission_id, total_amount, payment_id, status')
         .eq('user_id', user.id)
-        .eq('status', 'approved')
+        .in('status', ['approved', 'pending'])
         .is('payment_id', null),
     ])
 
@@ -438,14 +459,22 @@ export default function BookingsPage() {
         .map(p => p.document_submission_id!)
     ))
 
-    // Group approved unpaid addon orders by document_submission_id
+    // Group addon orders by document_submission_id — split approved (payable) vs pending (awaiting review)
     const addonMap: Record<string, ApprovedAddonSummary[]> = {}
-    for (const order of (addonOrders as Pick<AddonOrder, 'id' | 'document_submission_id' | 'total_amount' | 'payment_id'>[] ?? [])) {
+    const pendingMap: Record<string, PendingAddonSummary[]> = {}
+    type AddonOrderRow = { id: string; document_submission_id: string | null; total_amount: number; payment_id: string | null; status: string }
+    for (const order of ((addonOrders ?? []) as AddonOrderRow[])) {
       if (!order.document_submission_id) continue
-      if (!addonMap[order.document_submission_id]) addonMap[order.document_submission_id] = []
-      addonMap[order.document_submission_id].push({ orderId: order.id, total_amount: Number(order.total_amount) })
+      if (order.status === 'approved') {
+        if (!addonMap[order.document_submission_id]) addonMap[order.document_submission_id] = []
+        addonMap[order.document_submission_id].push({ orderId: order.id, total_amount: Number(order.total_amount) })
+      } else if (order.status === 'pending') {
+        if (!pendingMap[order.document_submission_id]) pendingMap[order.document_submission_id] = []
+        pendingMap[order.document_submission_id].push({ orderId: order.id, total_amount: Number(order.total_amount) })
+      }
     }
     setApprovedAddonsBySubmission(addonMap)
+    setPendingAddonsBySubmission(pendingMap)
 
     setLoading(false)
   }, [supabase, router])
@@ -520,7 +549,7 @@ export default function BookingsPage() {
               <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : tab === 'services' ? (
-            <AvaledServicesTab submissions={submissions} paidIds={paidIds} approvedAddonsBySubmission={approvedAddonsBySubmission} />
+            <AvaledServicesTab submissions={submissions} paidIds={paidIds} approvedAddonsBySubmission={approvedAddonsBySubmission} pendingAddonsBySubmission={pendingAddonsBySubmission} />
           ) : (
             <SubmittedDocumentsTab submissions={submissions} />
           )}
