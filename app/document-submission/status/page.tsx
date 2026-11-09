@@ -134,6 +134,9 @@ function StatusContent() {
   const [loading,    setLoading]    = useState(true)
   const [notFound,   setNotFound]   = useState(false)
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({})
+  // Approved unpaid addon orders for this submission
+  const [addonTotal,    setAddonTotal]    = useState(0)
+  const [addonOrderIds, setAddonOrderIds] = useState('')
 
   // Batch-fetch signed URLs whenever submission changes
   useEffect(() => {
@@ -172,6 +175,22 @@ function StatusContent() {
         setLoading(false)
       })
 
+    // Fetch approved unpaid addon orders for this submission
+    supabase
+      .from('addon_orders')
+      .select('id, total_amount')
+      .eq('document_submission_id', id)
+      .eq('status', 'approved')
+      .is('payment_id', null)
+      .then(({ data: orders }) => {
+        if (orders && orders.length > 0) {
+          const total = orders.reduce((s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0)
+          const ids   = orders.map((o: { id: string }) => o.id).join(',')
+          setAddonTotal(total)
+          setAddonOrderIds(ids)
+        }
+      })
+
     // Real-time: status updates live
     const channel = supabase
       .channel(`doc-submission-status-${id}`)
@@ -206,7 +225,8 @@ function StatusContent() {
   const effectivePrice = submission.senior_pwd_discount && submission.discounted_price
     ? submission.discounted_price
     : (submission.product_price ?? 0)
-  const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${effectivePrice}${submission.senior_pwd_discount ? '&senior_pwd=1' : ''}`
+  const totalPrice = effectivePrice + addonTotal
+  const billingUrl = `/billing?document_submission_id=${submission.id}&product=${submission.product_type}&label=${encodeURIComponent(submission.product_label ?? '')}&price=${totalPrice}${submission.senior_pwd_discount ? '&senior_pwd=1' : ''}${addonOrderIds ? `&addon_order_ids=${encodeURIComponent(addonOrderIds)}` : ''}${addonTotal > 0 ? `&addon_total=${addonTotal}` : ''}`
 
   // Build the list of submitted documents
   const docs: { path: string; label: string }[] = [
