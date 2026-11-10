@@ -302,6 +302,14 @@ export function BillingForm({
   useEffect(() => { if (prefillEmail) setEmail(prefillEmail) }, [prefillEmail])
   useEffect(() => { if (prefillPhone) setPhone(prefillPhone) }, [prefillPhone])
 
+  // When addonTotal changes (async fetch in parent resolves), recompute the amount
+  useEffect(() => {
+    if (isUrn) return // urns have their own toggle logic
+    const updated = (discountedBase + addonTotal) > 0 ? String(discountedBase + addonTotal) : ''
+    if (updated) setAmount(updated)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addonTotal])
+
   const { clearDraft } = useDraftForm(
     `billing-draft-${preProduct}-${preSlot || 'noslot'}`,
     { name, email, phone, method, refNum, amount, notes: currentNotes },

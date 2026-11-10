@@ -46,6 +46,29 @@ function BillingContent() {
   const [prefillPhone, setPrefillPhone] = useState('')
   const [returnUrl,    setReturnUrl]    = useState('')
 
+  // ── Live addon total — fetched directly so stale/missing URL params don't matter ──
+  // We always re-query addon_orders for this document_submission_id so the
+  // Amount field is correct even if the link was shared without addon_total in the URL.
+  const [liveAddonTotal,    setLiveAddonTotal]    = useState(addonTotal)
+  const [liveAddonOrderIds, setLiveAddonOrderIds] = useState<string[]>(addonOrderIds)
+
+  useEffect(() => {
+    if (!documentSubmissionId) return
+    supabase
+      .from('addon_orders')
+      .select('id, total_amount')
+      .eq('document_submission_id', documentSubmissionId)
+      .eq('status', 'approved')
+      .is('payment_id', null)
+      .then(({ data }) => {
+        if (!data || data.length === 0) return
+        const total = data.reduce((s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0)
+        const ids   = data.map((o: { id: string }) => o.id)
+        setLiveAddonTotal(total)
+        setLiveAddonOrderIds(ids)
+      })
+  }, [supabase, documentSubmissionId])
+
    
   useEffect(() => {
     setReturnUrl(window.location.pathname + window.location.search)
@@ -93,14 +116,12 @@ function BillingContent() {
 
     // If there are addon orders, fetch their line items so the receipt can show per-item breakdown
     let addonItemsJson = ''
-    if (addonOrderIds.length > 0 && addonTotal > 0) {
+    if (liveAddonOrderIds.length > 0 && liveAddonTotal > 0) {
       const { data: addonItems } = await supabase
         .from('addon_order_items')
         .select('quantity, unit_price, addon:funeral_addons(name)')
-        .in('order_id', addonOrderIds)
+        .in('order_id', liveAddonOrderIds)
       if (addonItems && addonItems.length > 0) {
-        // Store compact JSON: [{n:"Flower Arrangement",q:2,p:1500},...]
-        // Supabase returns joined rows as an array, so addon may be Array<{name}> or {name} or null
         type RawItem = { quantity: number; unit_price: number; addon: unknown }
         const items = (addonItems as RawItem[]).map(i => {
           const a = i.addon
@@ -118,7 +139,7 @@ function BillingContent() {
       isUrn && includeServiceFee  ? `Includes ₱25,000 cremation service fee` : '',
       isUrn && !includeServiceFee ? `Urn only (service fee waived)` : '',
       isWakeExtension ? `Wake date extension payment` : '',
-      addonTotal > 0 ? `Add-ons total: ₱${addonTotal.toLocaleString('en-PH')}` : '',
+      liveAddonTotal > 0 ? `Add-ons total: ₱${liveAddonTotal.toLocaleString('en-PH')}` : '',
       addonItemsJson,
       notes.trim(),
     ].filter(Boolean).join(' · ') || null
@@ -145,11 +166,11 @@ function BillingContent() {
     if (insertErr) throw new Error(insertErr.message)
 
     // Link any approved addon orders to this payment
-    if (addonOrderIds.length > 0 && newPayment) {
+    if (liveAddonOrderIds.length > 0 && newPayment) {
       await supabase
         .from('addon_orders')
         .update({ payment_id: newPayment.id, status: 'paid' })
-        .in('id', addonOrderIds)
+        .in('id', liveAddonOrderIds)
     }
 
     // Save phone to profile for future prefill
@@ -195,7 +216,7 @@ function BillingContent() {
       preProduct={preProduct}
       preSlot={preSlot}
       preLevel={preLevel}
-      prePrice={prePrice}
+      prePrice={prePrice + liveAddonTotal}
       preLabel={preLabel}
       isColumbarium={isColumbarium}
       isUrn={isUrn}
@@ -211,7 +232,7 @@ function BillingContent() {
       prefillPhone={prefillPhone}
       seniorPwdDiscount={seniorPwdDiscount}
       documentSubmissionId={documentSubmissionId}
-      addonTotal={addonTotal}
+      addonTotal={liveAddonTotal}
       // Submit handler
       onSubmit={handleSubmit}
     />
