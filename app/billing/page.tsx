@@ -51,6 +51,9 @@ function BillingContent() {
   // Amount field is correct even if the link was shared without addon_total in the URL.
   const [liveAddonTotal,    setLiveAddonTotal]    = useState(addonTotal)
   const [liveAddonOrderIds, setLiveAddonOrderIds] = useState<string[]>(addonOrderIds)
+  // Don't render BillingForm until this fetch completes — otherwise useState(defaultAmount)
+  // inside BillingForm captures the wrong amount before the addon data arrives.
+  const [addonFetchDone, setAddonFetchDone] = useState(!documentSubmissionId)
 
   useEffect(() => {
     if (!documentSubmissionId) return
@@ -61,11 +64,13 @@ function BillingContent() {
       .eq('status', 'approved')
       .is('payment_id', null)
       .then(({ data }) => {
-        if (!data || data.length === 0) return
-        const total = data.reduce((s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0)
-        const ids   = data.map((o: { id: string }) => o.id)
-        setLiveAddonTotal(total)
-        setLiveAddonOrderIds(ids)
+        if (data && data.length > 0) {
+          const total = data.reduce((s: number, o: { total_amount: number }) => s + Number(o.total_amount), 0)
+          const ids   = data.map((o: { id: string }) => o.id)
+          setLiveAddonTotal(total)
+          setLiveAddonOrderIds(ids)
+        }
+        setAddonFetchDone(true)
       })
   }, [supabase, documentSubmissionId])
 
@@ -210,9 +215,18 @@ function BillingContent() {
     router.push('/?payment=success')
   }
 
+  // Wait for addon fetch before mounting BillingForm — otherwise useState(defaultAmount)
+  // inside BillingForm captures the pre-fetch amount and never updates.
+  if (!addonFetchDone) {
+    return (
+      <div className="py-20 flex justify-center">
+        <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <BillingForm
-      // Yung context neto is galing sa kung anong product ba yung nagsend sayo sa billing page for pre-fill
       preProduct={preProduct}
       preSlot={preSlot}
       preLevel={preLevel}
