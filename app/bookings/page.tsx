@@ -177,11 +177,13 @@ function AvaledServicesTab({
   paidIds,
   approvedAddonsBySubmission,
   pendingAddonsBySubmission,
+  pendingPaymentBySubmission,
 }: {
   submissions: DocumentSubmission[]
   paidIds: Set<string>
   approvedAddonsBySubmission: Record<string, ApprovedAddonSummary[]>
   pendingAddonsBySubmission: Record<string, PendingAddonSummary[]>
+  pendingPaymentBySubmission: Record<string, number>
 }) {
   if (submissions.length === 0) {
     return (
@@ -213,8 +215,13 @@ function AvaledServicesTab({
         const waitingAddons      = pendingAddonsBySubmission[sub.id] ?? []
         const waitingAddonTotal  = waitingAddons.reduce((s, a) => s + Number(a.total_amount), 0)
 
+        // If a payment has already been submitted (pending review), use that amount for display
+        const pendingPaymentAmt = pendingPaymentBySubmission[sub.id] ?? null
+        const displayTotal      = pendingPaymentAmt ?? totalPrice
+
         const billingUrl = `/billing?document_submission_id=${sub.id}&product=${sub.product_type}&label=${encodeURIComponent(sub.product_label ?? '')}&price=${totalPrice}${sub.senior_pwd_discount ? '&senior_pwd=1' : ''}${addonOrderIds ? `&addon_order_ids=${encodeURIComponent(addonOrderIds)}` : ''}${addonTotal > 0 ? `&addon_total=${addonTotal}` : ''}`
-        const isPaid = paidIds.has(sub.id)
+        const isPaid            = paidIds.has(sub.id)
+        const hasPendingPayment = pendingPaymentAmt !== null
 
         return (
           <div key={sub.id} className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -268,7 +275,7 @@ function AvaledServicesTab({
                         + ₱{Number(addonTotal).toLocaleString('en-PH')} add-ons
                       </p>
                       <p className="font-mono text-xs font-bold text-foreground">
-                        Total: ₱{Number(totalPrice).toLocaleString('en-PH')}
+                        Total: ₱{Number(displayTotal).toLocaleString('en-PH')}
                       </p>
                     </div>
                   )}
@@ -313,6 +320,13 @@ function AvaledServicesTab({
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-muted border border-border/60 px-3 py-1.5 rounded-lg cursor-not-allowed">
                     <CreditCard className="h-3 w-3" /> Payment Received
                   </span>
+                ) : hasPendingPayment ? (
+                  <Link
+                    href="/payments?filter=pending"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 px-3 py-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors"
+                  >
+                    <Clock className="h-3 w-3" /> Proceed to Pending Payment Review <ArrowRight className="h-3 w-3" />
+                  </Link>
                 ) : (
                   <Link
                     href={billingUrl}
@@ -423,6 +437,8 @@ export default function BookingsPage() {
   const [approvedAddonsBySubmission, setApprovedAddonsBySubmission] = useState<Record<string, ApprovedAddonSummary[]>>({})
   // pending addon orders grouped by document_submission_id (awaiting admin review)
   const [pendingAddonsBySubmission,  setPendingAddonsBySubmission]  = useState<Record<string, PendingAddonSummary[]>>({})
+  // pending payments already submitted — keyed by document_submission_id, value = amount paid
+  const [pendingPaymentBySubmission, setPendingPaymentBySubmission] = useState<Record<string, number>>({})
   const [loading,        setLoading]        = useState(true)
   const [tab,            setTab]            = useState<TabId>('services')
 
@@ -440,9 +456,9 @@ export default function BookingsPage() {
         .order('created_at', { ascending: false }),
       supabase
         .from('payments')
-        .select('document_submission_id')
+        .select('document_submission_id, status, amount')
         .eq('user_id', user.id)
-        .eq('status', 'approved')
+        .in('status', ['approved', 'pending'])
         .not('document_submission_id', 'is', null),
       // Fetch approved AND pending addon orders that haven't been linked to a payment yet
       supabase
@@ -454,10 +470,19 @@ export default function BookingsPage() {
     ])
 
     setSubmissions((subs as DocumentSubmission[]) ?? [])
+
+    type PaymentRow = { document_submission_id: string | null; status: string; amount: number }
+    const paymentRows = ((payments ?? []) as PaymentRow[])
     setPaidIds(new Set(
-      ((payments as Pick<Payment, 'document_submission_id'>[]) ?? [])
-        .map(p => p.document_submission_id!)
+      paymentRows.filter(p => p.status === 'approved').map(p => p.document_submission_id!)
     ))
+    // Track pending (submitted but not yet approved) payments by submission so we can
+    // show the correct total amount and avoid duplicate payment attempts
+    const pendingPayMap: Record<string, number> = {}
+    for (const p of paymentRows.filter(p => p.status === 'pending')) {
+      if (p.document_submission_id) pendingPayMap[p.document_submission_id] = Number(p.amount)
+    }
+    setPendingPaymentBySubmission(pendingPayMap)
 
     // Group addon orders by document_submission_id — split approved (payable) vs pending (awaiting review)
     const addonMap: Record<string, ApprovedAddonSummary[]> = {}
@@ -549,7 +574,7 @@ export default function BookingsPage() {
               <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : tab === 'services' ? (
-            <AvaledServicesTab submissions={submissions} paidIds={paidIds} approvedAddonsBySubmission={approvedAddonsBySubmission} pendingAddonsBySubmission={pendingAddonsBySubmission} />
+            <AvaledServicesTab submissions={submissions} paidIds={paidIds} approvedAddonsBySubmission={approvedAddonsBySubmission} pendingAddonsBySubmission={pendingAddonsBySubmission} pendingPaymentBySubmission={pendingPaymentBySubmission} />
           ) : (
             <SubmittedDocumentsTab submissions={submissions} />
           )}
