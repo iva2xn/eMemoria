@@ -195,6 +195,14 @@ function ReviewApproveModal({ submission, onClose, onApproved, onRejected }: {
         discounted_price: seniorPwd ? discountedPrice : null,
       }).eq('id', submission.id)
 
+      // Auto-approve any pending addon orders for this submission so the
+      // client doesn't need a separate approval step before paying.
+      await supabase
+        .from('addon_orders')
+        .update({ status: 'approved', reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
+        .eq('document_submission_id', submission.id)
+        .eq('status', 'pending')
+
       // Note: client_notifications is handled by the DB trigger on document_submissions status change.
       // No manual insert needed here — doing so would create duplicates.
 

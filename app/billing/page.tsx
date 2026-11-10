@@ -61,7 +61,7 @@ function BillingContent() {
       .from('addon_orders')
       .select('id, total_amount')
       .eq('document_submission_id', documentSubmissionId)
-      .eq('status', 'approved')
+      .in('status', ['approved', 'pending'])
       .is('payment_id', null)
       .then(({ data }) => {
         if (data && data.length > 0) {
